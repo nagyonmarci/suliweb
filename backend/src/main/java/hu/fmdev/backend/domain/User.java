@@ -35,7 +35,7 @@ public class User {
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "authority_id")
     )
+
     private Set<Authority> authorities = new HashSet<>();
 
-    // Standard getters and setters
 }
