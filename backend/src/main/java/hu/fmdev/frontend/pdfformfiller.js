@@ -1,7 +1,7 @@
 function submitForm() {
     const jsonData = document.getElementById('jsonData').value;
 
-    fetch('http://localhost:8080/api/pdf/fill', {
+    fetch('http://localhost:8080/pdf/fill', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
