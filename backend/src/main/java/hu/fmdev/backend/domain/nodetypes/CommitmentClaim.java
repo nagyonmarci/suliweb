@@ -15,9 +15,8 @@ public class CommitmentClaim extends BaseNodeType {
     @Enumerated(EnumType.STRING)
     private PaymentMethod paymentMethod; // Fizetés módja
 
-    // Szolgáltató - feltételezve, hogy van egy ServiceProvider entitás
     @ManyToOne
-    private ServiceProvider serviceProvider;
+    private ServiceProvider serviceProvider; // Szolgáltató
 
     @Column(length = 1000)
     private String reason; // Kötelezettségvállalás indoklása
