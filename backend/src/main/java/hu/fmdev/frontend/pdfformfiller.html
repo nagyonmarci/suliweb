@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Form Filler</title>
+</head>
+<body>
+<h1>PDF Form Filler</h1>
+<textarea id="jsonData" rows="10" cols="50">{
+  "templatePath": "form_template.pdf",
+  "formData": {
+    "name": "János Doe",
+    "date": "2024-01-01",
+    "email": "senki@gmail.com"
+  }
+}</textarea>
+<button onclick="submitForm()">Submit</button>
+
+<script src="pdfformfiller.js"></script>
+</body>
+</html>
