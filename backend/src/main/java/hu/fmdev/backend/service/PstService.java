@@ -13,7 +13,10 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.List;
 
 @Service
 public class PstService {
@@ -21,12 +24,40 @@ public class PstService {
     @Autowired
     private EmailRepository emailRepository;
 
-    public String processPstFile(MultipartFile file) {
+    public String processPstFileFromUpload(MultipartFile file) {
         try {
             File pstFile = convertMultiPartToFile(file);
             PSTFile pst = new PSTFile(pstFile.getAbsolutePath());
             processFolder(pst.getRootFolder(), pstFile.getName(), "");
             pstFile.delete();
+            return "PST file processed successfully";
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "Error processing PST file";
+        }
+    }
+
+    public void processPstFilesFromTxt(String txtFilePath) {
+        try {
+            List<String> pstFilePaths = Files.readAllLines(Paths.get(txtFilePath));
+            for (String pstFilePath : pstFilePaths) {
+                String result = processPstFile(pstFilePath);
+                System.out.println(result);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public String processPstFile(String filePath) {
+        File pstFile = new File(filePath);
+        if (!pstFile.exists() || !pstFile.canRead()) {
+            return "Error: File does not exist or cannot be read";
+        }
+
+        try {
+            PSTFile pst = new PSTFile(pstFile.getAbsolutePath());
+            processFolder(pst.getRootFolder(), pstFile.getName(), "");
             return "PST file processed successfully";
         } catch (Exception e) {
             e.printStackTrace();
