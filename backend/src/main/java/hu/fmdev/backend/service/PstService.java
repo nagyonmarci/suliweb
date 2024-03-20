@@ -1,10 +1,14 @@
 package hu.fmdev.backend.service;
 
+import com.pff.PSTAttachment;
 import com.pff.PSTFile;
 import com.pff.PSTFolder;
 import com.pff.PSTMessage;
 import hu.fmdev.backend.domain.Email;
 import hu.fmdev.backend.repository.EmailRepository;
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -14,15 +18,20 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 @Service
+@Slf4j
 public class PstService {
 
     @Autowired
     private EmailRepository emailRepository;
+
+    private static final Logger logger = LoggerFactory.getLogger(PstService.class);
 
     public String processPstFileFromUpload(MultipartFile file) {
         try {
@@ -78,26 +87,56 @@ public class PstService {
         return convFile;
     }
 
+    private List<String> saveAttachments(PSTMessage message, String pstFileName, String descriptorNodeId) throws Exception {
+        List<String> attachmentPaths = new ArrayList<>();
+        String attachmentsDirPath = "C:/attachments/" + pstFileName + "/" + descriptorNodeId;
+        Path directoryPath = Paths.get(attachmentsDirPath);
+
+        if (!Files.exists(directoryPath)) {
+            Files.createDirectories(directoryPath);
+        }
+
+        int attachmentCount = message.getNumberOfAttachments();
+        for (int i = 0; i < attachmentCount; i++) {
+            PSTAttachment attachment = message.getAttachment(i);
+            String filename = attachment.getLongFilename();
+            if (filename == null || filename.isEmpty()) {
+                filename = "attachment" + i;
+            }
+            Path filePath = directoryPath.resolve(filename);
+            File attachmentFile = filePath.toFile();
+
+            try (OutputStream os = new FileOutputStream(attachmentFile)) {
+                byte[] buffer = new byte[8192];
+                InputStream in = attachment.getFileInputStream();
+                int len;
+                while ((len = in.read(buffer)) > 0) {
+                    os.write(buffer, 0, len);
+                }
+            }
+            attachmentPaths.add(filePath.toString());
+        }
+        return attachmentPaths;
+    }
+
     private void processFolder(PSTFolder folder, String pstFileName, String parentFolderPath) throws Exception {
         String currentFolderPath = parentFolderPath.isEmpty() ? folder.getDisplayName() : parentFolderPath + "/" + folder.getDisplayName();
-
         if (folder.getContentCount() > 0) {
             PSTMessage message = (PSTMessage) folder.getNextChild();
             while (message != null) {
-                Email email = new Email();
-                email.setPstFileName(pstFileName);
-                email.setFolderPath(currentFolderPath);
-                email.setSenderEmailAddress(message.getSenderEmailAddress());
-                email.setSenderName(message.getSenderName());
-                email.setSubject(message.getSubject());
-                email.setReceivedTime(message.getMessageDeliveryTime());
-                email.setBody(message.getBody());
+                try {
+                    // Itt ellenőrizheted az üzenet típusát
+                    if (isSupportedMessageType(message)) {
+                        // Feldolgozás, ha az üzenettípus támogatott
+                        processMessage(message, pstFileName, currentFolderPath);
+                    } else {
+                        // Naplózás, ha az üzenettípus nem támogatott
+                        logger.warn("Ismeretlen vagy nem támogatott üzenettípus: {} a következőben: {}", message.getMessageClass(), pstFileName);
+                    }
+                } catch (Exception e) {
+                    logger.error("Hiba az üzenet feldolgozása közben", e);
+                }
 
-                email.setRecipients(Arrays.asList(message.getDisplayTo().split(";")));
-                email.setCc(Arrays.asList(message.getDisplayCC().split(";")));
-                email.setBcc(Arrays.asList(message.getDisplayBCC().split(";")));
-
-                emailRepository.save(email);
                 message = (PSTMessage) folder.getNextChild();
             }
         }
@@ -108,4 +147,36 @@ public class PstService {
         }
     }
 
+    private boolean isSupportedMessageType(PSTMessage message) {
+        String messageType = message.getMessageClass();
+        return messageType.startsWith("IPM.Note");
+    }
+
+    private void processMessage(PSTMessage message, String pstFileName, String currentFolderPath) {
+
+        String descriptorNodeId = Long.toString(message.getDescriptorNodeId());
+        Email email = emailRepository.findByDescriptorNodeId(descriptorNodeId)
+                .orElse(new Email());
+        email.setDescriptorNodeId(descriptorNodeId);
+        email.setPstFileName(pstFileName);
+        email.setFolderPath(currentFolderPath);
+        email.setSenderEmailAddress(message.getSenderEmailAddress());
+        email.setSenderName(message.getSenderName());
+        email.setSubject(message.getSubject());
+        email.setReceivedTime(message.getMessageDeliveryTime());
+        email.setBody(message.getBody());
+
+        email.setRecipients(Arrays.asList(message.getDisplayTo().split(";")));
+        email.setCc(Arrays.asList(message.getDisplayCC().split(";")));
+        email.setBcc(Arrays.asList(message.getDisplayBCC().split(";")));
+
+        List<String> attachmentPaths = null;
+        try {
+            attachmentPaths = saveAttachments(message, pstFileName, descriptorNodeId);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        email.setAttachmentPaths(attachmentPaths);
+        emailRepository.save(email);
+    }
 }

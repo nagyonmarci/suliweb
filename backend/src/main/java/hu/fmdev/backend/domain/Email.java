@@ -3,6 +3,7 @@ package hu.fmdev.backend.domain;
 import lombok.Data;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.Date;
@@ -14,6 +15,8 @@ import java.util.List;
 public class Email {
     @Id
     private String id;
+    @Indexed(unique = true)
+    private String descriptorNodeId;
     private String pstFileName;
     private String folderPath;
     private String senderEmailAddress;
@@ -24,4 +27,5 @@ public class Email {
     private String subject;
     private Date receivedTime;
     private String body;
+    private List<String> attachmentPaths;
 }
