@@ -16,7 +16,7 @@ public class Email {
     @Id
     private String id;
     @Indexed(unique = true)
-    private String descriptorNodeId;
+    private String uniqueEntryId;
     private String pstFileName;
     private String folderPath;
     private String senderEmailAddress;

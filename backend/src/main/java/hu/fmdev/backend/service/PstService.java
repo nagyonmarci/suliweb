@@ -17,9 +17,12 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -154,10 +157,12 @@ public class PstService {
 
     private void processMessage(PSTMessage message, String pstFileName, String currentFolderPath) {
 
-        String descriptorNodeId = Long.toString(message.getDescriptorNodeId());
-        Email email = emailRepository.findByDescriptorNodeId(descriptorNodeId)
+        String uniqueEntryId = generateUniqueEntryId(pstFileName, message.getDescriptorNodeId());
+
+
+        Email email = emailRepository.findByUniqueEntryId(uniqueEntryId)
                 .orElse(new Email());
-        email.setDescriptorNodeId(descriptorNodeId);
+        email.setUniqueEntryId(uniqueEntryId);
         email.setPstFileName(pstFileName);
         email.setFolderPath(currentFolderPath);
         email.setSenderEmailAddress(message.getSenderEmailAddress());
@@ -172,11 +177,32 @@ public class PstService {
 
         List<String> attachmentPaths = null;
         try {
-            attachmentPaths = saveAttachments(message, pstFileName, descriptorNodeId);
+            attachmentPaths = saveAttachments(message, pstFileName, uniqueEntryId);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
         email.setAttachmentPaths(attachmentPaths);
         emailRepository.save(email);
     }
+    public String generateUniqueEntryId(String pstFileName, long descriptorNodeId) {
+        try {
+            String identifier = pstFileName + "-" + descriptorNodeId;
+
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(identifier.getBytes(StandardCharsets.UTF_8));
+
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+
+            return hexString.toString();
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+            return pstFileName + "-" + descriptorNodeId;
+        }
+    }
+
 }
