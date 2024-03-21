@@ -13,10 +13,7 @@ import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -27,12 +24,13 @@ public class PstSearchService {
     @Autowired
     private FileInfoRepository fileInfoRepository;
 
-    public List<FileInfo> findPstFiles(List<String> directories) throws IOException {
+    public List<FileInfo> findPstFiles(List<String> directories, List<String> excludedDirectories) throws IOException {
         List<FileInfo> foundFiles = new ArrayList<>();
         for (String directory : directories) {
             try (Stream<Path> paths = Files.walk(Paths.get(directory))) {
                 List<FileInfo> filesInDirectory = paths
                         .filter(Files::isRegularFile)
+                        .filter(file -> excludedDirectories.stream().noneMatch(excludedDir -> file.toString().startsWith(excludedDir)))
                         .filter(file -> file.toString().endsWith(".pst"))
                         .map(file -> {
                             try {
@@ -54,6 +52,7 @@ public class PstSearchService {
         }
         return foundFiles;
     }
+
 
     public void saveOrUpdateFileInfo(List<FileInfo> fileInfoList) {
         fileInfoList.forEach(fileInfo -> {

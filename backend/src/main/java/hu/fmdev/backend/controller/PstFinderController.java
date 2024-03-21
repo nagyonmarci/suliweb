@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -26,13 +27,16 @@ public class PstFinderController {
     private FileWriterUtil fileWriterUtil;
 
     @GetMapping("/pst")
-    public ResponseEntity<String> searchAndWritePst(@RequestParam List<String> directories, @RequestParam String outputFile) {
+    public ResponseEntity<String> searchAndWritePst(@RequestParam List<String> directories, @RequestParam(required = false) List<String> excludedDirectories, @RequestParam String outputFile) {
+        if (excludedDirectories == null) {
+            excludedDirectories = new ArrayList<>();
+        }
         try {
             if (directories.isEmpty()) {
                 return ResponseEntity.badRequest().body("A keresési könyvtárak listája nem lehet üres.");
             }
 
-            List<FileInfo> fileInfos = searchService.findPstFiles(directories);
+            List<FileInfo> fileInfos = searchService.findPstFiles(directories, excludedDirectories);
             searchService.saveOrUpdateFileInfo(fileInfos);
 
             fileWriterUtil.writeFileInfoToFile(fileInfos, outputFile);
