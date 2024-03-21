@@ -26,8 +26,8 @@ public class PstFinderController {
     @Autowired
     private FileWriterUtil fileWriterUtil;
 
-    @GetMapping("/pst")
-    public ResponseEntity<String> searchAndWritePst(@RequestParam List<String> directories, @RequestParam(required = false) List<String> excludedDirectories, @RequestParam String outputFile) {
+    @GetMapping("/pstToTxt")
+    public ResponseEntity<String> searchAndWritePstToTxt(@RequestParam List<String> directories, @RequestParam(required = false) List<String> excludedDirectories, @RequestParam String outputFile) {
         if (excludedDirectories == null) {
             excludedDirectories = new ArrayList<>();
         }
@@ -47,4 +47,25 @@ public class PstFinderController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Hiba történt: " + e.getMessage());
         }
     }
+
+    @GetMapping("/pst")
+    public ResponseEntity<String> searchAndWritePst(@RequestParam List<String> directories, @RequestParam(required = false) List<String> excludedDirectories, @RequestParam String outputFile) {
+        if (excludedDirectories == null) {
+            excludedDirectories = new ArrayList<>();
+        }
+        try {
+            if (directories.isEmpty()) {
+                return ResponseEntity.badRequest().body("A keresési könyvtárak listája nem lehet üres.");
+            }
+
+            searchService.findAndSavePstFiles(directories, excludedDirectories);
+
+            return ResponseEntity.ok("Fájlok sikeresen feldolgozva és elmentve az adatbázisba.");
+        } catch (Exception e) {
+            log.error("Hiba a PST fájlok feldolgozása során: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Hiba történt: " + e.getMessage());
+        }
+    }
+
+
 }

@@ -30,8 +30,8 @@ public class PstSearchService {
             try (Stream<Path> paths = Files.walk(Paths.get(directory))) {
                 List<FileInfo> filesInDirectory = paths
                         .filter(Files::isRegularFile)
-                        .filter(file -> excludedDirectories.stream().noneMatch(excludedDir -> file.toString().startsWith(excludedDir)))
                         .filter(file -> file.toString().endsWith(".pst"))
+                        .filter(file -> excludedDirectories.stream().noneMatch(excludedDir -> file.toString().startsWith(excludedDir)))
                         .map(file -> {
                             try {
                                 return new FileInfo(
@@ -60,11 +60,12 @@ public class PstSearchService {
             if (existingFileInfo.isPresent()) {
                 FileInfo updateInfo = existingFileInfo.get();
                 boolean needsUpdate = !updateInfo.getLastModified().equals(fileInfo.getLastModified())
-                        || updateInfo.getSize() != fileInfo.getSize();
+                        || updateInfo.getSize() != fileInfo.getSize()
+                        || "Törölt".equals(updateInfo.getStatus()); // Ellenőrzés, hogy a státusz "Törölt" volt-e
                 if (needsUpdate) {
                     updateInfo.setLastModified(fileInfo.getLastModified());
                     updateInfo.setSize(fileInfo.getSize());
-                    updateInfo.setStatus("Módosított");
+                    updateInfo.setStatus("Módosított"); // Státusz frissítése "Módosítottra", ha a fájl korábban "Törölt" volt
                     fileInfoRepository.save(updateInfo);
                 }
             } else {
@@ -72,6 +73,7 @@ public class PstSearchService {
             }
         });
 
+        // A "Törölt" státuszú fájlok frissítése, amelyek nem szerepelnek a jelenlegi listában
         List<FileInfo> allFileInfo = fileInfoRepository.findAll();
         allFileInfo.forEach(storedFileInfo -> {
             if (fileInfoList.stream().noneMatch(f -> f.getPath().equals(storedFileInfo.getPath()))) {
@@ -81,6 +83,36 @@ public class PstSearchService {
         });
 
         log.info("Fájlinformációk frissítve és mentve az adatbázisban.");
+    }
+
+    public void findAndSavePstFiles(List<String> directories, List<String> excludedDirectories) {
+        for (String directory : directories) {
+            Path startPath = Paths.get(directory);
+            try (Stream<Path> paths = Files.walk(startPath)) {
+                paths
+                        .filter(Files::isRegularFile)
+                        .forEach(file -> {
+                            try {
+                                // Ellenőrzés, hogy a fájl elérési útja nem kezdődik-e egy kizárt könyvtár útvonalával
+                                if (excludedDirectories.stream().noneMatch(excludedDir -> file.startsWith(Paths.get(excludedDir)))) {
+                                    if (Files.isReadable(file) && file.toString().endsWith(".pst")) {
+                                        FileInfo fileInfo = new FileInfo(
+                                                file.toString(),
+                                                Files.size(file),
+                                                LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(file).toMillis()), ZoneId.systemDefault()),
+                                                "Új");
+                                        fileInfoRepository.save(fileInfo);
+                                        log.info("PST fájl mentve az adatbázisba: " + file);
+                                    }
+                                }
+                            } catch (IOException e) {
+                                log.error("Hiba történt a fájl olvasása közben, hozzáférés megtagadva vagy más IO probléma: " + file, e);
+                            }
+                        });
+            } catch (IOException e) {
+                log.error("Hiba történt a könyvtár bejárása közben: " + startPath, e);
+            }
+        }
     }
 
 }
