@@ -1,5 +1,6 @@
 package hu.fmdev.backend.util;
 
+import hu.fmdev.backend.domain.FileInfo;
 import org.springframework.stereotype.Component;
 
 import java.io.BufferedWriter;
@@ -10,10 +11,10 @@ import java.util.List;
 @Component
 public class FileWriterUtil {
 
-    public void writePathsToFile(List<String> paths, String fileName) throws IOException {
+    public void writeFileInfoToFile(List<FileInfo> fileInfos, String fileName) throws IOException {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName))) {
-            for (String path : paths) {
-                writer.write(path);
+            for (FileInfo fileInfo : fileInfos) {
+                writer.write(fileInfo.toString());
                 writer.newLine();
             }
         }
