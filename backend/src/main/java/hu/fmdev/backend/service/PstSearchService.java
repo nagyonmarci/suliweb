@@ -91,22 +91,25 @@ public class PstSearchService {
             try (Stream<Path> paths = Files.walk(startPath)) {
                 paths
                         .filter(Files::isRegularFile)
+                        .filter(file -> file.toString().endsWith(".pst"))
+                        .filter(file -> excludedDirectories.stream().noneMatch(excludedDir -> file.toString().startsWith(excludedDir)))
                         .forEach(file -> {
                             try {
-                                // Ellenőrzés, hogy a fájl elérési útja nem kezdődik-e egy kizárt könyvtár útvonalával
-                                if (excludedDirectories.stream().noneMatch(excludedDir -> file.startsWith(Paths.get(excludedDir)))) {
-                                    if (Files.isReadable(file) && file.toString().endsWith(".pst")) {
-                                        FileInfo fileInfo = new FileInfo(
-                                                file.toString(),
-                                                Files.size(file),
-                                                LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(file).toMillis()), ZoneId.systemDefault()),
-                                                "Új");
-                                        fileInfoRepository.save(fileInfo);
-                                        log.info("PST fájl mentve az adatbázisba: " + file);
-                                    }
+                                if (!Files.isReadable(file)) {
+                                    log.warn("Nincs olvasási jogosultság: " + file);
+                                    return;
                                 }
+
+                                FileInfo fileInfo = new FileInfo(
+                                        file.toString(),
+                                        Files.size(file),
+                                        LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(file).toMillis()), ZoneId.systemDefault()),
+                                        "Új");
+                                fileInfoRepository.save(fileInfo);
+                                log.info("PST fájl mentve az adatbázisba: " + file);
+
                             } catch (IOException e) {
-                                log.error("Hiba történt a fájl olvasása közben, hozzáférés megtagadva vagy más IO probléma: " + file, e);
+                                log.error("Hiba történt a fájl olvasása közben: " + file, e);
                             }
                         });
             } catch (IOException e) {
