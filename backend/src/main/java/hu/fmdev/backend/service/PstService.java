@@ -128,18 +128,14 @@ public class PstService {
             PSTMessage message = (PSTMessage) folder.getNextChild();
             while (message != null) {
                 try {
-                    // Itt ellenőrizheted az üzenet típusát
                     if (isSupportedMessageType(message)) {
-                        // Feldolgozás, ha az üzenettípus támogatott
                         processMessage(message, pstFileName, currentFolderPath);
                     } else {
-                        // Naplózás, ha az üzenettípus nem támogatott
                         logger.warn("Ismeretlen vagy nem támogatott üzenettípus: {} a következőben: {}", message.getMessageClass(), pstFileName);
                     }
                 } catch (Exception e) {
                     logger.error("Hiba az üzenet feldolgozása közben", e);
                 }
-
                 message = (PSTMessage) folder.getNextChild();
             }
         }
@@ -170,7 +166,7 @@ public class PstService {
         email.setSubject(message.getSubject());
         email.setReceivedTime(message.getMessageDeliveryTime());
         email.setBody(message.getBody());
-
+        email.setHtmlContent(message.getBodyHTML());
         email.setRecipients(Arrays.asList(message.getDisplayTo().split(";")));
         email.setCc(Arrays.asList(message.getDisplayCC().split(";")));
         email.setBcc(Arrays.asList(message.getDisplayBCC().split(";")));

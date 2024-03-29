@@ -28,4 +28,5 @@ public class Email {
     private Date receivedTime;
     private String body;
     private List<String> attachmentPaths;
+    private String htmlContent;
 }
