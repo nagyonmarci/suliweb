@@ -6,10 +6,9 @@ import com.pff.PSTFolder;
 import com.pff.PSTMessage;
 import hu.fmdev.backend.domain.Email;
 import hu.fmdev.backend.repository.EmailRepository;
-import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -25,62 +24,77 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 @Service
-@Slf4j
 public class PstService {
-
-    @Autowired
-    private EmailRepository emailRepository;
-
+    private final EmailRepository emailRepository;
+    @Value("${attachments.directory}")
+    private String attachmentsDirectory;
     private static final Logger logger = LoggerFactory.getLogger(PstService.class);
+
+    public PstService(EmailRepository emailRepository) {
+        this.emailRepository = emailRepository;
+    }
 
     public String processPstFileFromUpload(MultipartFile file) {
         try {
             File pstFile = convertMultiPartToFile(file);
             PSTFile pst = new PSTFile(pstFile.getAbsolutePath());
-            processFolder(pst.getRootFolder(), pstFile.getName(), "");
-            pstFile.delete();
+            processFolder(pst.getRootFolder(), pstFile.getName());
+            Files.deleteIfExists(pstFile.toPath());
             return "PST file processed successfully";
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Error processing PST file", e);
             return "Error processing PST file";
         }
     }
 
     public void processPstFilesFromTxt(String txtFilePath) {
         try {
-            List<String> pstFilePaths = Files.readAllLines(Paths.get(txtFilePath));
-            for (String pstFilePath : pstFilePaths) {
+            Files.lines(Paths.get(txtFilePath)).forEach(pstFilePath -> {
                 String result = processPstFile(pstFilePath);
-                System.out.println(result);
-            }
+                logger.info(result);
+            });
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Error processing PST files from txt", e);
         }
     }
 
     public String processPstFile(String filePath) {
         File pstFile = new File(filePath);
         if (!pstFile.exists() || !pstFile.canRead()) {
-            return "Error: File does not exist or cannot be read";
+            String errorMessage = "Error: File does not exist or cannot be read at " + filePath;
+            logger.error(errorMessage);
+            return errorMessage;
         }
 
+        PSTFile pst = null;
         try {
-            PSTFile pst = new PSTFile(pstFile.getAbsolutePath());
-            processFolder(pst.getRootFolder(), pstFile.getName(), "");
+            pst = new PSTFile(pstFile.getAbsolutePath());
+            processFolder(pst.getRootFolder(), pstFile.getName());
             return "PST file processed successfully";
         } catch (Exception e) {
-            e.printStackTrace();
-            return "Error processing PST file";
+            String errorMessage = "Error processing PST file at " + filePath;
+            logger.error(errorMessage, e);
+            return errorMessage;
+        } finally {
+            if (pst != null) {
+                try {
+                    pst.close();
+                } catch (Exception e) {
+                    logger.error("Failed to close PST file at " + filePath, e);
+                }
+            }
         }
     }
 
+
     private File convertMultiPartToFile(MultipartFile file) throws Exception {
         File convFile = new File(file.getOriginalFilename());
-        try (OutputStream os = new FileOutputStream(convFile)) {
-            InputStream is = file.getInputStream();
+        try (OutputStream os = new FileOutputStream(convFile);
+             InputStream is = file.getInputStream()) {
             byte[] buffer = new byte[1024];
             int bytesRead;
             while ((bytesRead = is.read(buffer)) != -1) {
@@ -90,95 +104,70 @@ public class PstService {
         return convFile;
     }
 
-    private List<String> saveAttachments(PSTMessage message, String pstFileName, String descriptorNodeId) throws Exception {
-        List<String> attachmentPaths = new ArrayList<>();
-        String attachmentsDirPath = "C:/attachments/" + pstFileName + "/" + descriptorNodeId;
-        Path directoryPath = Paths.get(attachmentsDirPath);
-
-        if (!Files.exists(directoryPath)) {
-            Files.createDirectories(directoryPath);
-        }
-
-        int attachmentCount = message.getNumberOfAttachments();
-        for (int i = 0; i < attachmentCount; i++) {
-            PSTAttachment attachment = message.getAttachment(i);
-            String filename = attachment.getLongFilename();
-            if (filename == null || filename.isEmpty()) {
-                filename = "attachment" + i;
-            }
-            Path filePath = directoryPath.resolve(filename);
-            File attachmentFile = filePath.toFile();
-
-            try (OutputStream os = new FileOutputStream(attachmentFile)) {
-                byte[] buffer = new byte[8192];
-                InputStream in = attachment.getFileInputStream();
-                int len;
-                while ((len = in.read(buffer)) > 0) {
-                    os.write(buffer, 0, len);
-                }
-            }
-            attachmentPaths.add(filePath.toString());
-        }
-        return attachmentPaths;
-    }
-
-    private void processFolder(PSTFolder folder, String pstFileName, String parentFolderPath) throws Exception {
-        String currentFolderPath = parentFolderPath.isEmpty() ? folder.getDisplayName() : parentFolderPath + "/" + folder.getDisplayName();
-        if (folder.getContentCount() > 0) {
-            PSTMessage message = (PSTMessage) folder.getNextChild();
-            while (message != null) {
-                try {
-                    if (isSupportedMessageType(message)) {
-                        processMessage(message, pstFileName, currentFolderPath);
-                    } else {
-                        logger.warn("Ismeretlen vagy nem támogatott üzenettípus: {} a következőben: {}", message.getMessageClass(), pstFileName);
-                    }
-                } catch (Exception e) {
-                    logger.error("Hiba az üzenet feldolgozása közben", e);
-                }
-                message = (PSTMessage) folder.getNextChild();
-            }
-        }
+    private void processFolder(PSTFolder folder, String pstFileName) throws Exception {
+        String currentFolderPath = folder.getDisplayName();
+        processMessages(folder, pstFileName, currentFolderPath);
         if (folder.hasSubfolders()) {
             for (PSTFolder subFolder : folder.getSubFolders()) {
-                processFolder(subFolder, pstFileName, currentFolderPath);
+                processFolder(subFolder, pstFileName);
             }
         }
     }
 
-    private boolean isSupportedMessageType(PSTMessage message) {
-        String messageType = message.getMessageClass();
-        return messageType.startsWith("IPM.Note");
+    private void processMessage(PSTMessage message, String pstFileName, String currentFolderPath) throws Exception {
+        String uniqueEntryId = generateUniqueEntryId(pstFileName, message.getDescriptorNodeId());
+        Email email = emailRepository.findByUniqueEntryId(uniqueEntryId)
+                .orElseGet(() -> createNewEmail(uniqueEntryId, pstFileName, currentFolderPath));
+        updateEmailWithMessageDetails(email, message);
+        saveEmailWithAttachments(email, message, pstFileName, uniqueEntryId);
+        emailRepository.save(email);
     }
 
-    private void processMessage(PSTMessage message, String pstFileName, String currentFolderPath) {
 
-        String uniqueEntryId = generateUniqueEntryId(pstFileName, message.getDescriptorNodeId());
+    private void processMessages(PSTFolder folder, String pstFileName, String currentFolderPath) throws Exception {
+        PSTMessage message = (PSTMessage) folder.getNextChild();
+        while (message != null) {
+            if (isSupportedMessageType(message)) {
+                processMessage(message, pstFileName, currentFolderPath);
+            } else {
+                logger.warn("Unsupported message type: {} in {}", message.getMessageClass(), pstFileName);
+            }
+            message = (PSTMessage) folder.getNextChild();
+        }
+    }
 
-
-        Email email = emailRepository.findByUniqueEntryId(uniqueEntryId)
-                .orElse(new Email());
+    private Email createNewEmail(String uniqueEntryId, String pstFileName, String currentFolderPath) {
+        Email email = new Email();
         email.setUniqueEntryId(uniqueEntryId);
         email.setPstFileName(pstFileName);
         email.setFolderPath(currentFolderPath);
+        return email;
+    }
+
+    private void updateEmailWithMessageDetails(Email email, PSTMessage message) {
         email.setSenderEmailAddress(message.getSenderEmailAddress());
         email.setSenderName(message.getSenderName());
         email.setSubject(message.getSubject());
         email.setReceivedTime(message.getMessageDeliveryTime());
         email.setBody(message.getBody());
         email.setHtmlContent(message.getBodyHTML());
-        email.setRecipients(Arrays.asList(message.getDisplayTo().split(";")));
-        email.setCc(Arrays.asList(message.getDisplayCC().split(";")));
-        email.setBcc(Arrays.asList(message.getDisplayBCC().split(";")));
+        email.setRecipients(splitStringToList(message.getDisplayTo()));
+        email.setCc(splitStringToList(message.getDisplayCC()));
+        email.setBcc(splitStringToList(message.getDisplayBCC()));
+    }
 
-        List<String> attachmentPaths = null;
+    private void saveEmailWithAttachments(Email email, PSTMessage message, String pstFileName, String uniqueEntryId) throws Exception {
         try {
-            attachmentPaths = saveAttachments(message, pstFileName, uniqueEntryId);
+            List<String> attachmentPaths = saveAttachments(message, pstFileName, uniqueEntryId);
+            email.setAttachmentPaths(attachmentPaths);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new Exception("Failed to save attachments.", e);
         }
-        email.setAttachmentPaths(attachmentPaths);
         emailRepository.save(email);
+    }
+
+    private List<String> splitStringToList(String input) {
+        return input == null || input.isEmpty() ? Collections.emptyList() : Arrays.asList(input.split(";"));
     }
 
     public String generateUniqueEntryId(String pstFileName, long descriptorNodeId) {
@@ -201,5 +190,43 @@ public class PstService {
             return pstFileName + "-" + descriptorNodeId;
         }
     }
+
+    private boolean isSupportedMessageType(PSTMessage message) {
+        String messageType = message.getMessageClass();
+        return messageType.startsWith("IPM.Note");
+    }
+
+    private List<String> saveAttachments(PSTMessage message, String pstFileName, String uniqueEntryId) throws Exception {
+        List<String> attachmentPaths = new ArrayList<>();
+        String attachmentsDirPath = attachmentsDirectory + "/" + pstFileName + "/" + uniqueEntryId;
+        Path directoryPath = Paths.get(attachmentsDirPath);
+
+        if (!Files.exists(directoryPath)) {
+            Files.createDirectories(directoryPath);
+        }
+
+        int attachmentCount = message.getNumberOfAttachments();
+        for (int i = 0; i < attachmentCount; i++) {
+            PSTAttachment attachment = message.getAttachment(i);
+            String filename = attachment.getLongFilename();
+            if (filename == null || filename.isEmpty()) {
+                filename = "attachment" + i;
+            }
+            Path filePath = directoryPath.resolve(filename);
+            File attachmentFile = filePath.toFile();
+
+            try (OutputStream os = new FileOutputStream(attachmentFile);
+                 InputStream in = attachment.getFileInputStream()) {
+                byte[] buffer = new byte[8192];
+                int len;
+                while ((len = in.read(buffer)) > 0) {
+                    os.write(buffer, 0, len);
+                }
+            }
+            attachmentPaths.add(filePath.toString());
+        }
+        return attachmentPaths;
+    }
+
 
 }
