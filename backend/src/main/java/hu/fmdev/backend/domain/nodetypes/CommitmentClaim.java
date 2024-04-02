@@ -1,36 +1,33 @@
 package hu.fmdev.backend.domain.nodetypes;
 
-import lombok.NoArgsConstructor;
-
-import javax.persistence.*;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import org.springframework.data.mongodb.core.mapping.DBRef;
+import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.LocalDate;
 
-@Entity
-@NoArgsConstructor
+@EqualsAndHashCode(callSuper = true)
+@Data
+@Document
 public class CommitmentClaim extends BaseNodeType {
-    private String CommitmentDemandTopic;
+    private String commitmentDemandTopic;
 
     private Integer amount; // Kötelezettségvállalás összege
 
-    @Enumerated(EnumType.STRING)
     private PaymentMethod paymentMethod; // Fizetés módja
 
-    @ManyToOne
+    @DBRef
     private ServiceProvider serviceProvider; // Szolgáltató
 
-    @Column(length = 1000)
-    private String reason; // Kötelezettségvállalás indoklása
+    private String reason; // Kötelezettségvállalás indoklása, max 1000 karakter hosszúságú szöveg
 
     private LocalDate dueDate; // Teljesítési határidő
 
-    @Enumerated(EnumType.STRING)
     private Status status; // Státusz
 
     private String projectIdentifier; // Pályázati azonosító
 
-    @Column(length = 1000)
-    private String comment; // Megjegyzés
-
+    private String comment; // Megjegyzés, max 1000 karakter hosszúságú szöveg
 
     public enum PaymentMethod {
         TRANSFER, CASH

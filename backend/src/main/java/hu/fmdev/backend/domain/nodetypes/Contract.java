@@ -1,14 +1,13 @@
 package hu.fmdev.backend.domain.nodetypes;
 
-import lombok.NoArgsConstructor;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import org.springframework.data.mongodb.core.mapping.Document;
 
-import javax.persistence.Entity;
-import javax.persistence.Lob;
-
-@Entity
-@NoArgsConstructor
+@EqualsAndHashCode(callSuper = true)
+@Data
+@Document
 public class Contract extends BaseNodeType {
     private String title;
-    @Lob
     private String content;
 }

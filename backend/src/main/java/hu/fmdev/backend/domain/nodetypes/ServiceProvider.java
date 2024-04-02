@@ -1,11 +1,12 @@
 package hu.fmdev.backend.domain.nodetypes;
 
-import lombok.NoArgsConstructor;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import org.springframework.data.mongodb.core.mapping.Document;
 
-import javax.persistence.Entity;
-
-@Entity
-@NoArgsConstructor
+@EqualsAndHashCode(callSuper = true)
+@Data
+@Document
 public class ServiceProvider extends BaseNodeType {
 
 }
