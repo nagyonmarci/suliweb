@@ -5,6 +5,7 @@ import com.pff.PSTFile;
 import com.pff.PSTFolder;
 import com.pff.PSTMessage;
 import hu.fmdev.backend.domain.Email;
+import hu.fmdev.backend.exceptionhandler.PstProcessingException;
 import hu.fmdev.backend.repository.EmailRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,10 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -38,7 +36,7 @@ public class PstService {
         this.emailRepository = emailRepository;
     }
 
-    public String processPstFileFromUpload(MultipartFile file) {
+    public String processPstFileFromUpload(MultipartFile file) throws PstProcessingException {
         try {
             File pstFile = convertMultiPartToFile(file);
             PSTFile pst = new PSTFile(pstFile.getAbsolutePath());
@@ -46,21 +44,21 @@ public class PstService {
             Files.deleteIfExists(pstFile.toPath());
             return "PST file processed successfully";
         } catch (Exception e) {
-            logger.error("Error processing PST file", e);
-            return "Error processing PST file";
+            throw new PstProcessingException("Error processing PST file", e);
         }
     }
 
-    public void processPstFilesFromTxt(String txtFilePath) {
-        try {
-            Files.lines(Paths.get(txtFilePath)).forEach(pstFilePath -> {
+    public void processPstFilesFromTxt(String txtFilePath) throws IOException {
+        Files.lines(Paths.get(txtFilePath)).forEach(pstFilePath -> {
+            try {
                 String result = processPstFile(pstFilePath);
                 logger.info(result);
-            });
-        } catch (Exception e) {
-            logger.error("Error processing PST files from txt", e);
-        }
+            } catch (Exception e) {
+                logger.error("Error processing PST file at path: " + pstFilePath, e);
+            }
+        });
     }
+
 
     public String processPstFile(String filePath) {
         File pstFile = new File(filePath);
