@@ -2,17 +2,16 @@ package hu.fmdev.backend.domain;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.mongodb.core.mapping.Document;
 
-import javax.persistence.*;
+import javax.persistence.Id;
 
-@Entity
-@Table(name = "authorities")
 @Data
+@Document(collection = "authorities")
 @NoArgsConstructor
 public class Authority {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
     private String permission; // például "CONTRACTS_EDIT", "CONTRACTS_READ", "REQUESTS_SUBMIT", "REQUESTS_READ"
 

@@ -180,6 +180,7 @@ public class PstService {
         email.setAttachmentPaths(attachmentPaths);
         emailRepository.save(email);
     }
+
     public String generateUniqueEntryId(String pstFileName, long descriptorNodeId) {
         try {
             String identifier = pstFileName + "-" + descriptorNodeId;

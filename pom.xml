@@ -124,7 +124,8 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-mongodb</artifactId>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/io.github.jmcleodfoss/pst -->
+        <!-- https://mvnrepository.com/artifact/io.github.jmcleodfoss/
+         -->
         <dependency>
             <groupId>io.github.jmcleodfoss</groupId>
             <artifactId>pst</artifactId>
@@ -136,7 +137,11 @@
             <artifactId>java-libpst</artifactId>
             <version>0.9.3</version>
         </dependency>
-
+        <dependency>
+            <groupId>com.googlecode.owasp-java-html-sanitizer</groupId>
+            <artifactId>owasp-java-html-sanitizer</artifactId>
+            <version>20211018.2</version>
+        </dependency>
 
 
     </dependencies>

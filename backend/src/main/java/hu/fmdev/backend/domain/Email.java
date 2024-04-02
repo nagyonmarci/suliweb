@@ -11,7 +11,6 @@ import java.util.List;
 
 @Document
 @Data
-@Setter
 public class Email {
     @Id
     private String id;
