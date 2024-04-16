@@ -84,17 +84,17 @@ public class PstService {
     }
 
 
-    private File convertMultiPartToFile(MultipartFile file) throws Exception {
-        File convFile = new File(file.getOriginalFilename());
-        try (OutputStream os = new FileOutputStream(convFile);
-             InputStream is = file.getInputStream()) {
+    public File convertMultiPartToFile(MultipartFile multipartFile) throws IOException {
+        String tempDir = System.getProperty("java.io.tmpdir");
+        File file = new File(Paths.get(tempDir, multipartFile.getOriginalFilename()).toString());
+        try (InputStream in = multipartFile.getInputStream(); OutputStream out = new FileOutputStream(file)) {
             byte[] buffer = new byte[1024];
-            int bytesRead;
-            while ((bytesRead = is.read(buffer)) != -1) {
-                os.write(buffer, 0, bytesRead);
+            int length;
+            while ((length = in.read(buffer)) > 0) {
+                out.write(buffer, 0, length);
             }
         }
-        return convFile;
+        return file;
     }
 
     private void processFolder(PSTFolder folder, String pstFileName) throws Exception {

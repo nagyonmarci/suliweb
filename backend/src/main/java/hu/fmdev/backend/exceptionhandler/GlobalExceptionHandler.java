@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.NoSuchFileException;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -25,7 +26,7 @@ public class GlobalExceptionHandler {
         logger.error("An error occurred: ", ex);
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("timestamp", LocalDateTime.now());
-        body.put("message", "An error occurred");
+        body.put("message", ex.getMessage() != null ? ex.getMessage() : "An error occurred");
         return new ResponseEntity<>(body, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
@@ -44,8 +45,8 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(body, HttpStatus.NOT_FOUND);
     }
 
-    @ExceptionHandler(IOException.class)
-    public ResponseEntity<Object> handleIOException(IOException ex, WebRequest request) {
+    @ExceptionHandler({IOException.class, UncheckedIOException.class})
+    public ResponseEntity<Object> handleIOException(Exception ex, WebRequest request) {
         logger.error("I/O error: ", ex);
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("timestamp", LocalDateTime.now());
