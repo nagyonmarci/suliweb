@@ -60,32 +60,27 @@ public class PstService {
     }
 
 
-    public String processPstFile(String filePath) {
+    public String processPstFile(String filePath) throws IOException {
         File pstFile = new File(filePath);
         if (!pstFile.exists() || !pstFile.canRead()) {
-            String errorMessage = "Error: File does not exist or cannot be read at " + filePath;
-            logger.error(errorMessage);
-            return errorMessage;
+            throw new IOException("File does not exist or cannot be read at " + filePath);
         }
 
         PSTFile pst = null;
         try {
             pst = new PSTFile(pstFile.getAbsolutePath());
             processFolder(pst.getRootFolder(), pstFile.getName());
-            return "PST file processed successfully";
         } catch (Exception e) {
-            String errorMessage = "Error processing PST file at " + filePath;
-            logger.error(errorMessage, e);
-            return errorMessage;
+            throw new IOException("Error processing PST file at " + filePath, e);
         } finally {
             if (pst != null) {
                 try {
                     pst.close();
                 } catch (Exception e) {
-                    logger.error("Failed to close PST file at " + filePath, e);
                 }
             }
         }
+        return filePath;
     }
 
 
