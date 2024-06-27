@@ -3,6 +3,7 @@ package hu.fmdev.backend.service;
 import hu.fmdev.backend.domain.FileInfo;
 import hu.fmdev.backend.logger.CentralLogger;
 import hu.fmdev.backend.repository.FileInfoRepository;
+import hu.fmdev.backend.util.HashUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -11,6 +12,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -27,7 +29,7 @@ public class PstSearchService {
     @Autowired
     private FileInfoRepository fileInfoRepository;
 
-    public List<FileInfo> findFiles(List<String> directories, List<String> excludedDirectories) throws IOException, InterruptedException, ExecutionException {
+    public List<FileInfo> findFiles(List<String> directories, List<String> excludedDirectories) throws IOException, InterruptedException, ExecutionException, NoSuchAlgorithmException {
         Instant start = Instant.now(); // Kezdési idő mérése
         List<FileInfo> foundFiles = Collections.synchronizedList(new ArrayList<>());
 
@@ -54,14 +56,16 @@ public class PstSearchService {
                             })
                             .map(file -> {
                                 try {
+                                    String hash = HashUtil.calculateHash(file);
                                     FileInfo fileInfo = new FileInfo(
                                             file.toString(),
                                             Files.size(file),
                                             LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(file).toMillis()), ZoneId.systemDefault()),
-                                            "Új");
+                                            "Új",
+                                            hash);
                                     CentralLogger.logInfo("Fájl megtalálva: " + fileInfo.getPath());
                                     return fileInfo;
-                                } catch (IOException e) {
+                                } catch (IOException | NoSuchAlgorithmException e) {
                                     CentralLogger.logError("Hiba történt a fájl olvasása közben: " + file, e);
                                     return null;
                                 }
@@ -110,6 +114,7 @@ public class PstSearchService {
                     updateInfo.setLastModified(fileInfo.getLastModified());
                     updateInfo.setSize(fileInfo.getSize());
                     updateInfo.setStatus("Módosított");
+                    updateInfo.setHash(fileInfo.getHash());
                     fileInfoRepository.save(updateInfo);
                     CentralLogger.logInfo("File updated: " + updateInfo.getPath());
                 }
@@ -141,7 +146,7 @@ public class PstSearchService {
         CentralLogger.logInfo("Fájlinformációk frissítve és mentve az adatbázisban.");
     }
 
-    public void findAndSaveFiles(List<String> directories, List<String> excludedDirectories) throws IOException, InterruptedException, ExecutionException {
+    public void findAndSaveFiles(List<String> directories, List<String> excludedDirectories) throws IOException, InterruptedException, ExecutionException, NoSuchAlgorithmException {
         Instant start = Instant.now(); // Kezdési idő mérése
         List<FileInfo> foundFiles = findFiles(directories, excludedDirectories);
         saveOrUpdateFileInfo(foundFiles, directories);
