@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -25,6 +26,7 @@ public class PstSearchService {
     private FileInfoRepository fileInfoRepository;
 
     public List<FileInfo> findPstFiles(List<String> directories, List<String> excludedDirectories) throws IOException {
+        Instant start = Instant.now(); // Kezdési idő mérése
         List<FileInfo> foundFiles = new ArrayList<>();
         for (String directory : directories) {
             log.info("Bejárás kezdete könyvtár: " + directory);
@@ -61,6 +63,9 @@ public class PstSearchService {
                 foundFiles.addAll(filesInDirectory);
             }
         }
+        Instant end = Instant.now(); // Befejezési idő mérése
+        Duration timeElapsed = Duration.between(start, end);
+        log.info("Keresés ideje: {} milliszekundum", timeElapsed.toMillis());
         return foundFiles;
     }
 
@@ -119,6 +124,7 @@ public class PstSearchService {
     }
 
     public void findAndSavePstFiles(List<String> directories, List<String> excludedDirectories) {
+        Instant start = Instant.now(); // Kezdési idő mérése
         List<FileInfo> foundFiles = new ArrayList<>();
         for (String directory : directories) {
             Path startPath = Paths.get(directory);
@@ -181,5 +187,9 @@ public class PstSearchService {
         }
 
         saveOrUpdateFileInfo(foundFiles, directories);
+
+        Instant end = Instant.now(); // Befejezési idő mérése
+        Duration timeElapsed = Duration.between(start, end);
+        log.info("Keresés és mentés teljes ideje: {} milliszekundum", timeElapsed.toMillis());
     }
 }
