@@ -54,6 +54,9 @@ public class PstSearchService {
     }
 
     public void saveOrUpdateFileInfo(List<FileInfo> fileInfoList, List<String> searchDirectories) {
+        log.info("Starting saveOrUpdateFileInfo with {} files and {} search directories", fileInfoList.size(), searchDirectories.size());
+        log.info("Search directories: {}", searchDirectories);
+
         fileInfoList.forEach(fileInfo -> {
             Optional<FileInfo> existingFileInfo = fileInfoRepository.findByPath(fileInfo.getPath());
             if (existingFileInfo.isPresent()) {
@@ -66,24 +69,33 @@ public class PstSearchService {
                     updateInfo.setSize(fileInfo.getSize());
                     updateInfo.setStatus("Módosított");
                     fileInfoRepository.save(updateInfo);
+                    log.info("File updated: " + updateInfo.getPath());
                 }
             } else {
                 fileInfoRepository.save(fileInfo);
+                log.info("New file saved: " + fileInfo.getPath());
             }
         });
 
         List<FileInfo> allFileInfo = fileInfoRepository.findAll();
-        allFileInfo.forEach(storedFileInfo -> {
+        allFileInfo.forEach(fileInfo -> {
+            Path filePath = Paths.get(fileInfo.getPath());
             boolean isInSearchDirectory = searchDirectories.stream()
-                    .anyMatch(dir -> storedFileInfo.getPath().startsWith(dir));
-            if (isInSearchDirectory && fileInfoList.stream().noneMatch(f -> f.getPath().equals(storedFileInfo.getPath()))) {
-                storedFileInfo.setStatus("Törölt");
-                fileInfoRepository.save(storedFileInfo);
+                    .map(Paths::get)
+                    .anyMatch(dir -> filePath.startsWith(dir));
+            boolean isMissingInCurrentList = fileInfoList.stream().noneMatch(f -> f.getPath().equals(fileInfo.getPath()));
+            log.info("Checking file: " + fileInfo.getPath() + " isInSearchDirectory: " + isInSearchDirectory + " isMissingInCurrentList: " + isMissingInCurrentList);
+
+            if (isInSearchDirectory && isMissingInCurrentList) {
+                fileInfo.setStatus("Törölt");
+                fileInfoRepository.save(fileInfo);
+                log.info("File marked as deleted: " + fileInfo.getPath());
             }
         });
 
         log.info("Fájlinformációk frissítve és mentve az adatbázisban.");
     }
+
 
     public void findAndSavePstFiles(List<String> directories, List<String> excludedDirectories) {
         List<FileInfo> foundFiles = new ArrayList<>();
