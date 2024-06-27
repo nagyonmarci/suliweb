@@ -37,7 +37,7 @@ public class PstFinderController {
             }
 
             List<FileInfo> fileInfos = searchService.findPstFiles(directories, excludedDirectories);
-            searchService.saveOrUpdateFileInfo(fileInfos);
+            searchService.saveOrUpdateFileInfo(fileInfos, directories);
 
             fileWriterUtil.writeFileInfoToFile(fileInfos, outputFile);
 
@@ -49,7 +49,7 @@ public class PstFinderController {
     }
 
     @GetMapping("/pst")
-    public ResponseEntity<String> searchAndWritePst(@RequestParam List<String> directories, @RequestParam(required = false) List<String> excludedDirectories, @RequestParam String outputFile) {
+    public ResponseEntity<String> searchAndWritePst(@RequestParam List<String> directories, @RequestParam(required = false) List<String> excludedDirectories) {
         if (excludedDirectories == null) {
             excludedDirectories = new ArrayList<>();
         }
@@ -66,6 +66,4 @@ public class PstFinderController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Hiba történt: " + e.getMessage());
         }
     }
-
-
 }

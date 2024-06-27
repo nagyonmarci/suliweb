@@ -221,5 +221,11 @@ public class PstService {
         return attachmentPaths;
     }
 
+    public void deleteTempFile(String filePath) {
+        File file = new File(filePath);
+        if (file.exists()) {
+            file.delete();
+        }
+    }
 
 }
