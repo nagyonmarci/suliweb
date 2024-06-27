@@ -25,7 +25,7 @@ public class PstSearchService {
     @Autowired
     private FileInfoRepository fileInfoRepository;
 
-    public List<FileInfo> findPstFiles(List<String> directories, List<String> excludedDirectories) throws IOException {
+    public List<FileInfo> findFiles(List<String> directories, List<String> excludedDirectories) throws IOException {
         Instant start = Instant.now(); // Kezdési idő mérése
         List<FileInfo> foundFiles = new ArrayList<>();
         for (String directory : directories) {
@@ -34,8 +34,8 @@ public class PstSearchService {
                 List<FileInfo> filesInDirectory = paths
                         .filter(Files::isRegularFile)
                         .filter(file -> {
-                            boolean result = file.toString().endsWith(".pst");
-                            log.debug("Fájl végződés ellenőrzése: " + file + " -> " + result);
+                            boolean result = !file.toString().endsWith(".tmp");
+                            log.debug("Fájl végződés ellenőrzése (nem .tmp): " + file + " -> " + result);
                             return result;
                         })
                         .filter(file -> {
@@ -123,7 +123,7 @@ public class PstSearchService {
         log.info("Fájlinformációk frissítve és mentve az adatbázisban.");
     }
 
-    public void findAndSavePstFiles(List<String> directories, List<String> excludedDirectories) {
+    public void findAndSaveFiles(List<String> directories, List<String> excludedDirectories) {
         Instant start = Instant.now(); // Kezdési idő mérése
         List<FileInfo> foundFiles = new ArrayList<>();
         for (String directory : directories) {
@@ -133,8 +133,8 @@ public class PstSearchService {
                 paths
                         .filter(Files::isRegularFile)
                         .filter(file -> {
-                            boolean result = file.toString().endsWith(".pst");
-                            log.debug("Fájl végződés ellenőrzése: " + file + " -> " + result);
+                            boolean result = !file.toString().endsWith(".tmp");
+                            log.debug("Fájl végződés ellenőrzése (nem .tmp): " + file + " -> " + result);
                             return result;
                         })
                         .filter(file -> {

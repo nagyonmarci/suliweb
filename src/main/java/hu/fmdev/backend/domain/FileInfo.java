@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 
 @Data
@@ -14,7 +15,7 @@ public class FileInfo {
 
     @Id
     private String id;
-
+    private String fileName;
     private String path;
     private long size;
     private LocalDateTime lastModified;
@@ -22,6 +23,7 @@ public class FileInfo {
 
     public FileInfo(String path, long size, LocalDateTime lastModified, String status) {
         this.path = path;
+        this.fileName = Paths.get(path).getFileName().toString();
         this.size = size;
         this.lastModified = lastModified;
         this.status = status;

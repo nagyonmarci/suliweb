@@ -36,7 +36,7 @@ public class PstFinderController {
                 return ResponseEntity.badRequest().body("A keresési könyvtárak listája nem lehet üres.");
             }
 
-            List<FileInfo> fileInfos = searchService.findPstFiles(directories, excludedDirectories);
+            List<FileInfo> fileInfos = searchService.findFiles(directories, excludedDirectories);
             searchService.saveOrUpdateFileInfo(fileInfos, directories);
 
             fileWriterUtil.writeFileInfoToFile(fileInfos, outputFile);
@@ -58,7 +58,7 @@ public class PstFinderController {
                 return ResponseEntity.badRequest().body("A keresési könyvtárak listája nem lehet üres.");
             }
 
-            searchService.findAndSavePstFiles(directories, excludedDirectories);
+            searchService.findAndSaveFiles(directories, excludedDirectories);
 
             return ResponseEntity.ok("Fájlok sikeresen feldolgozva és elmentve az adatbázisba.");
         } catch (Exception e) {
