@@ -7,6 +7,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface FileInfoRepository extends MongoRepository<FileInfo, Long> {
-    Optional<FileInfo> findByPath(String path);
+    Optional<FileInfo> findFirstByPath(String path);
     List<FileInfo> findByStatusIn(List<String> statuses);
 }

@@ -27,18 +27,29 @@ public class PstSearchService {
     public List<FileInfo> findPstFiles(List<String> directories, List<String> excludedDirectories) throws IOException {
         List<FileInfo> foundFiles = new ArrayList<>();
         for (String directory : directories) {
+            log.info("Bejárás kezdete könyvtár: " + directory);
             try (Stream<Path> paths = Files.walk(Paths.get(directory))) {
                 List<FileInfo> filesInDirectory = paths
                         .filter(Files::isRegularFile)
-                        .filter(file -> file.toString().endsWith(".pst"))
-                        .filter(file -> excludedDirectories.stream().noneMatch(excludedDir -> file.startsWith(excludedDir)))
+                        .filter(file -> {
+                            boolean result = file.toString().endsWith(".pst");
+                            log.debug("Fájl végződés ellenőrzése: " + file + " -> " + result);
+                            return result;
+                        })
+                        .filter(file -> {
+                            boolean result = excludedDirectories.stream().noneMatch(excludedDir -> file.startsWith(excludedDir));
+                            log.debug("Kizárt könyvtárak ellenőrzése: " + file + " -> " + result);
+                            return result;
+                        })
                         .map(file -> {
                             try {
-                                return new FileInfo(
+                                FileInfo fileInfo = new FileInfo(
                                         file.toString(),
                                         Files.size(file),
                                         LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(file).toMillis()), ZoneId.systemDefault()),
                                         "Új");
+                                log.info("Fájl megtalálva: " + fileInfo.getPath());
+                                return fileInfo;
                             } catch (IOException e) {
                                 log.error("Hiba történt a fájl olvasása közben: " + file, e);
                                 return null;
@@ -57,13 +68,21 @@ public class PstSearchService {
         log.info("Starting saveOrUpdateFileInfo with {} files and {} search directories", fileInfoList.size(), searchDirectories.size());
         log.info("Search directories: {}", searchDirectories);
 
+        // Gyűjtsük össze az összes megtalált fájl útvonalát
+        Set<String> foundFilePaths = fileInfoList.stream()
+                .map(FileInfo::getPath)
+                .collect(Collectors.toSet());
+
+        // Frissítsük vagy adjuk hozzá a fájlinformációkat
         fileInfoList.forEach(fileInfo -> {
-            Optional<FileInfo> existingFileInfo = fileInfoRepository.findByPath(fileInfo.getPath());
-            if (existingFileInfo.isPresent()) {
-                FileInfo updateInfo = existingFileInfo.get();
+            log.info("Fájl feldolgozása: " + fileInfo.getPath());
+            Optional<FileInfo> existingFileInfoOpt = fileInfoRepository.findFirstByPath(fileInfo.getPath());
+            if (existingFileInfoOpt.isPresent()) {
+                FileInfo updateInfo = existingFileInfoOpt.get();
                 boolean needsUpdate = !updateInfo.getLastModified().equals(fileInfo.getLastModified())
                         || updateInfo.getSize() != fileInfo.getSize()
                         || "Törölt".equals(updateInfo.getStatus());
+                log.debug("Frissítés szükséges: " + needsUpdate);
                 if (needsUpdate) {
                     updateInfo.setLastModified(fileInfo.getLastModified());
                     updateInfo.setSize(fileInfo.getSize());
@@ -77,13 +96,16 @@ public class PstSearchService {
             }
         });
 
+        // Az adatbázisban lévő összes fájlinformáció ellenőrzése
         List<FileInfo> allFileInfo = fileInfoRepository.findAll();
         allFileInfo.forEach(fileInfo -> {
-            Path filePath = Paths.get(fileInfo.getPath());
             boolean isInSearchDirectory = searchDirectories.stream()
                     .map(Paths::get)
-                    .anyMatch(dir -> filePath.startsWith(dir));
-            boolean isMissingInCurrentList = fileInfoList.stream().noneMatch(f -> f.getPath().equals(fileInfo.getPath()));
+                    .anyMatch(dir -> {
+                        Path filePath = Paths.get(fileInfo.getPath());
+                        return filePath.startsWith(dir);
+                    });
+            boolean isMissingInCurrentList = !foundFilePaths.contains(fileInfo.getPath());
             log.info("Checking file: " + fileInfo.getPath() + " isInSearchDirectory: " + isInSearchDirectory + " isMissingInCurrentList: " + isMissingInCurrentList);
 
             if (isInSearchDirectory && isMissingInCurrentList) {
@@ -96,16 +118,24 @@ public class PstSearchService {
         log.info("Fájlinformációk frissítve és mentve az adatbázisban.");
     }
 
-
     public void findAndSavePstFiles(List<String> directories, List<String> excludedDirectories) {
         List<FileInfo> foundFiles = new ArrayList<>();
         for (String directory : directories) {
             Path startPath = Paths.get(directory);
+            log.info("Könyvtár bejárása kezdete: " + directory);
             try (Stream<Path> paths = Files.walk(startPath)) {
                 paths
                         .filter(Files::isRegularFile)
-                        .filter(file -> file.toString().endsWith(".pst"))
-                        .filter(file -> excludedDirectories.stream().noneMatch(excludedDir -> file.startsWith(excludedDir)))
+                        .filter(file -> {
+                            boolean result = file.toString().endsWith(".pst");
+                            log.debug("Fájl végződés ellenőrzése: " + file + " -> " + result);
+                            return result;
+                        })
+                        .filter(file -> {
+                            boolean result = excludedDirectories.stream().noneMatch(excludedDir -> file.startsWith(excludedDir));
+                            log.debug("Kizárt könyvtárak ellenőrzése: " + file + " -> " + result);
+                            return result;
+                        })
                         .forEach(file -> {
                             try {
                                 if (!Files.isReadable(file)) {
@@ -118,6 +148,27 @@ public class PstSearchService {
                                         Files.size(file),
                                         LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(file).toMillis()), ZoneId.systemDefault()),
                                         "Új");
+
+                                log.info("Fájl megtalálva: " + fileInfo.getPath());
+
+                                // Keresés a meglévő bejegyzések között
+                                Optional<FileInfo> existingFileInfoOpt = fileInfoRepository.findFirstByPath(fileInfo.getPath());
+                                if (existingFileInfoOpt.isPresent()) {
+                                    FileInfo existingFileInfo = existingFileInfoOpt.get();
+                                    boolean needsUpdate = !existingFileInfo.getLastModified().equals(fileInfo.getLastModified())
+                                            || existingFileInfo.getSize() != fileInfo.getSize()
+                                            || "Törölt".equals(existingFileInfo.getStatus());
+                                    if (needsUpdate) {
+                                        existingFileInfo.setLastModified(fileInfo.getLastModified());
+                                        existingFileInfo.setSize(fileInfo.getSize());
+                                        existingFileInfo.setStatus("Módosított");
+                                        fileInfoRepository.save(existingFileInfo);
+                                        log.info("File updated: " + existingFileInfo.getPath());
+                                    }
+                                } else {
+                                    fileInfoRepository.save(fileInfo);
+                                    log.info("New file saved: " + fileInfo.getPath());
+                                }
 
                                 foundFiles.add(fileInfo);
                             } catch (IOException e) {
