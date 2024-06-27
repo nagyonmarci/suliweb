@@ -20,14 +20,12 @@ public class FileInfo {
     private long size;
     private LocalDateTime lastModified;
     private String status;
-    private String hash;
 
-    public FileInfo(String path, long size, LocalDateTime lastModified, String status, String hash) {
+    public FileInfo(String path, long size, LocalDateTime lastModified, String status) {
         this.path = path;
         this.fileName = Paths.get(path).getFileName().toString();
         this.size = size;
         this.lastModified = lastModified;
         this.status = status;
-        this.hash = hash;
     }
 }
