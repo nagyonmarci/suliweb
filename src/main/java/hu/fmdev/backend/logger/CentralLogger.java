@@ -37,6 +37,11 @@ public class CentralLogger {
         instance.saveLogEntry("DEBUG", message, null);
     }
 
+    public static void logWarn(String message) {
+        logger.warn(message);
+        instance.saveLogEntry("WARN", message, null);
+    }
+
     public static void logError(String message, Throwable t) {
         logger.error(message, t);
         StringWriter sw = new StringWriter();

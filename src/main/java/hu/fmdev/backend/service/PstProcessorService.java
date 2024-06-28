@@ -5,10 +5,11 @@ import com.pff.PSTFile;
 import com.pff.PSTFolder;
 import com.pff.PSTMessage;
 import hu.fmdev.backend.domain.Email;
+import hu.fmdev.backend.domain.FileInfo;
 import hu.fmdev.backend.exceptionhandler.PstProcessingException;
+import hu.fmdev.backend.logger.CentralLogger;
 import hu.fmdev.backend.repository.EmailRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import hu.fmdev.backend.repository.FileInfoRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -20,69 +21,122 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 @Service
 public class PstProcessorService {
     private final EmailRepository emailRepository;
+    private final FileInfoRepository fileInfoRepository;
+
     @Value("${attachments.directory}")
     private String attachmentsDirectory;
-    private static final Logger logger = LoggerFactory.getLogger(PstProcessorService.class);
 
-    public PstProcessorService(EmailRepository emailRepository) {
+    private final CentralLogger centralLogger;
+
+    private static final int THREAD_POOL_SIZE = 10;
+
+    public PstProcessorService(EmailRepository emailRepository, FileInfoRepository fileInfoRepository, CentralLogger centralLogger) {
         this.emailRepository = emailRepository;
+        this.fileInfoRepository = fileInfoRepository;
+        this.centralLogger = centralLogger;
     }
 
-    public String processPstFileFromUpload(MultipartFile file) throws PstProcessingException {
+    public String processPstFileFromUpload(MultipartFile file, boolean saveAttachments) throws PstProcessingException {
         try {
             File pstFile = convertMultiPartToFile(file);
-            PSTFile pst = new PSTFile(pstFile.getAbsolutePath());
-            processFolder(pst.getRootFolder(), pstFile.getName());
-            Files.deleteIfExists(pstFile.toPath());
-            return "PST file processed successfully";
+            return processAndCleanUp(pstFile, saveAttachments);
         } catch (Exception e) {
             throw new PstProcessingException("Error processing PST file", e);
         }
     }
 
-    public void processPstFilesFromTxt(String txtFilePath) throws IOException {
-        Files.lines(Paths.get(txtFilePath)).forEach(pstFilePath -> {
-            try {
-                String result = processPstFile(pstFilePath);
-                logger.info(result);
-            } catch (Exception e) {
-                logger.error("Error processing PST file at path: " + pstFilePath, e);
+    public void processPstFilesFromTxt(String txtFilePath, boolean saveAttachments) throws IOException {
+        ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+
+        List<Callable<String>> tasks = Files.lines(Paths.get(txtFilePath))
+                .map(pstFilePath -> (Callable<String>) () -> processPstFile(pstFilePath, saveAttachments))
+                .collect(Collectors.toList());
+
+        try {
+            List<Future<String>> futures = executorService.invokeAll(tasks);
+            for (Future<String> future : futures) {
+                try {
+                    centralLogger.logInfo(future.get());
+                } catch (ExecutionException e) {
+                    centralLogger.logError("Error processing PST file", e.getCause());
+                }
             }
-        });
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            centralLogger.logError("Processing interrupted", e);
+        } finally {
+            executorService.shutdown();
+        }
     }
 
+    public void processPstFilesFromDb(boolean saveAttachments) {
+        List<FileInfo> fileInfoList = fileInfoRepository.findByStatusIn(Arrays.asList("New", "Modified"));
+        if (fileInfoList.isEmpty()) {
+            centralLogger.logInfo("No PST files to process from the database");
+            return;
+        }
 
-    public String processPstFile(String filePath) throws IOException {
+        ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+
+        List<Callable<Void>> tasks = fileInfoList.stream()
+                .map(fileInfo -> (Callable<Void>) () -> {
+                    try {
+                        centralLogger.logInfo("Processing file: " + fileInfo.getPath());
+                        processPstFile(fileInfo.getPath().trim(), saveAttachments);
+                        fileInfo.setStatus("Processed");
+                        fileInfoRepository.save(fileInfo);
+                    } catch (Exception e) {
+                        centralLogger.logError("Error processing PST file from database: " + fileInfo.getPath(), e);
+                    }
+                    return null;
+                })
+                .collect(Collectors.toList());
+
+        try {
+            executorService.invokeAll(tasks);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            centralLogger.logError("Processing interrupted", e);
+        } finally {
+            executorService.shutdown();
+        }
+    }
+
+    public String processPstFile(String filePath, boolean saveAttachments) throws IOException {
         File pstFile = new File(filePath);
         if (!pstFile.exists() || !pstFile.canRead()) {
             throw new IOException("File does not exist or cannot be read at " + filePath);
         }
+        return processAndCleanUp(pstFile, saveAttachments);
+    }
 
+    private String processAndCleanUp(File pstFile, boolean saveAttachments) throws IOException {
         PSTFile pst = null;
         try {
             pst = new PSTFile(pstFile.getAbsolutePath());
-            processFolder(pst.getRootFolder(), pstFile.getName());
+            processFolder(pst.getRootFolder(), pstFile.getName(), saveAttachments);
         } catch (Exception e) {
-            throw new IOException("Error processing PST file at " + filePath, e);
+            throw new IOException("Error processing PST file at " + pstFile.getAbsolutePath(), e);
         } finally {
             if (pst != null) {
                 try {
                     pst.close();
                 } catch (Exception e) {
+                    centralLogger.logError("Error closing PST file", e);
                 }
             }
         }
-        return filePath;
+        return pstFile.getAbsolutePath();
     }
-
 
     public File convertMultiPartToFile(MultipartFile multipartFile) throws IOException {
         String tempDir = System.getProperty("java.io.tmpdir");
@@ -97,36 +151,37 @@ public class PstProcessorService {
         return file;
     }
 
-    private void processFolder(PSTFolder folder, String pstFileName) throws Exception {
+    private void processFolder(PSTFolder folder, String pstFileName, boolean saveAttachments) throws Exception {
         String currentFolderPath = folder.getDisplayName();
-        processMessages(folder, pstFileName, currentFolderPath);
+        processMessages(folder, pstFileName, currentFolderPath, saveAttachments);
         if (folder.hasSubfolders()) {
             for (PSTFolder subFolder : folder.getSubFolders()) {
-                processFolder(subFolder, pstFileName);
+                processFolder(subFolder, pstFileName, saveAttachments);
             }
         }
     }
 
-    private void processMessage(PSTMessage message, String pstFileName, String currentFolderPath) throws Exception {
+    private void processMessages(PSTFolder folder, String pstFileName, String currentFolderPath, boolean saveAttachments) throws Exception {
+        PSTMessage message = (PSTMessage) folder.getNextChild();
+        while (message != null) {
+            if (isSupportedMessageType(message)) {
+                processMessage(message, pstFileName, currentFolderPath, saveAttachments);
+            } else {
+                centralLogger.logWarn("Unsupported message type: " + message.getMessageClass() + " in " + pstFileName);
+            }
+            message = (PSTMessage) folder.getNextChild();
+        }
+    }
+
+    private void processMessage(PSTMessage message, String pstFileName, String currentFolderPath, boolean saveAttachments) throws Exception {
         String uniqueEntryId = generateUniqueEntryId(pstFileName, message.getDescriptorNodeId());
         Email email = emailRepository.findByUniqueEntryId(uniqueEntryId)
                 .orElseGet(() -> createNewEmail(uniqueEntryId, pstFileName, currentFolderPath));
         updateEmailWithMessageDetails(email, message);
-        saveEmailWithAttachments(email, message, pstFileName, uniqueEntryId);
-        emailRepository.save(email);
-    }
-
-
-    private void processMessages(PSTFolder folder, String pstFileName, String currentFolderPath) throws Exception {
-        PSTMessage message = (PSTMessage) folder.getNextChild();
-        while (message != null) {
-            if (isSupportedMessageType(message)) {
-                processMessage(message, pstFileName, currentFolderPath);
-            } else {
-                logger.warn("Unsupported message type: {} in {}", message.getMessageClass(), pstFileName);
-            }
-            message = (PSTMessage) folder.getNextChild();
+        if (saveAttachments) {
+            saveEmailWithAttachments(email, message, pstFileName, uniqueEntryId);
         }
+        emailRepository.save(email);
     }
 
     private Email createNewEmail(String uniqueEntryId, String pstFileName, String currentFolderPath) {
@@ -141,12 +196,16 @@ public class PstProcessorService {
         email.setSenderEmailAddress(message.getSenderEmailAddress());
         email.setSenderName(message.getSenderName());
         email.setSubject(message.getSubject());
-        email.setReceivedTime(message.getMessageDeliveryTime());
+        email.setReceivedTime(convertToLocalDateTime(message.getMessageDeliveryTime()));
         email.setBody(message.getBody());
         email.setHtmlContent(message.getBodyHTML());
         email.setRecipients(splitStringToList(message.getDisplayTo()));
         email.setCc(splitStringToList(message.getDisplayCC()));
         email.setBcc(splitStringToList(message.getDisplayBCC()));
+    }
+
+    private LocalDateTime convertToLocalDateTime(Date date) {
+        return LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
     }
 
     private void saveEmailWithAttachments(Email email, PSTMessage message, String pstFileName, String uniqueEntryId) throws Exception {
@@ -156,7 +215,6 @@ public class PstProcessorService {
         } catch (Exception e) {
             throw new Exception("Failed to save attachments.", e);
         }
-        emailRepository.save(email);
     }
 
     private List<String> splitStringToList(String input) {
@@ -179,7 +237,7 @@ public class PstProcessorService {
 
             return hexString.toString();
         } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
+            centralLogger.logError("Error generating unique entry ID", e);
             return pstFileName + "-" + descriptorNodeId;
         }
     }
@@ -220,12 +278,4 @@ public class PstProcessorService {
         }
         return attachmentPaths;
     }
-
-    public void deleteTempFile(String filePath) {
-        File file = new File(filePath);
-        if (file.exists()) {
-            file.delete();
-        }
-    }
-
 }
