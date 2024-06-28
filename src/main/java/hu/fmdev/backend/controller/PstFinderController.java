@@ -37,7 +37,7 @@ public class PstFinderController {
             }
 
             List<FileInfo> fileInfos = searchService.findFiles(directories, excludedDirectories);
-            searchService.saveOrUpdateFileInfo(fileInfos, directories);
+            searchService.saveOrUpdateFileInfos(fileInfos, directories);
 
             fileWriterUtil.writeFileInfoToFile(fileInfos, outputFile);
 
