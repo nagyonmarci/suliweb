@@ -22,7 +22,7 @@ import java.util.stream.Stream;
 
 @Service
 @Slf4j
-public class PstSearchService {
+public class PstFinderService {
 
     @Autowired
     private FileInfoRepository fileInfoRepository;

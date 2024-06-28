@@ -2,7 +2,7 @@ package hu.fmdev.backend.controller;
 
 import hu.fmdev.backend.domain.FileInfo;
 import hu.fmdev.backend.repository.FileInfoRepository;
-import hu.fmdev.backend.service.PstService;
+import hu.fmdev.backend.service.PstProcessorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -22,24 +22,24 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/pst")
-public class PstController {
+public class PstProcessorController {
 
 
-    private static final Logger logger = LoggerFactory.getLogger(PstController.class);
+    private static final Logger logger = LoggerFactory.getLogger(PstProcessorController.class);
 
     private final FileInfoRepository fileInfoRepository;
-    private final PstService pstService;
+    private final PstProcessorService pstProcessorService;
 
-    public PstController(FileInfoRepository fileInfoRepository, PstService pstService) {
+    public PstProcessorController(FileInfoRepository fileInfoRepository, PstProcessorService pstProcessorService) {
         this.fileInfoRepository = fileInfoRepository;
-        this.pstService = pstService;
+        this.pstProcessorService = pstProcessorService;
     }
 
 
     @PostMapping("/process")
     public ResponseEntity<String> processPstFile(@RequestParam("file") MultipartFile file) throws Exception {
-        var tempFile = pstService.convertMultiPartToFile(file);
-        var result = pstService.processPstFile(tempFile.getAbsolutePath());
+        var tempFile = pstProcessorService.convertMultiPartToFile(file);
+        var result = pstProcessorService.processPstFile(tempFile.getAbsolutePath());
         var deleted = tempFile.delete();
         if (!deleted) {
             throw new Exception("Temporary file could not be deleted: " + tempFile.getAbsolutePath());
@@ -55,7 +55,7 @@ public class PstController {
         Arrays.stream(content.split("\n"))
                 .forEach(filePath -> {
                     try {
-                        pstService.processPstFile(filePath.trim());
+                        pstProcessorService.processPstFile(filePath.trim());
                     } catch (IOException e) {
                         throw new UncheckedIOException(e);
                     }
@@ -69,7 +69,7 @@ public class PstController {
         List<FileInfo> fileInfoList = fileInfoRepository.findByStatusIn(Arrays.asList("Új", "Módosított"));
         for (FileInfo fileInfo : fileInfoList) {
             var filePath = fileInfo.getPath().trim();
-            pstService.processPstFile(filePath);
+            pstProcessorService.processPstFile(filePath);
             fileInfo.setStatus("Feldolgozva");
             fileInfoRepository.save(fileInfo);
         }

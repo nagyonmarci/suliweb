@@ -26,13 +26,13 @@ import java.util.Collections;
 import java.util.List;
 
 @Service
-public class PstService {
+public class PstProcessorService {
     private final EmailRepository emailRepository;
     @Value("${attachments.directory}")
     private String attachmentsDirectory;
-    private static final Logger logger = LoggerFactory.getLogger(PstService.class);
+    private static final Logger logger = LoggerFactory.getLogger(PstProcessorService.class);
 
-    public PstService(EmailRepository emailRepository) {
+    public PstProcessorService(EmailRepository emailRepository) {
         this.emailRepository = emailRepository;
     }
 

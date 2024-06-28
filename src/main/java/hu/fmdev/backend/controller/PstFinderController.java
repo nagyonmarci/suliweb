@@ -1,7 +1,7 @@
 package hu.fmdev.backend.controller;
 
 import hu.fmdev.backend.domain.FileInfo;
-import hu.fmdev.backend.service.PstSearchService;
+import hu.fmdev.backend.service.PstFinderService;
 import hu.fmdev.backend.util.FileWriterUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +21,7 @@ import java.util.List;
 public class PstFinderController {
 
     @Autowired
-    private PstSearchService searchService;
+    private PstFinderService searchService;
 
     @Autowired
     private FileWriterUtil fileWriterUtil;
