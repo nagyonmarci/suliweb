@@ -3,14 +3,12 @@ package hu.fmdev.backend.service;
 import hu.fmdev.backend.domain.FileInfo;
 import hu.fmdev.backend.logger.CentralLogger;
 import hu.fmdev.backend.repository.FileInfoRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -22,10 +20,10 @@ import java.util.stream.Stream;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class PstFinderService {
 
-    @Autowired
-    private FileInfoRepository fileInfoRepository;
+    private final FileInfoRepository fileInfoRepository;
 
     public List<FileInfo> findFiles(List<String> directories, List<String> excludedDirectories) throws IOException, InterruptedException, ExecutionException {
         Instant start = Instant.now();
@@ -82,6 +80,7 @@ public class PstFinderService {
         try {
             return new FileInfo(
                     file.toString(),
+                    file.getFileName().toString(), // Fájlnév hozzáadása
                     Files.size(file),
                     LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(file).toMillis()), ZoneId.systemDefault()),
                     "Új"
@@ -150,4 +149,44 @@ public class PstFinderService {
         Duration timeElapsed = Duration.between(start, end);
         CentralLogger.logInfo("Keresés és mentés teljes ideje: " + timeElapsed.toMillis() + " milliszekundum");
     }
+
+    public void updateDatabaseFileRecords() {
+        Instant start = Instant.now();
+        List<FileInfo> allFileInfo = fileInfoRepository.findAll();
+
+        for (FileInfo fileInfo : allFileInfo) {
+            updateFileInfo(fileInfo);
+        }
+
+        Instant end = Instant.now();
+        Duration timeElapsed = Duration.between(start, end);
+        CentralLogger.logInfo("Adatbázis fájlrekordok frissítési ideje: " + timeElapsed.toMillis() + " milliszekundum");
+    }
+
+    private void updateFileInfo(FileInfo fileInfo) {
+        CentralLogger.logInfo("Fájl rekord frissítése az adatbázisban: " + fileInfo.getPath());
+        try {
+            Path filePath = Paths.get(fileInfo.getPath());
+            if (Files.exists(filePath)) {
+                long fileSize = Files.size(filePath);
+                LocalDateTime lastModified = LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(filePath).toMillis()), ZoneId.systemDefault());
+
+                if (!fileInfo.getLastModified().equals(lastModified) || fileInfo.getSize() != fileSize) {
+                    fileInfo.setLastModified(lastModified);
+                    fileInfo.setSize(fileSize);
+                    fileInfo.setStatus("Módosított");
+                    fileInfoRepository.save(fileInfo);
+                    CentralLogger.logInfo("File updated: " + fileInfo.getPath());
+                }
+            } else {
+                fileInfo.setStatus("Törölt");
+                fileInfoRepository.save(fileInfo);
+                CentralLogger.logInfo("File marked as deleted: " + fileInfo.getPath());
+            }
+        } catch (IOException e) {
+            CentralLogger.logError("Hiba történt a fájl olvasása közben: " + fileInfo.getPath(), e);
+        }
+    }
+
 }
+

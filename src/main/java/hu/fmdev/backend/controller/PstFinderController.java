@@ -66,4 +66,15 @@ public class PstFinderController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Hiba történt: " + e.getMessage());
         }
     }
+
+    @GetMapping("/updateDb")
+    public ResponseEntity<String> updateDatabaseFileRecords() {
+        try {
+            searchService.updateDatabaseFileRecords();
+            return ResponseEntity.ok("Adatbázis fájlrekordok sikeresen frissítve.");
+        } catch (Exception e) {
+            log.error("Hiba történt az adatbázis fájlrekordok frissítése közben: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Hiba történt az adatbázis fájlrekordok frissítése közben: " + e.getMessage());
+        }
+    }
 }
