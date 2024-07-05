@@ -30,7 +30,7 @@ public class PstProcessorController {
         this.centralLogger = centralLogger;
     }
 
-    @PostMapping("/process")
+    @PostMapping("/processFromFile")
     public ResponseEntity<String> processPstFile(@RequestParam("file") MultipartFile file,
                                                  @RequestParam("saveAttachments") boolean saveAttachments) {
         try {

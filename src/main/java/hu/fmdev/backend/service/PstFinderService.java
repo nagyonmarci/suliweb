@@ -80,10 +80,10 @@ public class PstFinderService {
         try {
             return new FileInfo(
                     file.toString(),
-                    file.getFileName().toString(), // Fájlnév hozzáadása
+                    file.getFileName().toString(),
                     Files.size(file),
                     LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(file).toMillis()), ZoneId.systemDefault()),
-                    "Új"
+                    "New"
             );
         } catch (IOException e) {
             CentralLogger.logError("Hiba történt a fájl olvasása közben: " + file, e);
@@ -114,10 +114,10 @@ public class PstFinderService {
             FileInfo existingFileInfo = existingFileInfoOpt.get();
             if (!existingFileInfo.getLastModified().equals(fileInfo.getLastModified())
                     || existingFileInfo.getSize() != fileInfo.getSize()
-                    || "Törölt".equals(existingFileInfo.getStatus())) {
+                    || "Deleted".equals(existingFileInfo.getStatus())) {
                 existingFileInfo.setLastModified(fileInfo.getLastModified());
                 existingFileInfo.setSize(fileInfo.getSize());
-                existingFileInfo.setStatus("Módosított");
+                existingFileInfo.setStatus("Modified");
                 fileInfoRepository.save(existingFileInfo);
                 CentralLogger.logInfo("File updated: " + existingFileInfo.getPath());
             }
@@ -135,7 +135,7 @@ public class PstFinderService {
         CentralLogger.logInfo("Checking file: " + fileInfo.getPath() + " isInSearchDirectory: " + isInSearchDirectory + " isMissingInCurrentList: " + isMissingInCurrentList);
 
         if (isInSearchDirectory && isMissingInCurrentList) {
-            fileInfo.setStatus("Törölt");
+            fileInfo.setStatus("Deleted");
             fileInfoRepository.save(fileInfo);
             CentralLogger.logInfo("File marked as deleted: " + fileInfo.getPath());
         }
@@ -174,12 +174,12 @@ public class PstFinderService {
                 if (!fileInfo.getLastModified().equals(lastModified) || fileInfo.getSize() != fileSize) {
                     fileInfo.setLastModified(lastModified);
                     fileInfo.setSize(fileSize);
-                    fileInfo.setStatus("Módosított");
+                    fileInfo.setStatus("Modified");
                     fileInfoRepository.save(fileInfo);
                     CentralLogger.logInfo("File updated: " + fileInfo.getPath());
                 }
             } else {
-                fileInfo.setStatus("Törölt");
+                fileInfo.setStatus("Deleted");
                 fileInfoRepository.save(fileInfo);
                 CentralLogger.logInfo("File marked as deleted: " + fileInfo.getPath());
             }
