@@ -8,6 +8,6 @@ import java.util.Optional;
 
 public interface EmailRepository extends MongoRepository<Email, String> {
     Optional<Email> findByUniqueEntryId(String uniqueEntryId);
-
+    boolean existsByUniqueEntryId(String uniqueEntryId);
     List<Email> findByStatusIn(List<String> status);
 }

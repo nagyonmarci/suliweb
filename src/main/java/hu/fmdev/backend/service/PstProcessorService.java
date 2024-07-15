@@ -175,14 +175,20 @@ public class PstProcessorService {
 
     private void processMessage(PSTMessage message, String pstFileName, String currentFolderPath, boolean saveAttachments) throws Exception {
         String uniqueEntryId = generateUniqueEntryId(pstFileName, message.getDescriptorNodeId());
-        Email email = emailRepository.findByUniqueEntryId(uniqueEntryId)
-                .orElseGet(() -> createNewEmail(uniqueEntryId, pstFileName, currentFolderPath));
+
+        if (emailRepository.existsByUniqueEntryId(uniqueEntryId)) {
+            centralLogger.logInfo("Skipping already processed email with ID: " + uniqueEntryId);
+            return;
+        }
+
+        Email email = createNewEmail(uniqueEntryId, pstFileName, currentFolderPath);
         updateEmailWithMessageDetails(email, message);
         if (saveAttachments) {
             saveEmailWithAttachments(email, message, pstFileName, uniqueEntryId);
         }
         emailRepository.save(email);
     }
+
 
     private Email createNewEmail(String uniqueEntryId, String pstFileName, String currentFolderPath) {
         Email email = new Email();
