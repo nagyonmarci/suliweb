@@ -80,4 +80,16 @@ public class PstProcessorController {
         var result = pstProcessorService.processPstFile(tempFile.getAbsolutePath(), saveAttachments);
         return ResponseEntity.ok(result);
     }
+
+    @PostMapping("/pause")
+    public String pauseProcessing() {
+        pstProcessorService.pauseProcessing();
+        return "PST processing paused";
+    }
+
+    @PostMapping("/resume")
+    public String resumeProcessing() {
+        pstProcessorService.resumeProcessing();
+        return "PST processing resumed";
+    }
 }

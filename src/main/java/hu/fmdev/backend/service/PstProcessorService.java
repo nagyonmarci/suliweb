@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 public class PstProcessorService {
     private final EmailRepository emailRepository;
     private final FileInfoRepository fileInfoRepository;
+    private volatile boolean paused = false;
 
     @Value("${attachments.directory}")
     private String attachmentsDirectory;
@@ -38,6 +39,25 @@ public class PstProcessorService {
     private final CentralLogger centralLogger;
 
     private static final int THREAD_POOL_SIZE = 10;
+
+    public void pauseProcessing() {
+        paused = true;
+    }
+
+    public void resumeProcessing() {
+        paused = false;
+        synchronized (this) {
+            notifyAll();
+        }
+    }
+
+    private void checkPaused() throws InterruptedException {
+        synchronized (this) {
+            while (paused) {
+                wait();
+            }
+        }
+    }
 
     public PstProcessorService(EmailRepository emailRepository, FileInfoRepository fileInfoRepository, CentralLogger centralLogger) {
         this.emailRepository = emailRepository;
@@ -164,6 +184,7 @@ public class PstProcessorService {
     private void processMessages(PSTFolder folder, String pstFileName, String currentFolderPath, boolean saveAttachments) throws Exception {
         PSTMessage message = (PSTMessage) folder.getNextChild();
         while (message != null) {
+            checkPaused(); // Ellenőrizzük, hogy szüneteltetett-e a feldolgozás
             if (isSupportedMessageType(message)) {
                 processMessage(message, pstFileName, currentFolderPath, saveAttachments);
             } else {
@@ -174,6 +195,7 @@ public class PstProcessorService {
     }
 
     private void processMessage(PSTMessage message, String pstFileName, String currentFolderPath, boolean saveAttachments) throws Exception {
+        checkPaused(); // Ellenőrizzük, hogy szüneteltetett-e a feldolgozás
         String uniqueEntryId = generateUniqueEntryId(pstFileName, message.getDescriptorNodeId());
 
         if (emailRepository.existsByUniqueEntryId(uniqueEntryId)) {
