@@ -6,6 +6,9 @@ services:
       - "6969:8080"
     environment:
       - SPRING_DATA_MONGODB_URI=mongodb://admin:example@mongo:27017/emails?authSource=admin
+    volumes:
+      - /Users/fabianm/PSTs:/data/pst_source:ro
+      - ./attachments:/app/attachments
     depends_on:
       - mongo
 
