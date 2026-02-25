@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 public class PstProcessorService {
     private final EmailRepository emailRepository;
     private final FileInfoRepository fileInfoRepository;
+    private final ProgressTracker progressTracker;
     private volatile boolean paused = false;
 
     @Value("${attachments.directory}")
@@ -59,10 +60,12 @@ public class PstProcessorService {
         }
     }
 
-    public PstProcessorService(EmailRepository emailRepository, FileInfoRepository fileInfoRepository, CentralLogger centralLogger) {
+    public PstProcessorService(EmailRepository emailRepository, FileInfoRepository fileInfoRepository,
+            CentralLogger centralLogger, ProgressTracker progressTracker) {
         this.emailRepository = emailRepository;
         this.fileInfoRepository = fileInfoRepository;
         this.centralLogger = centralLogger;
+        this.progressTracker = progressTracker;
     }
 
     public String processPstFileFromUpload(MultipartFile file, boolean saveAttachments) throws PstProcessingException {
@@ -105,6 +108,9 @@ public class PstProcessorService {
             return;
         }
 
+        // Start tracking PST files processing
+        progressTracker.startOperation("PST Fájlok feldolgozása az adatbázisból", fileInfoList.size());
+
         ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
 
         List<Callable<Void>> tasks = fileInfoList.stream()
@@ -116,6 +122,8 @@ public class PstProcessorService {
                         fileInfoRepository.save(fileInfo);
                     } catch (Exception e) {
                         centralLogger.logError("Error processing PST file from database: " + fileInfo.getPath(), e);
+                    } finally {
+                        progressTracker.increment();
                     }
                     return null;
                 })
@@ -127,6 +135,7 @@ public class PstProcessorService {
             Thread.currentThread().interrupt();
             centralLogger.logError("Processing interrupted", e);
         } finally {
+            progressTracker.stopOperation();
             executorService.shutdown();
         }
     }
@@ -136,7 +145,23 @@ public class PstProcessorService {
         if (!pstFile.exists() || !pstFile.canRead()) {
             throw new IOException("File does not exist or cannot be read at " + filePath);
         }
-        return processAndCleanUp(pstFile, saveAttachments);
+
+        // Ha a tracker még nem aktív (nem tömeges futtatásból hívták, hanem egyedi fájl
+        // feltöltésből)
+        boolean locallyStarted = false;
+        if (!progressTracker.getProgress().isActive()) {
+            progressTracker.startOperation("Egyedi fájl feldolgozása: " + pstFile.getName(), 1);
+            locallyStarted = true;
+        }
+
+        try {
+            return processAndCleanUp(pstFile, saveAttachments);
+        } finally {
+            if (locallyStarted) {
+                progressTracker.increment();
+                progressTracker.stopOperation();
+            }
+        }
     }
 
     private String processAndCleanUp(File pstFile, boolean saveAttachments) throws IOException {
@@ -181,7 +206,8 @@ public class PstProcessorService {
         }
     }
 
-    private void processMessages(PSTFolder folder, String pstFileName, String currentFolderPath, boolean saveAttachments) throws Exception {
+    private void processMessages(PSTFolder folder, String pstFileName, String currentFolderPath,
+            boolean saveAttachments) throws Exception {
         PSTMessage message = (PSTMessage) folder.getNextChild();
         while (message != null) {
             checkPaused(); // Ellenőrizzük, hogy szüneteltetett-e a feldolgozás
@@ -194,7 +220,8 @@ public class PstProcessorService {
         }
     }
 
-    private void processMessage(PSTMessage message, String pstFileName, String currentFolderPath, boolean saveAttachments) throws Exception {
+    private void processMessage(PSTMessage message, String pstFileName, String currentFolderPath,
+            boolean saveAttachments) throws Exception {
         checkPaused(); // Ellenőrizzük, hogy szüneteltetett-e a feldolgozás
         String uniqueEntryId = generateUniqueEntryId(pstFileName, message.getDescriptorNodeId());
 
@@ -210,7 +237,6 @@ public class PstProcessorService {
         }
         emailRepository.save(email);
     }
-
 
     private Email createNewEmail(String uniqueEntryId, String pstFileName, String currentFolderPath) {
         Email email = new Email();
@@ -236,7 +262,8 @@ public class PstProcessorService {
         return LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
     }
 
-    private void saveEmailWithAttachments(Email email, PSTMessage message, String pstFileName, String uniqueEntryId) throws Exception {
+    private void saveEmailWithAttachments(Email email, PSTMessage message, String pstFileName, String uniqueEntryId)
+            throws Exception {
         try {
             List<String> attachmentPaths = saveAttachments(message, pstFileName, uniqueEntryId);
             email.setAttachmentPaths(attachmentPaths);
@@ -259,7 +286,8 @@ public class PstProcessorService {
             StringBuilder hexString = new StringBuilder();
             for (byte b : hash) {
                 String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) hexString.append('0');
+                if (hex.length() == 1)
+                    hexString.append('0');
                 hexString.append(hex);
             }
 
@@ -275,7 +303,8 @@ public class PstProcessorService {
         return messageType.startsWith("IPM.Note");
     }
 
-    private List<String> saveAttachments(PSTMessage message, String pstFileName, String uniqueEntryId) throws Exception {
+    private List<String> saveAttachments(PSTMessage message, String pstFileName, String uniqueEntryId)
+            throws Exception {
         List<String> attachmentPaths = new ArrayList<>();
         String attachmentsDirPath = attachmentsDirectory + "/" + pstFileName + "/" + uniqueEntryId;
         Path directoryPath = Paths.get(attachmentsDirPath);
@@ -295,7 +324,7 @@ public class PstProcessorService {
             File attachmentFile = filePath.toFile();
 
             try (OutputStream os = new FileOutputStream(attachmentFile);
-                 InputStream in = attachment.getFileInputStream()) {
+                    InputStream in = attachment.getFileInputStream()) {
                 byte[] buffer = new byte[8192];
                 int len;
                 while ((len = in.read(buffer)) > 0) {

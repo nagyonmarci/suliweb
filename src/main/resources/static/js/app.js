@@ -28,6 +28,49 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnLoadFiles = document.getElementById('btn-load-files');
     const filesTableBody = document.getElementById('files-table-body');
 
+    // Progress Tracking
+    const progressContainer = document.getElementById('progress-container');
+    const progressOperationName = document.getElementById('progress-operation-name');
+    const progressText = document.getElementById('progress-text');
+    const progressBarFill = document.getElementById('progress-bar-fill');
+    let progressPollInterval = null;
+
+    // --- Progress Bar Logic ---
+
+    function startProgressPolling() {
+        if (progressPollInterval) clearInterval(progressPollInterval);
+        progressContainer.style.display = 'block';
+
+        progressPollInterval = setInterval(async () => {
+            try {
+                const res = await fetch('/api/progress');
+                if (!res.ok) return;
+                const state = await res.json();
+
+                if (state.active) {
+                    progressOperationName.textContent = state.currentOperation || 'Feldolgozás folyamatban...';
+                    progressText.textContent = `${state.percentage}% (${state.processedItems} / ${state.totalItems})`;
+                    progressBarFill.style.width = `${state.percentage}%`;
+                } else if (state.percentage === 100) {
+                    progressOperationName.textContent = 'Feldolgozás befejezve!';
+                    progressText.textContent = `100% (${state.totalItems} / ${state.totalItems})`;
+                    progressBarFill.style.width = `100%`;
+                    progressBarFill.style.backgroundColor = 'var(--success)';
+                    clearInterval(progressPollInterval);
+                    setTimeout(() => {
+                        progressContainer.style.display = 'none';
+                        progressBarFill.style.backgroundColor = 'var(--accent)';
+                    }, 5000);
+                } else {
+                    progressContainer.style.display = 'none';
+                    clearInterval(progressPollInterval);
+                }
+            } catch (err) {
+                console.error("Hiba a progress lekérdezésekor", err);
+            }
+        }, 1000); // 1 sec poll
+    }
+
     // --- Utility: Logging & Notifications ---
 
     function logMessage(message, type = 'info') {
@@ -173,6 +216,8 @@ document.addEventListener('DOMContentLoaded', () => {
         uploadZone.style.pointerEvents = 'none';
         uploadZone.style.opacity = '0.5';
 
+        startProgressPolling();
+
         const formData = new FormData();
         formData.append('file', file);
         formData.append('saveAttachments', saveAttachments);
@@ -194,6 +239,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const saveAttachments = saveAttachmentsToggle.checked;
         logMessage("Tömeges feldolgozás indítása a DB-ből beolvasott PST-kre...", 'info');
         btnProcessDb.disabled = true;
+
+        startProgressPolling();
 
         const formData = new FormData();
         formData.append('saveAttachments', saveAttachments);
