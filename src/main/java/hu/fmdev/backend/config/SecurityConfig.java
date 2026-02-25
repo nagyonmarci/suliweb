@@ -8,23 +8,15 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
+
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         http
                 .csrf().disable()
                 .authorizeRequests()
-                .antMatchers("/api/**").authenticated()
-                .anyRequest().permitAll()
+                .antMatchers("/api/**").permitAll() // Minden /api/** végpont engedélyezett (authentikáció nélkül is elérhető)
+                .anyRequest().permitAll() // Minden egyéb végpont engedélyezett (authentikáció nélkül is elérhető)
                 .and()
-                .httpBasic();
+                .httpBasic().disable(); // HTTP Basic authentikáció kikapcsolása
     }
-
-
-//    @PreAuthorize("hasAuthority('CONTRACTS_EDIT')")
-//    public void editContract(Contract contract) {
-//        // Szerződés szerkesztése
-//    }
-
 }
-
-
