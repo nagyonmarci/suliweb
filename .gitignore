@@ -35,4 +35,8 @@ build/
 .vscode/
 
 ### Mac OS ###
-.DS_Storenode_modules/
+.DS_Store
+node_modules/
+
+### Data ###
+attachments/
