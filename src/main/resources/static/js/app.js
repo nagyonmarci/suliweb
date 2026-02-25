@@ -401,6 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td><div style="max-width: 120px; overflow: hidden; text-overflow: ellipsis;">${email.pstFileName || '-'}</div></td>
                     <td><div style="max-width: 150px; overflow: hidden; text-overflow: ellipsis;" title="${email.folderPath || ''}">${email.folderPath || '-'}</div></td>
                     <td>${impBadge}</td>
+                    <td><div style="max-width: 150px; overflow: hidden; text-overflow: ellipsis;" title="${(email.categories || []).join(', ')}">${(email.categories || []).join(', ') || '-'}</div></td>
                     <td>${statusBadge}</td>
                     <td><div style="max-width: 150px; overflow: hidden; text-overflow: ellipsis;" title="${email.internetMessageId || ''}">${email.internetMessageId || '-'}</div></td>
                     <td><div style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;" title="${email.conversationTopic || ''}">${email.conversationTopic || '-'}</div></td>

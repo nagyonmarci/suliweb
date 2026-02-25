@@ -716,34 +716,56 @@ input:checked+.slider:before {
 }
 
 .modern-table {
-    min-width: 2500px;
-    /* Big enough for 15+ columns */
+    width: 100%;
     border-collapse: separate;
     border-spacing: 0;
 }
 
+/* Specific widths for different tables */
+#emails-table {
+    min-width: 2800px;
+    /* Full metadata view */
+}
+
+#files-table {
+    min-width: 900px;
+    /* Standard PST file view */
+}
+
 .modern-table th,
 .modern-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
     white-space: nowrap;
 }
 
-.sticky-col {
+/* Sticky Columns - specific to emails table to avoid breaking others */
+#emails-table .sticky-col {
     position: sticky;
     left: 0;
     z-index: 10;
-    background: var(--bg-card) !important;
-    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.3);
+    background: #1e293b !important;
+    /* Specific dark bg for sticky */
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.4);
 }
 
-.modern-table thead th.sticky-col {
+#emails-table thead th.sticky-col {
     z-index: 11;
 }
 
-/* Specific position for second sticky column */
-.modern-table th:nth-child(2),
-.modern-table td:nth-child(2) {
-    left: 140px;
+#emails-table th:nth-child(2),
+#emails-table td:nth-child(2) {
+    position: sticky;
+    left: 160px;
+    /* Adjusted from 140px to prevent overlap */
     z-index: 10;
+    background: #1e293b !important;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.4);
+}
+
+#emails-table thead th:nth-child(2) {
+    z-index: 11;
 }
 
 @media (max-width: 768px) {
