@@ -5,7 +5,7 @@ services:
     ports:
       - "6969:8080"
     environment:
-      - SPRING_DATA_MONGODB_URI=mongodb://admin:example@mongo:27017/emails
+      - SPRING_DATA_MONGODB_URI=mongodb://admin:example@mongo:27017/emails?authSource=admin
     depends_on:
       - mongo
 
@@ -13,6 +13,9 @@ services:
     image: mongo:latest
     ports:
       - "27018:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=example
     volumes:
       - mongodb_data:/data/db
 
