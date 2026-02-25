@@ -37,8 +37,6 @@ public class PstProcessorService {
     @Value("${attachments.directory}")
     private String attachmentsDirectory;
 
-    private final CentralLogger centralLogger;
-
     private static final int THREAD_POOL_SIZE = 10;
 
     public void pauseProcessing() {
@@ -61,10 +59,9 @@ public class PstProcessorService {
     }
 
     public PstProcessorService(EmailRepository emailRepository, FileInfoRepository fileInfoRepository,
-            CentralLogger centralLogger, ProgressTracker progressTracker) {
+            ProgressTracker progressTracker) {
         this.emailRepository = emailRepository;
         this.fileInfoRepository = fileInfoRepository;
-        this.centralLogger = centralLogger;
         this.progressTracker = progressTracker;
     }
 
@@ -88,14 +85,14 @@ public class PstProcessorService {
             List<Future<String>> futures = executorService.invokeAll(tasks);
             for (Future<String> future : futures) {
                 try {
-                    centralLogger.logInfo(future.get());
+                    CentralLogger.logInfo(future.get());
                 } catch (ExecutionException e) {
-                    centralLogger.logError("Error processing PST file", e.getCause());
+                    CentralLogger.logError("Error processing PST file", e.getCause());
                 }
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            centralLogger.logError("Processing interrupted", e);
+            CentralLogger.logError("Processing interrupted", e);
         } finally {
             executorService.shutdown();
         }
@@ -104,7 +101,7 @@ public class PstProcessorService {
     public void processPstFilesFromDb(boolean saveAttachments) {
         List<FileInfo> fileInfoList = fileInfoRepository.findByStatusIn(Arrays.asList("New", "Modified"));
         if (fileInfoList.isEmpty()) {
-            centralLogger.logInfo("No PST files to process from the database");
+            CentralLogger.logInfo("No PST files to process from the database");
             return;
         }
 
@@ -116,12 +113,12 @@ public class PstProcessorService {
         List<Callable<Void>> tasks = fileInfoList.stream()
                 .map(fileInfo -> (Callable<Void>) () -> {
                     try {
-                        centralLogger.logInfo("Processing file: " + fileInfo.getPath());
+                        CentralLogger.logInfo("Processing file: " + fileInfo.getPath());
                         processPstFile(fileInfo.getPath().trim(), saveAttachments);
                         fileInfo.setStatus("Processed");
                         fileInfoRepository.save(fileInfo);
                     } catch (Exception e) {
-                        centralLogger.logError("Error processing PST file from database: " + fileInfo.getPath(), e);
+                        CentralLogger.logError("Error processing PST file from database: " + fileInfo.getPath(), e);
                     } finally {
                         progressTracker.increment();
                     }
@@ -133,7 +130,7 @@ public class PstProcessorService {
             executorService.invokeAll(tasks);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            centralLogger.logError("Processing interrupted", e);
+            CentralLogger.logError("Processing interrupted", e);
         } finally {
             progressTracker.stopOperation();
             executorService.shutdown();
@@ -176,7 +173,7 @@ public class PstProcessorService {
                 try {
                     pst.close();
                 } catch (Exception e) {
-                    centralLogger.logError("Error closing PST file", e);
+                    CentralLogger.logError("Error closing PST file", e);
                 }
             }
         }
@@ -214,7 +211,7 @@ public class PstProcessorService {
             if (isSupportedMessageType(message)) {
                 processMessage(message, pstFileName, currentFolderPath, saveAttachments);
             } else {
-                centralLogger.logWarn("Unsupported message type: " + message.getMessageClass() + " in " + pstFileName);
+                CentralLogger.logWarn("Unsupported message type: " + message.getMessageClass() + " in " + pstFileName);
             }
             message = (PSTMessage) folder.getNextChild();
         }
@@ -226,7 +223,7 @@ public class PstProcessorService {
         String uniqueEntryId = generateUniqueEntryId(pstFileName, message.getDescriptorNodeId());
 
         if (emailRepository.existsByUniqueEntryId(uniqueEntryId)) {
-            centralLogger.logInfo("Skipping already processed email with ID: " + uniqueEntryId);
+            CentralLogger.logInfo("Skipping already processed email with ID: " + uniqueEntryId);
             return;
         }
 
@@ -256,6 +253,44 @@ public class PstProcessorService {
         email.setRecipients(splitStringToList(message.getDisplayTo()));
         email.setCc(splitStringToList(message.getDisplayCC()));
         email.setBcc(splitStringToList(message.getDisplayBCC()));
+
+        // --- Extended Metadata Extraction ---
+        email.setInternetMessageId(message.getInternetMessageId());
+        email.setTransportMessageHeaders(message.getTransportMessageHeaders());
+        email.setImportance(message.getImportance());
+        email.setMessageClass(message.getMessageClass());
+        email.setConversationTopic(message.getConversationTopic());
+
+        byte[] conversationId = message.getConversationId();
+        if (conversationId != null) {
+            email.setConversationId(bytesToHex(conversationId));
+        }
+
+        email.setCreationTime(
+                message.getCreationTime() != null ? convertToLocalDateTime(message.getCreationTime()) : null);
+        email.setLastModificationTime(
+                message.getLastModificationTime() != null ? convertToLocalDateTime(message.getLastModificationTime())
+                        : null);
+        email.setClientSubmitTime(
+                message.getClientSubmitTime() != null ? convertToLocalDateTime(message.getClientSubmitTime()) : null);
+        email.setIsRead(message.isRead());
+
+        try {
+            String[] categories = message.getColorCategories();
+            if (categories != null && categories.length > 0) {
+                email.setCategories(Arrays.asList(categories));
+            }
+        } catch (Exception e) {
+            CentralLogger.logError("Hiba a kategóriák kinyerésekor", e);
+        }
+    }
+
+    private String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
     }
 
     private LocalDateTime convertToLocalDateTime(Date date) {
@@ -293,7 +328,7 @@ public class PstProcessorService {
 
             return hexString.toString();
         } catch (NoSuchAlgorithmException e) {
-            centralLogger.logError("Error generating unique entry ID", e);
+            CentralLogger.logError("Error generating unique entry ID", e);
             return pstFileName + "-" + descriptorNodeId;
         }
     }
