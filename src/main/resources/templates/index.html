@@ -167,16 +167,17 @@
             </div>
         </section>
 
-        <!-- 4. Adatbázis Nézet Szekció (Feldolgozott Emailek) -->
-        <section class="glass-card" style="grid-column: 1 / -1;">
+        <!-- Email Results Section -->
+        <section class="glass-card result-section" style="grid-column: 1 / -1;">
             <div class="card-header">
-                <h2>🗄️ Feldolgozott Emailek</h2>
-                <div class="icon-bg">📊</div>
-            </div>
-            <div class="card-body">
-                <p class="subtitle">A rendszerben lévő mentett emailek listája.</p>
-
-                <div class="action-buttons" style="margin-top: 0; margin-bottom: 1rem;">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div class="icon-bg">📧</div>
+                    <div>
+                        <h2>Kinyert E-mailek</h2>
+                        <p class="subtitle">Böngéssz és szűrj a feldolgozott üzenetek között</p>
+                    </div>
+                </div>
+                <div class="header-actions">
                     <button id="btn-load-emails" class="btn btn-secondary">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18"
                             height="18">
@@ -187,26 +188,56 @@
                         Adatok Frissítése
                     </button>
                 </div>
+            </div>
 
-                <div class="table-responsive">
-                    <table class="modern-table">
-                        <thead>
-                            <tr>
-                                <th>Dátum</th>
-                                <th>Feladó</th>
-                                <th>Tárgy</th>
-                                <th>PST Fájl</th>
-                                <th>Mappastruktúra</th>
-                            </tr>
-                        </thead>
-                        <tbody id="emails-table-body">
-                            <tr>
-                                <td colspan="5" class="empty-state">Kattints az "Adatok Frissítése" gombra az emailek
-                                    betöltéséhez.</td>
-                            </tr>
-                        </tbody>
-                    </table>
+            <!-- Custom Filter Bar -->
+            <div class="filter-bar glass-card">
+                <div class="filter-grid">
+                    <div class="filter-item">
+                        <label>Tárgy</label>
+                        <input type="text" id="filter-subject" placeholder="Keresés tárgyra..." class="modern-input">
+                    </div>
+                    <div class="filter-item">
+                        <label>Feladó / Címzett</label>
+                        <input type="text" id="filter-sender" placeholder="Név vagy email..." class="modern-input">
+                    </div>
+                    <div class="filter-item">
+                        <label>PST Fájl</label>
+                        <input type="text" id="filter-pst" placeholder="Fájlnév..." class="modern-input">
+                    </div>
+                    <div class="filter-item">
+                        <label>Fontosság</label>
+                        <select id="filter-importance" class="modern-input">
+                            <option value="">Mindegy</option>
+                            <option value="2">Magas</option>
+                            <option value="1">Normál</option>
+                            <option value="0">Alacsony</option>
+                        </select>
+                    </div>
                 </div>
+            </div>
+
+            <div class="table-responsive" style="margin-top: 1rem;">
+                <table class="modern-table" id="emails-table">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-sort="receivedTime">Dátum <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="senderName">Feladó <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="subject">Tárgy <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="pstFileName">PST Forrás <span class="sort-icon">⇅</span>
+                            </th>
+                            <th class="sortable" data-sort="importance">Szint <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="isRead">Állapot <span class="sort-icon">⇅</span></th>
+                            <th>Művelet</th>
+                        </tr>
+                    </thead>
+                    <tbody id="emails-table-body">
+                        <tr>
+                            <td colspan="7" class="empty-state">Kattints az "Adatok Frissítése" gombra az adatok
+                                betöltéséhez.</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </section>
 
@@ -223,6 +254,58 @@
             </div>
         </section>
     </main>
+
+    <!-- Email Detail Modal -->
+    <div id="email-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-container glass-card">
+            <div class="modal-header">
+                <h2 id="modal-subject">Email betöltése...</h2>
+                <button id="btn-close-modal" class="btn-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-info-grid">
+                    <div class="info-item">
+                        <span class="label">Feladó:</span>
+                        <span id="modal-sender" class="value">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Dátum:</span>
+                        <span id="modal-date" class="value">-</span>
+                    </div>
+                    <div class="info-item" style="grid-column: 1 / -1;">
+                        <span class="label">Címzettek:</span>
+                        <span id="modal-recipients" class="value">-</span>
+                    </div>
+                </div>
+
+                <div class="tab-container">
+                    <div class="tab-header">
+                        <button class="tab-btn active" data-tab="tab-html">Nézet</button>
+                        <button class="tab-btn" data-tab="tab-text">Szöveg</button>
+                        <button class="tab-btn" data-tab="tab-meta">Metaadatok</button>
+                        <button class="tab-btn" data-tab="tab-headers">SMTP Fejlécek</button>
+                    </div>
+                    <div class="tab-content" id="tab-html">
+                        <iframe id="modal-html-frame" class="html-preview"></iframe>
+                    </div>
+                    <div class="tab-content" id="tab-text" style="display: none;">
+                        <pre id="modal-body-text" class="text-preview"></pre>
+                    </div>
+                    <div class="tab-content" id="tab-meta" style="display: none;">
+                        <div class="meta-list" id="modal-meta-list"></div>
+                    </div>
+                    <div class="tab-content" id="tab-headers" style="display: none;">
+                        <pre id="modal-headers-text" class="headers-preview"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Toast Notification Container -->
     <div id="toast-container" class="toast-container"></div>
