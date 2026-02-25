@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="hu" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PST Feldolgozó Dashboard</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+
+<body>
+    <div class="background-animation"></div>
+
+    <header class="glass-header">
+        <div class="header-content">
+            <div class="logo">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                    <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+                <h1>PST Feldolgozó OS</h1>
+            </div>
+            <div class="status-indicator">
+                <span id="system-status-dot" class="status-dot online"></span>
+                <span id="system-status-text">Rendszer Aktív</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="dashboard-grid">
+        <!-- 1. Keresés Szekció -->
+        <section class="glass-card">
+            <div class="card-header">
+                <h2>📁 Keresés és Felfedezés</h2>
+                <div class="icon-bg">🔍</div>
+            </div>
+            <div class="card-body">
+                <p class="subtitle">PST fájlok keresése a megadott könyvtárakban.</p>
+
+                <div class="form-group">
+                    <label for="search-dirs">Keresési Könyvtárak (vesszővel elválasztva)</label>
+                    <input type="text" id="search-dirs" class="modern-input"
+                        placeholder="Pl.: /Users/fabianm/PSTs, C:\PSTs">
+                </div>
+
+                <div class="form-group">
+                    <label for="exclude-dirs">Kizárt Könyvtárak (vesszővel elválasztva)</label>
+                    <input type="text" id="exclude-dirs" class="modern-input" placeholder="Opcionális">
+                </div>
+
+                <div class="action-buttons">
+                    <button id="btn-search-db" class="btn btn-primary">Keresés & Mentés DB-be</button>
+                    <button id="btn-update-db" class="btn btn-secondary">DB Szinkronizáció</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. Feldolgozás Szekció -->
+        <section class="glass-card highlight-card">
+            <div class="card-header">
+                <h2>⚙️ Feldolgozó Motor</h2>
+                <div class="icon-bg">⚡</div>
+            </div>
+            <div class="card-body">
+                <p class="subtitle">Emailek kinyerése és feldolgozása adatbázisba.</p>
+
+                <div class="toggle-container">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="save-attachments" checked>
+                        <span class="slider round"></span>
+                    </label>
+                    <span class="toggle-label">Csatolmányok Mentése</span>
+                </div>
+
+                <div class="processing-controls">
+                    <div class="upload-zone" id="upload-zone">
+                        <input type="file" id="pst-file-upload" accept=".pst" style="display: none;">
+                        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                        </svg>
+                        <p>Kattints ide egyedi PST fájl feltöltéséhez</p>
+                    </div>
+
+                    <button id="btn-process-db" class="btn btn-accent btn-large">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        Feldolgozás Indítása DB-ből
+                    </button>
+                </div>
+
+                <div class="queue-controls">
+                    <button id="btn-pause" class="btn btn-warning btn-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="6" y="4" width="4" height="16"></rect>
+                            <rect x="14" y="4" width="4" height="16"></rect>
+                        </svg>
+                        Szünet
+                    </button>
+                    <button id="btn-resume" class="btn btn-success btn-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        Folytatás
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. Fájl Nézet Szekció (Keresett PST-k) -->
+        <section class="glass-card" style="grid-column: 1 / -1;">
+            <div class="card-header">
+                <h2>🗂️ Megtalált PST Fájlok (DB-ből)</h2>
+                <div class="icon-bg">📑</div>
+            </div>
+            <div class="card-body">
+                <p class="subtitle">A kereő által megtalált és adatbázisba felvett PST fájlok listája.</p>
+
+                <div class="action-buttons" style="margin-top: 0; margin-bottom: 1rem;">
+                    <button id="btn-load-files" class="btn btn-secondary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18"
+                            height="18">
+                            <path d="M21 2v6h-6"></path>
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                            <path d="M3 3v6h6"></path>
+                        </svg>
+                        PST Fájlok Frissítése
+                    </button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="modern-table">
+                        <thead>
+                            <tr>
+                                <th>Fájlnév</th>
+                                <th>Elérési Út</th>
+                                <th>Méret (Byte)</th>
+                                <th>Módosítva</th>
+                                <th>Feldolgozási Státusz</th>
+                            </tr>
+                        </thead>
+                        <tbody id="files-table-body">
+                            <tr>
+                                <td colspan="5" class="empty-state">Kattints a "PST Fájlok Frissítése" gombra a fájlok
+                                    betöltéséhez.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. Adatbázis Nézet Szekció (Feldolgozott Emailek) -->
+        <section class="glass-card" style="grid-column: 1 / -1;">
+            <div class="card-header">
+                <h2>🗄️ Feldolgozott Emailek</h2>
+                <div class="icon-bg">📊</div>
+            </div>
+            <div class="card-body">
+                <p class="subtitle">A rendszerben lévő mentett emailek listája.</p>
+
+                <div class="action-buttons" style="margin-top: 0; margin-bottom: 1rem;">
+                    <button id="btn-load-emails" class="btn btn-secondary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18"
+                            height="18">
+                            <path d="M21 2v6h-6"></path>
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                            <path d="M3 3v6h6"></path>
+                        </svg>
+                        Adatok Frissítése
+                    </button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="modern-table">
+                        <thead>
+                            <tr>
+                                <th>Dátum</th>
+                                <th>Feladó</th>
+                                <th>Tárgy</th>
+                                <th>PST Fájl</th>
+                                <th>Mappastruktúra</th>
+                            </tr>
+                        </thead>
+                        <tbody id="emails-table-body">
+                            <tr>
+                                <td colspan="5" class="empty-state">Kattints az "Adatok Frissítése" gombra az emailek
+                                    betöltéséhez.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. Rendszernapló / Terminál -->
+        <section class="glass-card terminal-card" style="grid-column: 1 / -1;">
+            <div class="terminal-header">
+                <div class="mac-buttons">
+                    <span></span><span></span><span></span>
+                </div>
+                <h3>Rendszernapló & Aktivitás</h3>
+            </div>
+            <div class="terminal-body" id="log-container">
+                <div class="log-entry info">[Rendszer] Felület betöltve. Várakozás a parancsokra...</div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script th:src="@{/js/app.js}"></script>
+</body>
+
+</html>
