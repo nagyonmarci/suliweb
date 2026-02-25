@@ -1,0 +1,70 @@
+/* styles.css */
+
+body {
+  font-family: Arial, sans-serif;
+  margin: 20px;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+h1 {
+  text-align: center;
+}
+
+h2 {
+  margin-top: 20px;
+}
+
+ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+ul li {
+  background: #f9f9f9;
+  margin: 5px 0;
+  padding: 10px;
+  border: 1px solid #ddd;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+ul li button {
+  margin-left: 10px;
+}
+
+form {
+  margin-top: 20px;
+}
+
+label {
+  display: block;
+  margin-top: 10px;
+}
+
+input, textarea, button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 5px;
+  box-sizing: border-box;
+}
+
+button {
+  background: #28a745;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #218838;
+}
+
+button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
