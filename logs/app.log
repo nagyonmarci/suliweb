@@ -1,0 +1,1467 @@
+2025-01-07 07:45:03 - Starting BackendApplication using Java 11.0.22 on DESKTOP-M4B0VFA with PID 3404 (C:\Users\FabianM\IdeaProjects\suliweb\target\classes started by FabianM in C:\Users\FabianM\IdeaProjects\suliweb)
+2025-01-07 07:45:03 - No active profile set, falling back to default profiles: default
+2025-01-07 07:45:05 - For Jackson Kotlin classes support please add "com.fasterxml.jackson.module:jackson-module-kotlin" to the classpath
+2025-01-07 07:45:09 - Multiple Spring Data modules found, entering strict repository configuration mode!
+2025-01-07 07:45:09 - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-01-07 07:45:09 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.AuthorityRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 07:45:09 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.EmailRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 07:45:09 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.FileInfoRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 07:45:09 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.FileRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 07:45:10 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.LogEntryRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 07:45:10 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.OrganizationRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 07:45:10 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.UserRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 07:45:10 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.nodetypes.CommitmentClaimRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 07:45:10 - Finished Spring Data repository scanning in 738 ms. Found 0 JPA repository interfaces.
+2025-01-07 07:45:10 - Multiple Spring Data modules found, entering strict repository configuration mode!
+2025-01-07 07:45:10 - Bootstrapping Spring Data MongoDB repositories in DEFAULT mode.
+2025-01-07 07:45:10 - Finished Spring Data repository scanning in 286 ms. Found 8 MongoDB repository interfaces.
+2025-01-07 07:45:21 - Tomcat initialized with port(s): 8080 (http)
+2025-01-07 07:45:21 - Starting service [Tomcat]
+2025-01-07 07:45:21 - Starting Servlet engine: [Apache Tomcat/9.0.46]
+2025-01-07 07:45:22 - Initializing Spring embedded WebApplicationContext
+2025-01-07 07:45:22 - Root WebApplicationContext: initialization completed in 17716 ms
+2025-01-07 07:45:23 - HikariPool-1 - Starting...
+2025-01-07 07:45:25 - HikariPool-1 - Start completed.
+2025-01-07 07:45:25 - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-01-07 07:45:25 - HHH000412: Hibernate ORM core version 5.4.31.Final
+2025-01-07 07:45:26 - HCANN000001: Hibernate Commons Annotations {5.1.2.Final}
+2025-01-07 07:45:27 - HHH000400: Using dialect: org.hibernate.dialect.H2Dialect
+2025-01-07 07:45:28 - HHH000490: Using JtaPlatform implementation: [org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform]
+2025-01-07 07:45:28 - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-01-07 07:45:29 - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-01-07 07:45:30 - Cluster created with settings {hosts=[localhost:27017], mode=SINGLE, requiredClusterType=UNKNOWN, serverSelectionTimeout='30000 ms'}
+2025-01-07 07:45:31 - Exception in monitor thread while connecting to server localhost:27017
+com.mongodb.MongoSocketOpenException: Exception opening socket
+	at com.mongodb.internal.connection.SocketStream.open(SocketStream.java:70)
+	at com.mongodb.internal.connection.InternalStreamConnection.open(InternalStreamConnection.java:143)
+	at com.mongodb.internal.connection.DefaultServerMonitor$ServerMonitorRunnable.lookupServerDescription(DefaultServerMonitor.java:188)
+	at com.mongodb.internal.connection.DefaultServerMonitor$ServerMonitorRunnable.run(DefaultServerMonitor.java:144)
+	at java.base/java.lang.Thread.run(Thread.java:834)
+Caused by: java.net.ConnectException: Connection refused: connect
+	at java.base/java.net.PlainSocketImpl.waitForConnect(Native Method)
+	at java.base/java.net.PlainSocketImpl.socketConnect(PlainSocketImpl.java:107)
+	at java.base/java.net.AbstractPlainSocketImpl.doConnect(AbstractPlainSocketImpl.java:412)
+	at java.base/java.net.AbstractPlainSocketImpl.connectToAddress(AbstractPlainSocketImpl.java:255)
+	at java.base/java.net.AbstractPlainSocketImpl.connect(AbstractPlainSocketImpl.java:237)
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:392)
+	at java.base/java.net.Socket.connect(Socket.java:608)
+	at com.mongodb.internal.connection.SocketStreamHelper.initialize(SocketStreamHelper.java:107)
+	at com.mongodb.internal.connection.SocketStream.initializeSocket(SocketStream.java:79)
+	at com.mongodb.internal.connection.SocketStream.open(SocketStream.java:65)
+	... 4 common frames omitted
+2025-01-07 07:45:35 - 
+
+Using generated security password: d1a9e31b-1fd1-495c-9bb3-1dcd230dfa27
+
+2025-01-07 07:45:35 - Will secure any request with [org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@4205d5d0, org.springframework.security.web.context.SecurityContextPersistenceFilter@79a68657, org.springframework.security.web.header.HeaderWriterFilter@4e4af370, org.springframework.security.web.authentication.logout.LogoutFilter@2e91cf69, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@59d0fac9, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@42cf5a6f, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@29dfc68f, org.springframework.security.web.session.SessionManagementFilter@7b1559f1, org.springframework.security.web.access.ExceptionTranslationFilter@50d05167, org.springframework.security.web.access.intercept.FilterSecurityInterceptor@76105ac0]
+2025-01-07 07:45:37 - Cannot find template location: classpath:/templates/ (please add some templates or check your Thymeleaf configuration)
+2025-01-07 07:45:38 - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Failed to start bean 'webServerStartStop'; nested exception is org.springframework.boot.web.server.PortInUseException: Port 8080 is already in use
+2025-01-07 07:45:39 - Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-01-07 07:45:39 - HHH000477: Starting delayed evictData of schema as part of SessionFactory shut-down'
+2025-01-07 07:45:39 - HikariPool-1 - Shutdown initiated...
+2025-01-07 07:45:39 - HikariPool-1 - Shutdown completed.
+2025-01-07 07:45:39 - Stopping service [Tomcat]
+2025-01-07 07:45:39 - 
+
+Error starting ApplicationContext. To display the conditions report re-run your application with 'debug' enabled.
+2025-01-07 07:45:39 - 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Web server failed to start. Port 8080 was already in use.
+
+Action:
+
+Identify and stop the process that's listening on port 8080 or configure this application to listen on another port.
+
+2025-01-07 07:46:36 - Starting BackendApplication using Java 11.0.22 on DESKTOP-M4B0VFA with PID 10296 (C:\Users\FabianM\IdeaProjects\suliweb\target\classes started by FabianM in C:\Users\FabianM\IdeaProjects\suliweb)
+2025-01-07 07:46:36 - No active profile set, falling back to default profiles: default
+2025-01-07 07:46:38 - For Jackson Kotlin classes support please add "com.fasterxml.jackson.module:jackson-module-kotlin" to the classpath
+2025-01-07 07:46:41 - Multiple Spring Data modules found, entering strict repository configuration mode!
+2025-01-07 07:46:41 - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-01-07 07:46:41 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.AuthorityRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 07:46:41 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.EmailRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 07:46:41 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.FileInfoRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 07:46:41 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.FileRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 07:46:41 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.LogEntryRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 07:46:42 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.OrganizationRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 07:46:42 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.UserRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 07:46:42 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.nodetypes.CommitmentClaimRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 07:46:42 - Finished Spring Data repository scanning in 520 ms. Found 0 JPA repository interfaces.
+2025-01-07 07:46:42 - Multiple Spring Data modules found, entering strict repository configuration mode!
+2025-01-07 07:46:42 - Bootstrapping Spring Data MongoDB repositories in DEFAULT mode.
+2025-01-07 07:46:42 - Finished Spring Data repository scanning in 144 ms. Found 8 MongoDB repository interfaces.
+2025-01-07 07:46:48 - Tomcat initialized with port(s): 8080 (http)
+2025-01-07 07:46:48 - Starting service [Tomcat]
+2025-01-07 07:46:48 - Starting Servlet engine: [Apache Tomcat/9.0.46]
+2025-01-07 07:46:49 - Initializing Spring embedded WebApplicationContext
+2025-01-07 07:46:49 - Root WebApplicationContext: initialization completed in 12225 ms
+2025-01-07 07:46:49 - HikariPool-1 - Starting...
+2025-01-07 07:46:50 - HikariPool-1 - Start completed.
+2025-01-07 07:46:51 - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-01-07 07:46:51 - HHH000412: Hibernate ORM core version 5.4.31.Final
+2025-01-07 07:46:51 - HCANN000001: Hibernate Commons Annotations {5.1.2.Final}
+2025-01-07 07:46:52 - HHH000400: Using dialect: org.hibernate.dialect.H2Dialect
+2025-01-07 07:46:53 - HHH000490: Using JtaPlatform implementation: [org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform]
+2025-01-07 07:46:53 - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-01-07 07:46:53 - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-01-07 07:46:54 - Cluster created with settings {hosts=[localhost:27017], mode=SINGLE, requiredClusterType=UNKNOWN, serverSelectionTimeout='30000 ms'}
+2025-01-07 07:46:54 - Exception in monitor thread while connecting to server localhost:27017
+com.mongodb.MongoSocketOpenException: Exception opening socket
+	at com.mongodb.internal.connection.SocketStream.open(SocketStream.java:70)
+	at com.mongodb.internal.connection.InternalStreamConnection.open(InternalStreamConnection.java:143)
+	at com.mongodb.internal.connection.DefaultServerMonitor$ServerMonitorRunnable.lookupServerDescription(DefaultServerMonitor.java:188)
+	at com.mongodb.internal.connection.DefaultServerMonitor$ServerMonitorRunnable.run(DefaultServerMonitor.java:144)
+	at java.base/java.lang.Thread.run(Thread.java:834)
+Caused by: java.net.ConnectException: Connection refused: connect
+	at java.base/java.net.PlainSocketImpl.waitForConnect(Native Method)
+	at java.base/java.net.PlainSocketImpl.socketConnect(PlainSocketImpl.java:107)
+	at java.base/java.net.AbstractPlainSocketImpl.doConnect(AbstractPlainSocketImpl.java:412)
+	at java.base/java.net.AbstractPlainSocketImpl.connectToAddress(AbstractPlainSocketImpl.java:255)
+	at java.base/java.net.AbstractPlainSocketImpl.connect(AbstractPlainSocketImpl.java:237)
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:392)
+	at java.base/java.net.Socket.connect(Socket.java:608)
+	at com.mongodb.internal.connection.SocketStreamHelper.initialize(SocketStreamHelper.java:107)
+	at com.mongodb.internal.connection.SocketStream.initializeSocket(SocketStream.java:79)
+	at com.mongodb.internal.connection.SocketStream.open(SocketStream.java:65)
+	... 4 common frames omitted
+2025-01-07 07:46:56 - 
+
+Using generated security password: 692c7fac-e153-4d65-9f6d-22bf30d96416
+
+2025-01-07 07:46:57 - Will secure any request with [org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@2fa2143d, org.springframework.security.web.context.SecurityContextPersistenceFilter@66226ab, org.springframework.security.web.header.HeaderWriterFilter@343727b5, org.springframework.security.web.authentication.logout.LogoutFilter@7b2f8152, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@4713b631, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@4e4af370, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@64887fbc, org.springframework.security.web.session.SessionManagementFilter@197cc325, org.springframework.security.web.access.ExceptionTranslationFilter@e97f51c, org.springframework.security.web.access.intercept.FilterSecurityInterceptor@6549ce71]
+2025-01-07 07:46:58 - Cannot find template location: classpath:/templates/ (please add some templates or check your Thymeleaf configuration)
+2025-01-07 07:46:58 - Tomcat started on port(s): 8080 (http) with context path ''
+2025-01-07 07:46:58 - Started BackendApplication in 25.064 seconds (JVM running for 26.708)
+2025-01-07 07:46:58 - Application availability state LivenessState changed to CORRECT
+2025-01-07 07:46:58 - Application availability state ReadinessState changed to ACCEPTING_TRAFFIC
+2025-01-07 07:59:07 - Starting BackendApplication using Java 11.0.22 on DESKTOP-M4B0VFA with PID 15664 (C:\Users\FabianM\IdeaProjects\suliweb\target\classes started by FabianM in C:\Users\FabianM\IdeaProjects\suliweb)
+2025-01-07 07:59:07 - No active profile set, falling back to default profiles: default
+2025-01-07 07:59:09 - For Jackson Kotlin classes support please add "com.fasterxml.jackson.module:jackson-module-kotlin" to the classpath
+2025-01-07 07:59:10 - Multiple Spring Data modules found, entering strict repository configuration mode!
+2025-01-07 07:59:10 - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-01-07 07:59:11 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.AuthorityRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 07:59:11 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.EmailRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 07:59:11 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.FileInfoRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 07:59:11 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.FileRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 07:59:11 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.LogEntryRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 07:59:11 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.OrganizationRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 07:59:11 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.UserRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 07:59:11 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.nodetypes.CommitmentClaimRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 07:59:11 - Finished Spring Data repository scanning in 527 ms. Found 0 JPA repository interfaces.
+2025-01-07 07:59:11 - Multiple Spring Data modules found, entering strict repository configuration mode!
+2025-01-07 07:59:11 - Bootstrapping Spring Data MongoDB repositories in DEFAULT mode.
+2025-01-07 07:59:11 - Finished Spring Data repository scanning in 166 ms. Found 8 MongoDB repository interfaces.
+2025-01-07 07:59:15 - Tomcat initialized with port(s): 8080 (http)
+2025-01-07 07:59:15 - Starting service [Tomcat]
+2025-01-07 07:59:15 - Starting Servlet engine: [Apache Tomcat/9.0.46]
+2025-01-07 07:59:16 - Initializing Spring embedded WebApplicationContext
+2025-01-07 07:59:16 - Root WebApplicationContext: initialization completed in 8305 ms
+2025-01-07 07:59:16 - HikariPool-1 - Starting...
+2025-01-07 07:59:18 - HikariPool-1 - Start completed.
+2025-01-07 07:59:18 - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-01-07 07:59:19 - HHH000412: Hibernate ORM core version 5.4.31.Final
+2025-01-07 07:59:20 - HCANN000001: Hibernate Commons Annotations {5.1.2.Final}
+2025-01-07 07:59:21 - HHH000400: Using dialect: org.hibernate.dialect.H2Dialect
+2025-01-07 07:59:22 - HHH000490: Using JtaPlatform implementation: [org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform]
+2025-01-07 07:59:22 - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-01-07 07:59:23 - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-01-07 07:59:24 - Cluster created with settings {hosts=[localhost:27017], mode=SINGLE, requiredClusterType=UNKNOWN, serverSelectionTimeout='30000 ms'}
+2025-01-07 07:59:25 - Exception in monitor thread while connecting to server localhost:27017
+com.mongodb.MongoSocketOpenException: Exception opening socket
+	at com.mongodb.internal.connection.SocketStream.open(SocketStream.java:70)
+	at com.mongodb.internal.connection.InternalStreamConnection.open(InternalStreamConnection.java:143)
+	at com.mongodb.internal.connection.DefaultServerMonitor$ServerMonitorRunnable.lookupServerDescription(DefaultServerMonitor.java:188)
+	at com.mongodb.internal.connection.DefaultServerMonitor$ServerMonitorRunnable.run(DefaultServerMonitor.java:144)
+	at java.base/java.lang.Thread.run(Thread.java:834)
+Caused by: java.net.ConnectException: Connection refused: connect
+	at java.base/java.net.PlainSocketImpl.waitForConnect(Native Method)
+	at java.base/java.net.PlainSocketImpl.socketConnect(PlainSocketImpl.java:107)
+	at java.base/java.net.AbstractPlainSocketImpl.doConnect(AbstractPlainSocketImpl.java:412)
+	at java.base/java.net.AbstractPlainSocketImpl.connectToAddress(AbstractPlainSocketImpl.java:255)
+	at java.base/java.net.AbstractPlainSocketImpl.connect(AbstractPlainSocketImpl.java:237)
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:392)
+	at java.base/java.net.Socket.connect(Socket.java:608)
+	at com.mongodb.internal.connection.SocketStreamHelper.initialize(SocketStreamHelper.java:107)
+	at com.mongodb.internal.connection.SocketStream.initializeSocket(SocketStream.java:79)
+	at com.mongodb.internal.connection.SocketStream.open(SocketStream.java:65)
+	... 4 common frames omitted
+2025-01-07 07:59:28 - 
+
+Using generated security password: bfd49e13-4ccd-4c38-af54-2100f4a5307a
+
+2025-01-07 07:59:29 - Will secure any request with [org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@36cf6377, org.springframework.security.web.context.SecurityContextPersistenceFilter@5f9ccd0c, org.springframework.security.web.header.HeaderWriterFilter@6b15e68c, org.springframework.security.web.authentication.logout.LogoutFilter@389bc2d3, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@609ad016, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@24f5e9e8, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@2befb16f, org.springframework.security.web.session.SessionManagementFilter@7b2f8152, org.springframework.security.web.access.ExceptionTranslationFilter@6ba355e4, org.springframework.security.web.access.intercept.FilterSecurityInterceptor@8c18bde]
+2025-01-07 07:59:32 - Cannot find template location: classpath:/templates/ (please add some templates or check your Thymeleaf configuration)
+2025-01-07 07:59:32 - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Failed to start bean 'webServerStartStop'; nested exception is org.springframework.boot.web.server.PortInUseException: Port 8080 is already in use
+2025-01-07 07:59:32 - Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-01-07 07:59:32 - HHH000477: Starting delayed evictData of schema as part of SessionFactory shut-down'
+2025-01-07 07:59:32 - HikariPool-1 - Shutdown initiated...
+2025-01-07 07:59:33 - HikariPool-1 - Shutdown completed.
+2025-01-07 07:59:33 - Stopping service [Tomcat]
+2025-01-07 07:59:33 - 
+
+Error starting ApplicationContext. To display the conditions report re-run your application with 'debug' enabled.
+2025-01-07 07:59:33 - 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Web server failed to start. Port 8080 was already in use.
+
+Action:
+
+Identify and stop the process that's listening on port 8080 or configure this application to listen on another port.
+
+2025-01-07 08:58:23 - Starting BackendApplication using Java 11.0.22 on DESKTOP-M4B0VFA with PID 16544 (C:\Users\FabianM\IdeaProjects\suliweb\target\classes started by FabianM in C:\Users\FabianM\IdeaProjects\suliweb)
+2025-01-07 08:58:23 - No active profile set, falling back to default profiles: default
+2025-01-07 08:58:25 - For Jackson Kotlin classes support please add "com.fasterxml.jackson.module:jackson-module-kotlin" to the classpath
+2025-01-07 08:58:26 - Multiple Spring Data modules found, entering strict repository configuration mode!
+2025-01-07 08:58:26 - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-01-07 08:58:26 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.AuthorityRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 08:58:26 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.EmailRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 08:58:26 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.FileInfoRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 08:58:26 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.FileRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 08:58:27 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.LogEntryRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 08:58:27 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.OrganizationRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 08:58:27 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.UserRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 08:58:27 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.nodetypes.CommitmentClaimRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 08:58:27 - Finished Spring Data repository scanning in 365 ms. Found 0 JPA repository interfaces.
+2025-01-07 08:58:27 - Multiple Spring Data modules found, entering strict repository configuration mode!
+2025-01-07 08:58:27 - Bootstrapping Spring Data MongoDB repositories in DEFAULT mode.
+2025-01-07 08:58:27 - Finished Spring Data repository scanning in 184 ms. Found 8 MongoDB repository interfaces.
+2025-01-07 08:58:30 - Tomcat initialized with port(s): 8080 (http)
+2025-01-07 08:58:30 - Starting service [Tomcat]
+2025-01-07 08:58:30 - Starting Servlet engine: [Apache Tomcat/9.0.46]
+2025-01-07 08:58:30 - Initializing Spring embedded WebApplicationContext
+2025-01-07 08:58:30 - Root WebApplicationContext: initialization completed in 6838 ms
+2025-01-07 08:58:30 - HikariPool-1 - Starting...
+2025-01-07 08:58:31 - HikariPool-1 - Start completed.
+2025-01-07 08:58:31 - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-01-07 08:58:31 - HHH000412: Hibernate ORM core version 5.4.31.Final
+2025-01-07 08:58:32 - HCANN000001: Hibernate Commons Annotations {5.1.2.Final}
+2025-01-07 08:58:32 - HHH000400: Using dialect: org.hibernate.dialect.H2Dialect
+2025-01-07 08:58:33 - HHH000490: Using JtaPlatform implementation: [org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform]
+2025-01-07 08:58:33 - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-01-07 08:58:33 - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-01-07 08:58:34 - Cluster created with settings {hosts=[localhost:27017], mode=SINGLE, requiredClusterType=UNKNOWN, serverSelectionTimeout='30000 ms'}
+2025-01-07 08:58:34 - Exception in monitor thread while connecting to server localhost:27017
+com.mongodb.MongoSocketOpenException: Exception opening socket
+	at com.mongodb.internal.connection.SocketStream.open(SocketStream.java:70)
+	at com.mongodb.internal.connection.InternalStreamConnection.open(InternalStreamConnection.java:143)
+	at com.mongodb.internal.connection.DefaultServerMonitor$ServerMonitorRunnable.lookupServerDescription(DefaultServerMonitor.java:188)
+	at com.mongodb.internal.connection.DefaultServerMonitor$ServerMonitorRunnable.run(DefaultServerMonitor.java:144)
+	at java.base/java.lang.Thread.run(Thread.java:834)
+Caused by: java.net.ConnectException: Connection refused: connect
+	at java.base/java.net.PlainSocketImpl.waitForConnect(Native Method)
+	at java.base/java.net.PlainSocketImpl.socketConnect(PlainSocketImpl.java:107)
+	at java.base/java.net.AbstractPlainSocketImpl.doConnect(AbstractPlainSocketImpl.java:412)
+	at java.base/java.net.AbstractPlainSocketImpl.connectToAddress(AbstractPlainSocketImpl.java:255)
+	at java.base/java.net.AbstractPlainSocketImpl.connect(AbstractPlainSocketImpl.java:237)
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:392)
+	at java.base/java.net.Socket.connect(Socket.java:608)
+	at com.mongodb.internal.connection.SocketStreamHelper.initialize(SocketStreamHelper.java:107)
+	at com.mongodb.internal.connection.SocketStream.initializeSocket(SocketStream.java:79)
+	at com.mongodb.internal.connection.SocketStream.open(SocketStream.java:65)
+	... 4 common frames omitted
+2025-01-07 08:58:36 - 
+
+Using generated security password: c03e0da5-21e1-407c-9366-b358cc077109
+
+2025-01-07 08:58:37 - Will secure any request with [org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@6719f206, org.springframework.security.web.context.SecurityContextPersistenceFilter@593f7d2e, org.springframework.security.web.header.HeaderWriterFilter@8167f57, org.springframework.security.web.authentication.logout.LogoutFilter@1906f982, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@59282dc6, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@da9374c, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@5ae16aa, org.springframework.security.web.session.SessionManagementFilter@50ecef36, org.springframework.security.web.access.ExceptionTranslationFilter@13c81bc5, org.springframework.security.web.access.intercept.FilterSecurityInterceptor@22172b00]
+2025-01-07 08:58:38 - Cannot find template location: classpath:/templates/ (please add some templates or check your Thymeleaf configuration)
+2025-01-07 08:58:38 - Tomcat started on port(s): 8080 (http) with context path ''
+2025-01-07 08:58:38 - Started BackendApplication in 16.409 seconds (JVM running for 17.625)
+2025-01-07 08:58:38 - Application availability state LivenessState changed to CORRECT
+2025-01-07 08:58:38 - Application availability state ReadinessState changed to ACCEPTING_TRAFFIC
+2025-01-07 09:00:00 - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2025-01-07 09:00:00 - Initializing Servlet 'dispatcherServlet'
+2025-01-07 09:00:00 - Completed initialization in 115 ms
+2025-01-07 09:00:02 - Bej�r�s kezdete k�nyvt�r: R:/
+2025-01-07 09:00:02 - Bej�r�s kezdete k�nyvt�r: U:/
+2025-01-07 09:00:02 - Cluster description not yet available. Waiting for 30000 ms before timing out
+2025-01-07 09:00:02 - Cluster description not yet available. Waiting for 30000 ms before timing out
+2025-01-07 09:00:32 - Hiba a PST f�jlok feldolgoz�sa sor�n: 
+java.util.concurrent.ExecutionException: org.springframework.dao.DataAccessResourceFailureException: Timed out after 30000 ms while waiting to connect. Client view of cluster state is {type=UNKNOWN, servers=[{address=localhost:27017, type=UNKNOWN, state=CONNECTING, exception={com.mongodb.MongoSocketOpenException: Exception opening socket}, caused by {java.net.ConnectException: Connection refused: connect}}]; nested exception is com.mongodb.MongoTimeoutException: Timed out after 30000 ms while waiting to connect. Client view of cluster state is {type=UNKNOWN, servers=[{address=localhost:27017, type=UNKNOWN, state=CONNECTING, exception={com.mongodb.MongoSocketOpenException: Exception opening socket}, caused by {java.net.ConnectException: Connection refused: connect}}]
+	at java.base/java.util.concurrent.FutureTask.report(FutureTask.java:122)
+	at java.base/java.util.concurrent.FutureTask.get(FutureTask.java:191)
+	at hu.fmdev.backend.service.PstFinderService.findFiles(PstFinderService.java:39)
+	at hu.fmdev.backend.service.PstFinderService.findAndSaveFiles(PstFinderService.java:146)
+	at hu.fmdev.backend.controller.PstFinderController.searchAndWritePst(PstFinderController.java:61)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:566)
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:197)
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:141)
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:106)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:894)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:808)
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87)
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1063)
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:963)
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1006)
+	at org.springframework.web.servlet.FrameworkServlet.doGet(FrameworkServlet.java:898)
+	at javax.servlet.http.HttpServlet.service(HttpServlet.java:626)
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:883)
+	at javax.servlet.http.HttpServlet.service(HttpServlet.java:733)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:227)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:162)
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:53)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:189)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:162)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:327)
+	at org.springframework.security.web.access.intercept.FilterSecurityInterceptor.invoke(FilterSecurityInterceptor.java:115)
+	at org.springframework.security.web.access.intercept.FilterSecurityInterceptor.doFilter(FilterSecurityInterceptor.java:81)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:336)
+	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:121)
+	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:115)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:336)
+	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:126)
+	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:81)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:336)
+	at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:105)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:336)
+	at org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter.doFilter(SecurityContextHolderAwareRequestFilter.java:149)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:336)
+	at org.springframework.security.web.savedrequest.RequestCacheAwareFilter.doFilter(RequestCacheAwareFilter.java:63)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:336)
+	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:103)
+	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:89)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:336)
+	at org.springframework.security.web.header.HeaderWriterFilter.doHeadersAfter(HeaderWriterFilter.java:90)
+	at org.springframework.security.web.header.HeaderWriterFilter.doFilterInternal(HeaderWriterFilter.java:75)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:119)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:336)
+	at org.springframework.security.web.context.SecurityContextPersistenceFilter.doFilter(SecurityContextPersistenceFilter.java:110)
+	at org.springframework.security.web.context.SecurityContextPersistenceFilter.doFilter(SecurityContextPersistenceFilter.java:80)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:336)
+	at org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.doFilterInternal(WebAsyncManagerIntegrationFilter.java:55)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:119)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:336)
+	at org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:211)
+	at org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:183)
+	at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:358)
+	at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:271)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:189)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:162)
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:119)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:189)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:162)
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:119)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:189)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:162)
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:119)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:189)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:162)
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:202)
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:97)
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:542)
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:143)
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:92)
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:78)
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:357)
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:374)
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:65)
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:893)
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1707)
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:49)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61)
+	at java.base/java.lang.Thread.run(Thread.java:834)
+Caused by: org.springframework.dao.DataAccessResourceFailureException: Timed out after 30000 ms while waiting to connect. Client view of cluster state is {type=UNKNOWN, servers=[{address=localhost:27017, type=UNKNOWN, state=CONNECTING, exception={com.mongodb.MongoSocketOpenException: Exception opening socket}, caused by {java.net.ConnectException: Connection refused: connect}}]; nested exception is com.mongodb.MongoTimeoutException: Timed out after 30000 ms while waiting to connect. Client view of cluster state is {type=UNKNOWN, servers=[{address=localhost:27017, type=UNKNOWN, state=CONNECTING, exception={com.mongodb.MongoSocketOpenException: Exception opening socket}, caused by {java.net.ConnectException: Connection refused: connect}}]
+	at org.springframework.data.mongodb.core.MongoExceptionTranslator.translateExceptionIfPossible(MongoExceptionTranslator.java:95)
+	at org.springframework.data.mongodb.core.MongoTemplate.potentiallyConvertRuntimeException(MongoTemplate.java:2899)
+	at org.springframework.data.mongodb.core.MongoTemplate.execute(MongoTemplate.java:555)
+	at org.springframework.data.mongodb.core.MongoTemplate.insertDocument(MongoTemplate.java:1458)
+	at org.springframework.data.mongodb.core.MongoTemplate.doInsert(MongoTemplate.java:1257)
+	at org.springframework.data.mongodb.core.MongoTemplate.insert(MongoTemplate.java:1172)
+	at org.springframework.data.mongodb.repository.support.SimpleMongoRepository.save(SimpleMongoRepository.java:91)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:566)
+	at org.springframework.data.repository.core.support.RepositoryMethodInvoker$RepositoryFragmentMethodInvoker.lambda$new$0(RepositoryMethodInvoker.java:289)
+	at org.springframework.data.repository.core.support.RepositoryMethodInvoker.doInvoke(RepositoryMethodInvoker.java:137)
+	at org.springframework.data.repository.core.support.RepositoryMethodInvoker.invoke(RepositoryMethodInvoker.java:121)
+	at org.springframework.data.repository.core.support.RepositoryComposition$RepositoryFragments.invoke(RepositoryComposition.java:529)
+	at org.springframework.data.repository.core.support.RepositoryComposition.invoke(RepositoryComposition.java:285)
+	at org.springframework.data.repository.core.support.RepositoryFactorySupport$ImplementationMethodExecutionInterceptor.invoke(RepositoryFactorySupport.java:599)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:186)
+	at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.doInvoke(QueryExecutorMethodInterceptor.java:163)
+	at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.invoke(QueryExecutorMethodInterceptor.java:138)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:186)
+	at org.springframework.data.projection.DefaultMethodInvokingMethodInterceptor.invoke(DefaultMethodInvokingMethodInterceptor.java:80)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:186)
+	at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:97)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:186)
+	at org.springframework.aop.framework.JdkDynamicAopProxy.invoke(JdkDynamicAopProxy.java:215)
+	at com.sun.proxy.$Proxy104.save(Unknown Source)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:566)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:344)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:198)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+	at org.springframework.dao.support.PersistenceExceptionTranslationInterceptor.invoke(PersistenceExceptionTranslationInterceptor.java:137)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:186)
+	at org.springframework.aop.framework.JdkDynamicAopProxy.invoke(JdkDynamicAopProxy.java:215)
+	at com.sun.proxy.$Proxy104.save(Unknown Source)
+	at hu.fmdev.backend.logger.CentralLogger.saveLogEntry(CentralLogger.java:55)
+	at hu.fmdev.backend.logger.CentralLogger.logInfo(CentralLogger.java:32)
+	at hu.fmdev.backend.service.PstFinderService.searchDirectory(PstFinderService.java:53)
+	at hu.fmdev.backend.service.PstFinderService.lambda$1(PstFinderService.java:35)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	... 1 common frames omitted
+Caused by: com.mongodb.MongoTimeoutException: Timed out after 30000 ms while waiting to connect. Client view of cluster state is {type=UNKNOWN, servers=[{address=localhost:27017, type=UNKNOWN, state=CONNECTING, exception={com.mongodb.MongoSocketOpenException: Exception opening socket}, caused by {java.net.ConnectException: Connection refused: connect}}]
+	at com.mongodb.internal.connection.BaseCluster.getDescription(BaseCluster.java:177)
+	at com.mongodb.internal.connection.SingleServerCluster.getDescription(SingleServerCluster.java:41)
+	at com.mongodb.client.internal.MongoClientDelegate.getConnectedClusterDescription(MongoClientDelegate.java:127)
+	at com.mongodb.client.internal.MongoClientDelegate.createClientSession(MongoClientDelegate.java:87)
+	at com.mongodb.client.internal.MongoClientDelegate$DelegateOperationExecutor.getClientSession(MongoClientDelegate.java:258)
+	at com.mongodb.client.internal.MongoClientDelegate$DelegateOperationExecutor.execute(MongoClientDelegate.java:182)
+	at com.mongodb.client.internal.MongoCollectionImpl.executeSingleWriteRequest(MongoCollectionImpl.java:1009)
+	at com.mongodb.client.internal.MongoCollectionImpl.executeInsertOne(MongoCollectionImpl.java:470)
+	at com.mongodb.client.internal.MongoCollectionImpl.insertOne(MongoCollectionImpl.java:453)
+	at com.mongodb.client.internal.MongoCollectionImpl.insertOne(MongoCollectionImpl.java:447)
+	at org.springframework.data.mongodb.core.MongoTemplate.lambda$insertDocument$16(MongoTemplate.java:1464)
+	at org.springframework.data.mongodb.core.MongoTemplate.execute(MongoTemplate.java:553)
+	... 43 common frames omitted
+2025-01-07 09:02:26 - Bej�r�s kezdete k�nyvt�r: r:/_archiv/OtvosE/
+2025-01-07 09:02:26 - Cluster description not yet available. Waiting for 30000 ms before timing out
+2025-01-07 09:02:56 - Hiba a PST f�jlok feldolgoz�sa sor�n: 
+java.util.concurrent.ExecutionException: org.springframework.dao.DataAccessResourceFailureException: Timed out after 30000 ms while waiting to connect. Client view of cluster state is {type=UNKNOWN, servers=[{address=localhost:27017, type=UNKNOWN, state=CONNECTING, exception={com.mongodb.MongoSocketOpenException: Exception opening socket}, caused by {java.net.ConnectException: Connection refused: connect}}]; nested exception is com.mongodb.MongoTimeoutException: Timed out after 30000 ms while waiting to connect. Client view of cluster state is {type=UNKNOWN, servers=[{address=localhost:27017, type=UNKNOWN, state=CONNECTING, exception={com.mongodb.MongoSocketOpenException: Exception opening socket}, caused by {java.net.ConnectException: Connection refused: connect}}]
+	at java.base/java.util.concurrent.FutureTask.report(FutureTask.java:122)
+	at java.base/java.util.concurrent.FutureTask.get(FutureTask.java:191)
+	at hu.fmdev.backend.service.PstFinderService.findFiles(PstFinderService.java:39)
+	at hu.fmdev.backend.service.PstFinderService.findAndSaveFiles(PstFinderService.java:146)
+	at hu.fmdev.backend.controller.PstFinderController.searchAndWritePst(PstFinderController.java:61)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:566)
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:197)
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:141)
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:106)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:894)
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:808)
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87)
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1063)
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:963)
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1006)
+	at org.springframework.web.servlet.FrameworkServlet.doGet(FrameworkServlet.java:898)
+	at javax.servlet.http.HttpServlet.service(HttpServlet.java:626)
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:883)
+	at javax.servlet.http.HttpServlet.service(HttpServlet.java:733)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:227)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:162)
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:53)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:189)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:162)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:327)
+	at org.springframework.security.web.access.intercept.FilterSecurityInterceptor.invoke(FilterSecurityInterceptor.java:115)
+	at org.springframework.security.web.access.intercept.FilterSecurityInterceptor.doFilter(FilterSecurityInterceptor.java:81)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:336)
+	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:121)
+	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:115)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:336)
+	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:126)
+	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:81)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:336)
+	at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:105)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:336)
+	at org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter.doFilter(SecurityContextHolderAwareRequestFilter.java:149)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:336)
+	at org.springframework.security.web.savedrequest.RequestCacheAwareFilter.doFilter(RequestCacheAwareFilter.java:63)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:336)
+	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:103)
+	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:89)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:336)
+	at org.springframework.security.web.header.HeaderWriterFilter.doHeadersAfter(HeaderWriterFilter.java:90)
+	at org.springframework.security.web.header.HeaderWriterFilter.doFilterInternal(HeaderWriterFilter.java:75)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:119)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:336)
+	at org.springframework.security.web.context.SecurityContextPersistenceFilter.doFilter(SecurityContextPersistenceFilter.java:110)
+	at org.springframework.security.web.context.SecurityContextPersistenceFilter.doFilter(SecurityContextPersistenceFilter.java:80)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:336)
+	at org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.doFilterInternal(WebAsyncManagerIntegrationFilter.java:55)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:119)
+	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:336)
+	at org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:211)
+	at org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:183)
+	at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:358)
+	at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:271)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:189)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:162)
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:119)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:189)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:162)
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:119)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:189)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:162)
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:119)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:189)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:162)
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:202)
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:97)
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:542)
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:143)
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:92)
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:78)
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:357)
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:374)
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:65)
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:893)
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1707)
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:49)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61)
+	at java.base/java.lang.Thread.run(Thread.java:834)
+Caused by: org.springframework.dao.DataAccessResourceFailureException: Timed out after 30000 ms while waiting to connect. Client view of cluster state is {type=UNKNOWN, servers=[{address=localhost:27017, type=UNKNOWN, state=CONNECTING, exception={com.mongodb.MongoSocketOpenException: Exception opening socket}, caused by {java.net.ConnectException: Connection refused: connect}}]; nested exception is com.mongodb.MongoTimeoutException: Timed out after 30000 ms while waiting to connect. Client view of cluster state is {type=UNKNOWN, servers=[{address=localhost:27017, type=UNKNOWN, state=CONNECTING, exception={com.mongodb.MongoSocketOpenException: Exception opening socket}, caused by {java.net.ConnectException: Connection refused: connect}}]
+	at org.springframework.data.mongodb.core.MongoExceptionTranslator.translateExceptionIfPossible(MongoExceptionTranslator.java:95)
+	at org.springframework.data.mongodb.core.MongoTemplate.potentiallyConvertRuntimeException(MongoTemplate.java:2899)
+	at org.springframework.data.mongodb.core.MongoTemplate.execute(MongoTemplate.java:555)
+	at org.springframework.data.mongodb.core.MongoTemplate.insertDocument(MongoTemplate.java:1458)
+	at org.springframework.data.mongodb.core.MongoTemplate.doInsert(MongoTemplate.java:1257)
+	at org.springframework.data.mongodb.core.MongoTemplate.insert(MongoTemplate.java:1172)
+	at org.springframework.data.mongodb.repository.support.SimpleMongoRepository.save(SimpleMongoRepository.java:91)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:566)
+	at org.springframework.data.repository.core.support.RepositoryMethodInvoker$RepositoryFragmentMethodInvoker.lambda$new$0(RepositoryMethodInvoker.java:289)
+	at org.springframework.data.repository.core.support.RepositoryMethodInvoker.doInvoke(RepositoryMethodInvoker.java:137)
+	at org.springframework.data.repository.core.support.RepositoryMethodInvoker.invoke(RepositoryMethodInvoker.java:121)
+	at org.springframework.data.repository.core.support.RepositoryComposition$RepositoryFragments.invoke(RepositoryComposition.java:529)
+	at org.springframework.data.repository.core.support.RepositoryComposition.invoke(RepositoryComposition.java:285)
+	at org.springframework.data.repository.core.support.RepositoryFactorySupport$ImplementationMethodExecutionInterceptor.invoke(RepositoryFactorySupport.java:599)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:186)
+	at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.doInvoke(QueryExecutorMethodInterceptor.java:163)
+	at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.invoke(QueryExecutorMethodInterceptor.java:138)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:186)
+	at org.springframework.data.projection.DefaultMethodInvokingMethodInterceptor.invoke(DefaultMethodInvokingMethodInterceptor.java:80)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:186)
+	at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:97)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:186)
+	at org.springframework.aop.framework.JdkDynamicAopProxy.invoke(JdkDynamicAopProxy.java:215)
+	at com.sun.proxy.$Proxy104.save(Unknown Source)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:566)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:344)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:198)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+	at org.springframework.dao.support.PersistenceExceptionTranslationInterceptor.invoke(PersistenceExceptionTranslationInterceptor.java:137)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:186)
+	at org.springframework.aop.framework.JdkDynamicAopProxy.invoke(JdkDynamicAopProxy.java:215)
+	at com.sun.proxy.$Proxy104.save(Unknown Source)
+	at hu.fmdev.backend.logger.CentralLogger.saveLogEntry(CentralLogger.java:55)
+	at hu.fmdev.backend.logger.CentralLogger.logInfo(CentralLogger.java:32)
+	at hu.fmdev.backend.service.PstFinderService.searchDirectory(PstFinderService.java:53)
+	at hu.fmdev.backend.service.PstFinderService.lambda$1(PstFinderService.java:35)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	... 1 common frames omitted
+Caused by: com.mongodb.MongoTimeoutException: Timed out after 30000 ms while waiting to connect. Client view of cluster state is {type=UNKNOWN, servers=[{address=localhost:27017, type=UNKNOWN, state=CONNECTING, exception={com.mongodb.MongoSocketOpenException: Exception opening socket}, caused by {java.net.ConnectException: Connection refused: connect}}]
+	at com.mongodb.internal.connection.BaseCluster.getDescription(BaseCluster.java:177)
+	at com.mongodb.internal.connection.SingleServerCluster.getDescription(SingleServerCluster.java:41)
+	at com.mongodb.client.internal.MongoClientDelegate.getConnectedClusterDescription(MongoClientDelegate.java:127)
+	at com.mongodb.client.internal.MongoClientDelegate.createClientSession(MongoClientDelegate.java:87)
+	at com.mongodb.client.internal.MongoClientDelegate$DelegateOperationExecutor.getClientSession(MongoClientDelegate.java:258)
+	at com.mongodb.client.internal.MongoClientDelegate$DelegateOperationExecutor.execute(MongoClientDelegate.java:182)
+	at com.mongodb.client.internal.MongoCollectionImpl.executeSingleWriteRequest(MongoCollectionImpl.java:1009)
+	at com.mongodb.client.internal.MongoCollectionImpl.executeInsertOne(MongoCollectionImpl.java:470)
+	at com.mongodb.client.internal.MongoCollectionImpl.insertOne(MongoCollectionImpl.java:453)
+	at com.mongodb.client.internal.MongoCollectionImpl.insertOne(MongoCollectionImpl.java:447)
+	at org.springframework.data.mongodb.core.MongoTemplate.lambda$insertDocument$16(MongoTemplate.java:1464)
+	at org.springframework.data.mongodb.core.MongoTemplate.execute(MongoTemplate.java:553)
+	... 43 common frames omitted
+2025-01-07 09:39:40 - Starting BackendApplication using Java 11.0.23 on DESKTOP-M4B0VFA with PID 9420 (C:\Users\FabianM\IdeaProjects\suliweb\target\classes started by FabianM in C:\Users\FabianM\IdeaProjects\suliweb)
+2025-01-07 09:39:40 - No active profile set, falling back to default profiles: default
+2025-01-07 09:39:41 - For Jackson Kotlin classes support please add "com.fasterxml.jackson.module:jackson-module-kotlin" to the classpath
+2025-01-07 09:39:42 - Multiple Spring Data modules found, entering strict repository configuration mode!
+2025-01-07 09:39:42 - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-01-07 09:39:42 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.AuthorityRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 09:39:42 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.EmailRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 09:39:42 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.FileInfoRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 09:39:42 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.FileRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 09:39:42 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.LogEntryRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 09:39:42 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.OrganizationRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 09:39:42 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.UserRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 09:39:42 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.nodetypes.CommitmentClaimRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 09:39:42 - Finished Spring Data repository scanning in 108 ms. Found 0 JPA repository interfaces.
+2025-01-07 09:39:42 - Multiple Spring Data modules found, entering strict repository configuration mode!
+2025-01-07 09:39:42 - Bootstrapping Spring Data MongoDB repositories in DEFAULT mode.
+2025-01-07 09:39:42 - Finished Spring Data repository scanning in 129 ms. Found 8 MongoDB repository interfaces.
+2025-01-07 09:39:43 - Tomcat initialized with port(s): 8080 (http)
+2025-01-07 09:39:43 - Starting service [Tomcat]
+2025-01-07 09:39:43 - Starting Servlet engine: [Apache Tomcat/9.0.46]
+2025-01-07 09:39:44 - Initializing Spring embedded WebApplicationContext
+2025-01-07 09:39:44 - Root WebApplicationContext: initialization completed in 3298 ms
+2025-01-07 09:39:44 - HikariPool-1 - Starting...
+2025-01-07 09:39:44 - HikariPool-1 - Start completed.
+2025-01-07 09:39:44 - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-01-07 09:39:44 - HHH000412: Hibernate ORM core version 5.4.31.Final
+2025-01-07 09:39:45 - HCANN000001: Hibernate Commons Annotations {5.1.2.Final}
+2025-01-07 09:39:45 - HHH000400: Using dialect: org.hibernate.dialect.H2Dialect
+2025-01-07 09:39:45 - HHH000490: Using JtaPlatform implementation: [org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform]
+2025-01-07 09:39:45 - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-01-07 09:39:46 - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-01-07 09:39:46 - Cluster created with settings {hosts=[localhost:27017], mode=SINGLE, requiredClusterType=UNKNOWN, serverSelectionTimeout='30000 ms'}
+2025-01-07 09:39:46 - Exception in monitor thread while connecting to server localhost:27017
+com.mongodb.MongoSocketOpenException: Exception opening socket
+	at com.mongodb.internal.connection.SocketStream.open(SocketStream.java:70)
+	at com.mongodb.internal.connection.InternalStreamConnection.open(InternalStreamConnection.java:143)
+	at com.mongodb.internal.connection.DefaultServerMonitor$ServerMonitorRunnable.lookupServerDescription(DefaultServerMonitor.java:188)
+	at com.mongodb.internal.connection.DefaultServerMonitor$ServerMonitorRunnable.run(DefaultServerMonitor.java:144)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.net.ConnectException: Connection refused: connect
+	at java.base/java.net.PlainSocketImpl.waitForConnect(Native Method)
+	at java.base/java.net.PlainSocketImpl.socketConnect(PlainSocketImpl.java:107)
+	at java.base/java.net.AbstractPlainSocketImpl.doConnect(AbstractPlainSocketImpl.java:412)
+	at java.base/java.net.AbstractPlainSocketImpl.connectToAddress(AbstractPlainSocketImpl.java:255)
+	at java.base/java.net.AbstractPlainSocketImpl.connect(AbstractPlainSocketImpl.java:237)
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:392)
+	at java.base/java.net.Socket.connect(Socket.java:609)
+	at com.mongodb.internal.connection.SocketStreamHelper.initialize(SocketStreamHelper.java:107)
+	at com.mongodb.internal.connection.SocketStream.initializeSocket(SocketStream.java:79)
+	at com.mongodb.internal.connection.SocketStream.open(SocketStream.java:65)
+	... 4 common frames omitted
+2025-01-07 09:39:47 - 
+
+Using generated security password: 54faad78-f60f-46ed-a256-0f9aabaf9692
+
+2025-01-07 09:39:47 - Will secure any request with [org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@3eadad14, org.springframework.security.web.context.SecurityContextPersistenceFilter@4a2653a0, org.springframework.security.web.header.HeaderWriterFilter@40b70f31, org.springframework.security.web.authentication.logout.LogoutFilter@54a5496f, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@5ac646b3, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@3d9c8c3c, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@4acc27fd, org.springframework.security.web.session.SessionManagementFilter@4e6280de, org.springframework.security.web.access.ExceptionTranslationFilter@7bc8ffbc, org.springframework.security.web.access.intercept.FilterSecurityInterceptor@de0c402]
+2025-01-07 09:39:47 - Cannot find template location: classpath:/templates/ (please add some templates or check your Thymeleaf configuration)
+2025-01-07 09:39:48 - Tomcat started on port(s): 8080 (http) with context path ''
+2025-01-07 09:39:48 - Started BackendApplication in 8.175 seconds (JVM running for 10.616)
+2025-01-07 09:39:48 - Application availability state LivenessState changed to CORRECT
+2025-01-07 09:39:48 - Application availability state ReadinessState changed to ACCEPTING_TRAFFIC
+2025-01-07 09:40:24 - Application availability state ReadinessState changed from ACCEPTING_TRAFFIC to REFUSING_TRAFFIC
+2025-01-07 09:40:31 - Starting BackendApplication using Java 11.0.23 on DESKTOP-M4B0VFA with PID 7512 (C:\Users\FabianM\IdeaProjects\suliweb\target\classes started by FabianM in C:\Users\FabianM\IdeaProjects\suliweb)
+2025-01-07 09:40:31 - No active profile set, falling back to default profiles: default
+2025-01-07 09:40:31 - For Jackson Kotlin classes support please add "com.fasterxml.jackson.module:jackson-module-kotlin" to the classpath
+2025-01-07 09:40:32 - Multiple Spring Data modules found, entering strict repository configuration mode!
+2025-01-07 09:40:32 - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-01-07 09:40:32 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.AuthorityRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 09:40:32 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.EmailRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 09:40:32 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.FileInfoRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 09:40:32 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.FileRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 09:40:32 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.LogEntryRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 09:40:32 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.OrganizationRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 09:40:32 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.UserRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 09:40:32 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.nodetypes.CommitmentClaimRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 09:40:32 - Finished Spring Data repository scanning in 87 ms. Found 0 JPA repository interfaces.
+2025-01-07 09:40:32 - Multiple Spring Data modules found, entering strict repository configuration mode!
+2025-01-07 09:40:32 - Bootstrapping Spring Data MongoDB repositories in DEFAULT mode.
+2025-01-07 09:40:32 - Finished Spring Data repository scanning in 94 ms. Found 8 MongoDB repository interfaces.
+2025-01-07 09:40:34 - Tomcat initialized with port(s): 8080 (http)
+2025-01-07 09:40:34 - Starting service [Tomcat]
+2025-01-07 09:40:34 - Starting Servlet engine: [Apache Tomcat/9.0.46]
+2025-01-07 09:40:34 - Initializing Spring embedded WebApplicationContext
+2025-01-07 09:40:34 - Root WebApplicationContext: initialization completed in 3076 ms
+2025-01-07 09:40:34 - HikariPool-1 - Starting...
+2025-01-07 09:40:34 - HikariPool-1 - Start completed.
+2025-01-07 09:40:34 - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-01-07 09:40:34 - HHH000412: Hibernate ORM core version 5.4.31.Final
+2025-01-07 09:40:35 - HCANN000001: Hibernate Commons Annotations {5.1.2.Final}
+2025-01-07 09:40:35 - HHH000400: Using dialect: org.hibernate.dialect.H2Dialect
+2025-01-07 09:40:35 - HHH000490: Using JtaPlatform implementation: [org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform]
+2025-01-07 09:40:35 - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-01-07 09:40:36 - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-01-07 09:40:36 - Cluster created with settings {hosts=[localhost:27017], mode=SINGLE, requiredClusterType=UNKNOWN, serverSelectionTimeout='30000 ms'}
+2025-01-07 09:40:36 - Opened connection [connectionId{localValue:2, serverValue:1}] to localhost:27017
+2025-01-07 09:40:36 - Opened connection [connectionId{localValue:1, serverValue:2}] to localhost:27017
+2025-01-07 09:40:36 - Monitor thread successfully connected to server with description ServerDescription{address=localhost:27017, type=STANDALONE, state=CONNECTED, ok=true, minWireVersion=0, maxWireVersion=21, maxDocumentSize=16777216, logicalSessionTimeoutMinutes=30, roundTripTimeNanos=45341600}
+2025-01-07 09:40:36 - 
+
+Using generated security password: 8222ba5d-21f4-42a1-a646-f159c46570ba
+
+2025-01-07 09:40:37 - Will secure any request with [org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@3e839aa3, org.springframework.security.web.context.SecurityContextPersistenceFilter@75663443, org.springframework.security.web.header.HeaderWriterFilter@65a80fdb, org.springframework.security.web.authentication.logout.LogoutFilter@77ec9fdb, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@b3004e, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@4e6280de, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@751bb780, org.springframework.security.web.session.SessionManagementFilter@40b70f31, org.springframework.security.web.access.ExceptionTranslationFilter@774304ca, org.springframework.security.web.access.intercept.FilterSecurityInterceptor@44d84313]
+2025-01-07 09:40:37 - Cannot find template location: classpath:/templates/ (please add some templates or check your Thymeleaf configuration)
+2025-01-07 09:40:37 - Tomcat started on port(s): 8080 (http) with context path ''
+2025-01-07 09:40:37 - Started BackendApplication in 7.265 seconds (JVM running for 9.573)
+2025-01-07 09:40:37 - Application availability state LivenessState changed to CORRECT
+2025-01-07 09:40:37 - Application availability state ReadinessState changed to ACCEPTING_TRAFFIC
+2025-01-07 09:41:10 - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2025-01-07 09:41:10 - Initializing Servlet 'dispatcherServlet'
+2025-01-07 09:41:10 - Completed initialization in 6 ms
+2025-01-07 09:41:10 - Bejárás kezdete könyvtár: d:/OtvosE/
+2025-01-07 09:41:11 - Opened connection [connectionId{localValue:3, serverValue:3}] to localhost:27017
+2025-01-07 09:41:11 - Keresés ideje: 507 milliszekundum
+2025-01-07 09:41:11 - Starting saveOrUpdateFileInfos with 2 files and 1 search directories
+2025-01-07 09:41:11 - Search directories: [d:/OtvosE/]
+2025-01-07 09:41:11 - Fájl feldolgozása: d:\OtvosE\backup_OtvosE_2019.pst
+2025-01-07 09:41:11 - New file saved: d:\OtvosE\backup_OtvosE_2019.pst
+2025-01-07 09:41:11 - Fájl feldolgozása: d:\OtvosE\backup_OtvosE_kimeno.pst
+2025-01-07 09:41:11 - New file saved: d:\OtvosE\backup_OtvosE_kimeno.pst
+2025-01-07 09:41:11 - Checking file: R:\FabianM\_email\fm_backup_2013.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\FabianM\_email\fm_backup_2014.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\FabianM\_email\fm_backup_2015.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\FabianM\_email\fm_backup_2016.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\FabianM\_email\fm_backup_2017.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\FabianM\_email\fm_backup_2018.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\FabianM\_email\fm_backup_2019.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\FabianM\_email\fm_backup_2020.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\FabianM\_email\fm_backup_2021.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\FabianM\_email\fm_backup_2022.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\FabianM\_email\fm_backup_2023.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\FabianM\_email\fm_backup_2024.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\AngyalE\_email\backup_20230109.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\AntovszkiG\_email\AntovszkiG_backup0301.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\AntovszkiG\_email\AntovszkiG_backup20220620.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\AranyneRO\_email\backup_AranyneRO.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\ArkosiA\archive.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\ArkosiA\backup_20220613.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\AsztalosZs\_email\backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\BalazsneKK\backup_BalazsneKK.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\BaloghSne\backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\BartfaiAn\backup_bartfaian.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\BodiAnit\_email\bodianit.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\BodiAnit\_email\bodianit_backup202209.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\BoldogneBE\_email\backup_20231025.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\BoldogneBE\_email\suliweb_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\BorosneTA\Z mappa\_email\backup_BorosneTA.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\BrandaneSzE\_email\backup_BrandaneSzE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\ButiA\backup_BerenyiAt.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\ButiA\backup_ButiA_2018-2020.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\ButiA\backup_ButiA_2023.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\ButiA\backup_ButiA_2024.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\ButiA\backup_DarocziTi.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\ButiA\ButiA_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\CimreO\_email\backup_2018_2021.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\CimreO\_email\backup_20230321.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\CsatoR\z_meghajto\Dokumentumok\Új mappa\backup_BucskoJ.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\CsatoR\z_meghajto\Dokumentumok\Új mappa\backup_GulyasLadiD.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\CsatoR\z_meghajto\Dokumentumok\Új mappa\backup_JKE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\CsatoR\z_meghajto\Dokumentumok\Új mappa\backup_RajhoczkinePE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\CsatoR\z_meghajto\Dokumentumok\Új mappa\backup_SoresK.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:11 - Checking file: R:\CsatoR\z_meghajto\Dokumentumok\Új mappa\backup_ZahonyayE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:12 - Checking file: R:\CsatoR\_email\backup_CsatoR.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:12 - Checking file: R:\CsatoR\_email\backup_CsatoR_20230306.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:12 - Checking file: R:\CsatoR\_email\backup_GulyasLadiD.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:12 - Checking file: R:\CsecseineLGy\_email\backup_csecseinelgy.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:12 - Checking file: R:\CsehiR\20210630.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:12 - Checking file: R:\CsehiR\_Email\backup_CsehiR.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:12 - Checking file: R:\CsehiR\_Email\jav\backup_CsehiR.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:12 - Checking file: R:\CsehiR\_Email\jav\backup_CsehiR_2023.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:12 - Checking file: R:\CsobaE\_email\CsobaE_backup_20230929.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:12 - Checking file: R:\DankaiGyne\backup\backup_20220907.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:12 - Checking file: R:\DankaiGyne\jav_email\backup_DankaiGyne.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:12 - Checking file: R:\DankaiGyne\régi_email\backup_DankaiGyne.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:12 - Checking file: R:\DeakTam\backup_deaktam_0412.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:12 - Checking file: R:\DebreceniI\_email\debrecenii-backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:12 - Checking file: R:\DebreceniI\_email\otthoni_2021_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:12 - Checking file: R:\DebreczeniAzne\backup_DebreczeniAZne.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:12 - Checking file: R:\DebreczeniAzne\backup_DebreczeniAZne20231106.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:12 - Checking file: R:\DeczkyCs\Backup_20220525_DeczkyCs.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:12 - Checking file: R:\EgriE\backup_EgriE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:12 - Checking file: R:\FabianM\0000000000000000000\backup_KovacsNagyneZE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\FabianM\0000000000000000000\Saját Outlook-adatfájl (1).pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\FabianM\0000000000000000000\U\Tudásfórum33\backup_tf33.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\FabianM\0000000000000000000\U\Tudásfórum33\backup_tf33_.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\FabianM\0000000000000000000\zsuzsanna.laczko@klik.suliweb.hu.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\FabianM\0000000000000000000\újabb asztal\KLIK\pgyk_email\backup_pgyk_szab.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\FabianM\0000000000000000000\újabb asztal\KLIK\pgyk_email\backup_pgyk_szabi.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\FarankiH\_email\backup_20221107.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\FulopneHCs\backup_FulopneHCs.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GajdosM\_email\backup_GajdosM.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GajdosneZE\backup_GajdosneZE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GajdosneZE\GajdosneZE_2015.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GajdosneZE\GajdosneZE_2016.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GajdosneZE\GajdosneZE_2017.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GajdosneZE\GajdosneZE_2018.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GajdosneZE\GajdosneZE_2019.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GajdosneZE\GajdosneZE_2021.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GajdosneZE\GajdosneZE_2021_.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GajdosneZE\GajdosneZE_2022.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GajdosneZE\GajdosneZE_2023.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GajdosneZE\GajdosneZE_2024.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GajdosneZE\_email\backup_GajdosneZE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GajdosneZE\_email\GajdosneZE_2015.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GajdosneZE\_email\GajdosneZE_2016.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GajdosneZE\_email\GajdosneZE_2017.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GajdosneZE\_email\GajdosneZE_2018.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GajdosneZE\_email\GajdosneZE_2020.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GajdosneZE\_old\GajdosneZE_2019.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GergelyM\_email\backup_GergelyM.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GergelyneVA\backup_2021_12_08.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GesztiCs\BACKUP_GESZTICS.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GesztiCs\CsatoR\backup_CsatoR.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GesztiCs\CsatoR\backup_CsatoR_20230306.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GesztiCs\PoroszkaneLA\Anita_backup_20211216.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GesztiCs\PoroszkaneLA\Anita_backup_202307.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GubikB\_email\backup_20221213.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GubikB\_email\backup_suliweb.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\GulyasLadiD\_email\backup_GulyasLadiD.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\Gyulaitu2\outlook\backup_20240328.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\HadhazineSzE\backup_20210831.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\HadhazineSzE\hadhazinesze.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:13 - Checking file: R:\HalmosHarcsaE\_email\backup_HalmosHarcsaE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\HegedusR\_e-mail\backup_HegedusR.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\HegedusR\_email_KovacsnagyL\backup20240306.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\HegedusR\_email_KovacsnagyL\kovacsnagyl.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\HorvathtimkoEE\_email\backup_HorvathtimkoEE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\HunyadiTne\HunyadiTne_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\HunyadiTne\HunyadiTne_backup20230413.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\JooIA\backup_2021_05_25.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\JooIA\backup_2022_03_25.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\JooIA\backup_2023_02_06.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\JooIA\backup_2024_02_07.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\JooIA\csapokerti_pst\backup_.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\JooIA\csapokerti_pst\backup_Csapokerti.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\JooIA\csapokerti_pst\backup_dmjv.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\JooIA\csapokerti_pst\Outlook.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\JuhaszpasztorI\backup_JuhaszpasztorI.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\KallaiLo\backup20240129.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\KallaiLo\backup_20220825.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\KarikaRR\_email\backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\KarikaRR\_email\backup_2019_KarikaRR.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\KarikaRR\_email\backup_KarikaRR.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\KarikaRR\_email\Rozika email\backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\KarikaRR\_email\Rozika email\backup_2019_KarikaRR.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\KarikaRR\_email\Rozika email\backup_KarikaRR.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\KedvesF\backup_20220209.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\KedvesF\backup_20240527.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\KelemenEni\backup_20220106.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:14 - Checking file: R:\KelemenEni\kelemeneni.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\KiralyS\_email\backup_KiralyS.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\KissJanos2\backup_KissJanos2.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\KopaszGy\_email\backup_20221215.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\KotiR\_email\backup20221004.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\KotiR\_email\backup_suliweb.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\KovacsnagyL\_email\backup20240306.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\KovacsnagyL\_email\kovacsnagyl.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\KovacsViktori\boroscs_backup\backup_BorosCs.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\KozmaneKK\_email\backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\KroszticsIne\_email\backup_20230327.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\LaszloKaA\_email\backup_20240402.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\LeiterneTK\_email\LeiterneTK_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\LukacsS\backup_20240318.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\LukacsS\backup_LukacsS.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\MagyarLne\_email\backup_MagyarLne.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\MagyarneHM\backup\backup20230717.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\MajorosD\_email\backup_20240613.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\MakaiKr\_email\backup_20231127.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\MakaiKr\_email\backup_suliweb.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\ManyakA\_email\backup_ManyakA.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\MaruzsneAAE\MaruzsneAAE_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\MateGa\_email\backup_MateGa.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\MateGa\_email\backup_MateGa_2013.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\MateGa\_email\backup_MateGa_2014.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\MateGa\_email\backup_MateGa_2015.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\MateGa\_email\backup_MateGa_2016.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\MateGa\_email\backup_MateGa_2017.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\MateGa\_email\backup_MateGa_2018.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\MateGa\_email\backup_MateGa_2019.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\MateGa\_email\backup_MateGa_2020.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\MatuzA\backup_DarocziTi.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\MercsE\CsatoR\backup_CsatoR.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\MercsE\CsatoR\backup_CsatoR_20230306.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\MercsE\_email\backup_MercsE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\MoczokG\_email\archive.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\MoczokG\_email\backup_20240513.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\MolnarIne\backup_MolnarIne.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\NagyEEv\backup_20220119.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:15 - Checking file: R:\NagyEEv\backup_20230802.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\NagyFe\nagyfe.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\NagyFe\_email\backup_NagyFe.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\NagyneBSz\CsatoR\backup_CsatoR.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\NagyneBSz\CsatoR\backup_CsatoR_20230306.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\NagyneBSz\_email\NagyneBSz_Backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\NatorK\backup_20220509_Natork.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\NatorK\boroscs_backup\backup_BorosCs.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\Nyíradonyi Tankerület\Hálózati meghajtó\archive.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\Nyíradonyi Tankerület\Hálózati meghajtó\Arhív\CzirjakE\CzirjakE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\Nyíradonyi Tankerület\Hálózati meghajtó\Arhív\KeczanB\KeczanB.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\Nyíradonyi Tankerület\Hálózati meghajtó\Outlook-fájlok\archive1.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\OlahAnn\_email\backup_20221110.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\OlahAnn\_email\backup_suliweb.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\OroszMa\oroszmargit_fixed.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\OroszMa\régi_email\oroszmargit_fixed.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\OroszMa\Z_meghajto\régi_email\oroszmargit_fixed.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\OroszMa\_email\20230506_OroszMa.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\OtvosE\OtvosE\KovacsNagyneZE\_email\backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\OtvosE\OtvosE\Új mappa (3)\_email\szatmarineerika.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\OtvosE\OtvosE\Dokumentumok 3\Outlook-fájlok\archive.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\OtvosE\_email\backup_OtvosE_2013.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\OtvosE\_email\backup_OtvosE_2014.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\OtvosE\_email\backup_OtvosE_2015.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\OtvosE\_email\backup_OtvosE_2016.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\OtvosE\_email\backup_OtvosE_2017.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\OtvosE\_email\backup_OtvosE_2018.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\OtvosE\_email\backup_OtvosE_2019.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\OtvosE\_email\backup_OtvosE_2020.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PakurarA\pakurara.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PappneGyK\20200409\Asztal\Új mappa (2)\DarocziTi\_email\backup_DarocziTi.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PappneGyK\_email\backup_pgyk_2013.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PappneGyK\_email\backup_pgyk_2014.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PappneGyK\_email\backup_pgyk_2015.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PappneGyK\_email\backup_pgyk_2016.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PappneGyK\_email\backup_pgyk_2017.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PappneGyK\_email\backup_pgyk_2018.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PappneGyK\_email\backup_pgyk_2019.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PappneGyK\_email\backup_pgyk_2020.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PappneGyK\_email\backup_pgyk_2021.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PappneGyK\_email\backup_pgyk_2022.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PappneGyK\_email\backup_pgyk_2023.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PappneGyK\_email\backup_pgyk_kimeno.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PappneGyK\_email\_archiv\backup_pgyk_2015.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PappneGyK\_email\_archiv\backup_pgyk_2016.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PappneGyK\_email\_archiv\backup_pgyk_2017.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PappneGyK\_email\_archiv\backup_pgyk_2018.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PappneGyK\_email\_archiv\backup_pgyk_20181204.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PappneGyK\_email\_archiv\backup_pgyk_kimeno.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PappneGyK\_email\_archiv\pgyk_20190218.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PatakiNi\email\backup_20220218.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PatakiNi\email\patakini.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PercsiM\PercsiM_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PetercsakneIV\z_meghajto\_email\backup_PetercsakneIV.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PetrikE\_email\petrike.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PetrohaiN\_email\backup_suliweb.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PorcellanN\backup_PorcellanN.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PoroszkaneLA\backup_20211216.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:16 - Checking file: R:\PoroszkaneLA\backup_202307.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\PoroszkaneLA\Poroszkane_Lieber_Anita_email_backup\backup_20211216.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\PoroszkaneLA\Poroszkane_Lieber_Anita_email_backup\backup_202307.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\RaczZsu\backup_RaczZsu.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\RaczZsu\BorosCs_email\backup_BorosCs.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\RaczZsu\MatuzA_email\backup_matuza.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\RaczZsu\nisz\raczzsu.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\RaczZsu\_email\backup_RaczZs.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\RaczZsu\_email\backup_RaczZs2024.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\RajnaneGyA\backup_RajnaneGyA.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SariEP\SariEP\SariEP_2020.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SariEP\SariEP\SariEP_2021.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SariEP\SariEP\SariEP_2022.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SariEP\SariEP_2022.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SariEP\_email\Backup_20230519.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SariEP\_email\backup_SariEP.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SariEP\_email\backup_SariEP_2023.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SariEP\_email\backup_SARIEP_2023_1124.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SuszterneKE\backup_20220607.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SuszterneKE\backup_20230524.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboIldiko7\szaboildiko_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboIldiko7\szaboildiko_backup_20230417.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboIldiko7\szaboildiko_backup_20240624.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboLaszloA\backup_SzaboLaszloA.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboLaszloA\_email.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2019\20180515\backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2019\20180515\backup_BerenyiAt.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2019\20180515\fintha@klik.debrecen.hu.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2019\20190123\backup_vantus.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2019\20190516\backup_pgyk_2015.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2019\20190910\backup_pgyk_2019.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2019\20191121\backup_KarikaRR.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2019\karikaRR_2019.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2019\_save\_email\backup_SzaboNorb.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2021\Új mappa (3)\backup_SariEP.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2022\20220505\backup_nymfalva.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2022\20220505\SariEP\SariEP_2020.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2022\20220505\SariEP\SariEP_2021.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2022\backup_SariEP.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2022\backup_SariEP_2021.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2022\SariEP_2020.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2022\SariEP_2021.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2022\SariEP_backup_20201120.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2022\SariEP_backup_20201120_.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2023\20230925\backup_pgyk_2022.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2024\Backup_20230519.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2024\backup_SariEP_2023.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2024\backup_SARIEP_2023_1124.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2024\SariEP_2020.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2024\SariEP_2021.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2024\SariEP_2022.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\2024\Új mappa (4)\SariEP_2022.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\backup_nymfalva.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\backup_SariEP_2020.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\KarikaRR_backup\backup_KarikaRR.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\KarikaRR_backup\KarikaRR\_email\backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\KarikaRR_backup\KarikaRR\_email\backup_2019_KarikaRR.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\SARIEP\backup_SariEP_.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\SARIEP\SariEP_backup_20201120.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\SzabolaszloA\backup_20220922\backup_20220922.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:17 - Checking file: R:\SzaboNorb\SzabolaszloA\boroscs_backup\backup_BorosCs.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzaboNorb\_email\2019backup_SzaboNorb.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzaboNorb\_email\2020backup_SzaboNorb.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzaboNorb\_email\2021backup_SzaboNorb.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzaboNorb\_email\20231024_Norbi.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzaboNorb\_email\2024_szabonorb.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzaboNorb\_email\Backup_20230519.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzaboNorb\_email\backup_pgyk_2017.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzaboNorb\_email\backup_pgyk_2018.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzaboNorb\_email\backup_pgyk_2019.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzaboNorb\_email\backup_SariEP.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzaboNorb\_email\backup_SariEP_2021.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzaboNorb\_email\backup_SzaboNorb.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzalatyanZs\backup_SzalatyanZs.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzalatyanZs\backup_SzalatyanZs_20230920.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzantoEd\_email\backup_SzantoEd_.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzenasineHE\backup_SzenasineHE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzenasineHE\backup_SzenasineHE_20230306.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzenasineHE\régi outlook\Outlook\erika.harcsa@klik.suliweb.hu – ei.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzenasineHE\_email\backup_SzenasineHE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzilagyiBeat\_email\backup_SzilagyiBeat.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzilagyiIne\_email\backup_SzilagyiIne.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzilagyineFJ\20200214\backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzilagyineFJ\20200214\fintha@klik.debrecen.hu.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzilagyineFJ\backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzilagyineFJ\fintha@klik.debrecen.hu.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzobonyaMa\_email\backup_20230206.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzobonyaMa\_email\backup_suliweb.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzoboszlaineKE\backup_SzoboszlaineKE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzoboszlaiVe\_email\Veronika_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\szokekat\e-mail\backup_SzokeKat.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\szokekat\szokekat.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzollossyE\_email\backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\SzonyaNagyZsuzsa\backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\TamasEv\_email\TamasEv_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\TarrneNJ\backup_TarrneNJ.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\ToroknePB\_email\backup20240424.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\TothAEv\backup_TothAEv.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\TothDa\tothda_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\TothJozsef2\_email\TothJozsef2_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\TothJozsef2\_email\TothJozsef2_backup_20240220.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\TothneHI\backup_TothneHI.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\TothZoltan\asztal\Merevlemez asztali dokumentumok\_email\backup_TothZoltan.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\TothZoltan\_email\backup_TothZoltan.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\TothZoltan\_email\backup_TothZoltan_20231030.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\TurkL\_email\TurkL_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\UjvariAG\backup_20220613.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\UjvariAG\ujvariag.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\VallaiHajduE\backup_VallaiHajduE_2017.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\VallaiHajduE\backup_VallaiHajduE_2018.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\VallaiHajduE\backup_VallaiHajduE_ideiglenes.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\VallaiHajduE\backup_VallaiHajduE_lomtár.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\VantusAne\backup_VantusAne_2021.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\VantusAne\KRETA_iktatni.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\VantusAne\vantusane_2013.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\VantusAne\vantusane_2014.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\VantusAne\vantusane_2015.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\VantusAne\vantusane_2016.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\VantusAne\vantusane_2017.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\VantusAne\vantusane_2018.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\VantusAne\vantusane_2023.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\VantusAne\vantusane_2024.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\VantusAne\_email\backup_tf33.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\VantusAne\_email\backup_vantus.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\VantusAne\_email\backup_VantusAne_2020.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\VantusAne\_email\backup_VantusAne_2021.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\VantusAne\_email\backup_VantusAne_2022.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\VarganeSzMZs\_email\VarganeSzMZs_Backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\VargaZne\_email\Backup_VargaZne.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\VasIne\backup_VasIne.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\_archiv\20200225\HangradZne\_email\backup_HangradZne2.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\_archiv\20200225\KozmaneKK\_email\backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\_archiv\20200225\TothAndras2\_email\backup_TothAndras2.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\_archiv\20200225\TothDa\tothda.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\_archiv\20240115\BakkneRK\_email\Saját Outlook-adatfájl (1).pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\_archiv\20240115\PetercsakneIV\_email\backup_PetercsakneIV.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\_archiv\20240115\SimonAgn\_email\backup_SimonAgn.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\_archiv\20240115\SzilagyiBeat\Korábbi szerződések, mintának\dokumentumok\Outlook-fájlok\Outlook.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\_archiv\20240115\SzilagyiBeat\Korábbi szerződések, mintának\_save\Dokumentumok\Outlook-fájlok\Outlook.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\_archiv\ApagyiEd\_email\ApagyiEdit_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\_archiv\backup_BucskoJ.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\_archiv\backup_debreceniTK.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\_archiv\backup_GajdosneZE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:18 - Checking file: R:\_archiv\backup_GajdosneZE_2018.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\backup_GulyasLadiD.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\backup_HajduIl.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\backup_JKE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\backup_LaczkoZs.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\backup_MateGa.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\backup_RajhoczkinePE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\backup_SoresK.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\backup_ZahonyayE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\BakkneRK\_email\Saját Outlook-adatfájl (1).pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\BartaAn\_email\backup_BartaAn.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\BerenyiAt\_email\backup_BerenyiAt.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\BodnarMolnarA\_email\backup_BodnarmolnarA.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\BorosCs\backup_BorosCs.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\BorosCs\EFOP 3.1.6\archive2018.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\BorosCs\EFOP 3.1.6\archive2020.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\BorosneTA\01.06. Borosné Takács Andrea (BorosneTA)\borosneta.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\CsatoR\csator.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\DankaiGyne\dankaigyne.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\DankaiGyne\Dokumentumok\Outlook-fájlok\Outlook-adatfájl – kk(2).pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\DankaiGyne\Dokumentumok\Outlook-fájlok\Outlook-adatfájl – kk.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\DarocziTi\11.21. Daróczi Tibor (DarocziTi)\darocziti.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\DarocziTi\_email\backup_DarocziTi.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\DeakTam\deaktam.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\EszeM\_email\backup_EszeM.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\FabianG\_email\backup_FabianGab.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\FalusiB\Dokumentumok\Outlook-fájlok\Outlook-adatfájl – kk.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\FalusiB\FalusiB_20171201-150536.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\FalusiB\_email\backup_FalusiB.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\gajdosneze\_email\backup_GajdosneZE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\gajdosneze\_email\backup_GajdosneZE_2.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\gajdosneze\_tmp\backup_GajdosneZE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\gajdosneze\_tmp\jav_GajdosneZE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\GalneSzA\_email\GalneSzA_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\GyulaiTu\gyulaitu.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\HajduIl\_email\backup_HajduIl.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\HalmosharcsaE\halmosharcsae.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\HangradZne\_email\backup_HangradZne2.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\HegedusF\_email\HegedusF.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\HegedusFlo\_email\HegedusF.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\HojcskaneNE\_email\backup_HojcskaneNE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\HoluAn\holuan.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\illesan.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\J.KE\_email\backup_JKE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\J.KE\_email\backup_RajhoczkinePE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\JonasEne\_email\backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\JonasEne\_email\backup_JonasEne.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\JuhaszpasztorI\juhaszpasztori.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\KabaiAd\_email\backup-kabaiad0222.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\KallaiLo\kallailo.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\KarikaRR\karikarr.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\KasAIne\backup_KasAIne.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\KonyvesTothF\konyvestothf.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\KovacsnagyL\kovacsnagyl.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\KovacsReka\_email\backup_KovacsReka.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\KozmaneKK\kozmanekk.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\KozmaneKK\_email\backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\KroszticsIne\kroszticsine.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\LaczkoZs\backup_LaczkoZs.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\László Katalin Ágnes\laszlokaa.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\MagyarneHM\magyarnehm.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\MakaiKr\makaikr.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\ManyakA\_dokumentumok\Outlook-fájlok\archive.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\ManyakA\_dokumentumok\Outlook-fájlok\backup_ManyakA.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\ManyakA\manyaka.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\MarosiAn\Dokumentumok\Outlook-fájlok\Outlook-adatfájl – NISZ-EI.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:19 - Checking file: R:\_archiv\MarosiAn\_email\backup_MarosiAn.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\MatuzA\email\backup_matuza.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\MatyasAnd\11.21. Mátyás Andrea (MatyasAnd)\matyasand.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\MercsneBE\_email\MercsneBE_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\MeszarosKM\meszaroskm.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\MolnarIne\Dokumentumok\Outlook-fájlok\archive.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\MolnarIne\molnarine.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\MolnarIne\_email\backup_MolnarIne2019.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\NagyEEv\nagyeev.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\NagyFe\_email\backup_NagyFe.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\NagyGab\backup_NagyGab_20180328.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\NatorK\natork.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OlahAnn\olahann.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OlahneSzE\_email\backup_SZOE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OtvosE\backup_OtvosE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OtvosE\_email\archiv\backup_OtvosE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OtvosE\_email\archiv\backup_OtvosE_kimeno.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OtvosE\_email\archiv\ki_201810-12.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OtvosE\_email\archiv\otvos.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OtvosE\_email\archiv\Saját Outlook-adatfájl (1).pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OtvosE\_email\archiv\_backup_oe.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OtvosE\_email\archiv\_backup_oe2.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OtvosE\_email\archiv\_backup_oe3.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OtvosE\_email\backup_OtvosE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OtvosE\_email\backup_OtvosE_2013.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OtvosE\_email\backup_OtvosE_2014.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OtvosE\_email\backup_OtvosE_2015.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OtvosE\_email\backup_OtvosE_2016.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OtvosE\_email\backup_OtvosE_2017.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OtvosE\_email\backup_OtvosE_2018.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OtvosE\_email\backup_OtvosE_2019.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OtvosE\_email\backup_OtvosE_kimeno.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OtvosE\_email\ki_201810-12.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OtvosE\_email\Saját Outlook-adatfájl (1).pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OtvosE\_email\_backup_oe.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OtvosE\_email\_backup_oe2.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\OtvosE\_email\_backup_oe3.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\PaksiMa\Outlook archivált\archive.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\PapkineME\papkineme.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\PappneGyK\backup_pgyk_szabi.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\PenkeH\penkeh.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\PercsiM\_email\PercsiM_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\PetercsakneIV\petercsakneiv.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\PetercsakneIV\_email\backup_PetercsakneIV.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\PorcellanN\porcellann.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\PoroszkaneLA\poroszkanela.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\RajhoczkinePE\RajhoczkinePE_20180102-145052.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\RajhoczkinePE\_email\backup_RajhoczkinePE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\Saját Outlook-adatfájl (1).pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\SariEP\sariep.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\SimonAgn\_email\backup_SimonAgn.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\SoresK\_email\backup_SoresK.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\SuhajineSzZs\suhajineszzs.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\SzalatyanZs\OlahneSzE\_email\backup_SZOE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\SzalatyanZs\szalatyanzs.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\SzalatyanZs\Z meghajtó\_email\backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\SzatmarineVE\backup_SzatmarineVE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\SzenasineHE\szenasinehe.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\SzentmiklosiB\_email\backup-szentmiklosib0222.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\SzilagyiBeat\Korábbi szerződések, mintának\dokumentumok\Outlook-fájlok\Outlook.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\SzilagyiBeat\Korábbi szerződések, mintának\_save\Dokumentumok\Outlook-fájlok\Outlook.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\SzoboszlaineKE\backup_SzoboszlaineKE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\SzoboszlaineKE\SzoboszlaineKE\JankoZ\_email\backup_JankoZ.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\SzokeGe\_email\backup-szokege0222.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\SzollossyE\01.05. Szőllőssy Enikő (SzollossyE)\szollossye.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\SzucsZs\szucszs.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\TarrneNJ\tarrnenj.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\TaskoJ\taskoj.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\TempflineSzN\_email\backup_TempflineSzN.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\TothneHI\tothnehi.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\UriE\urie.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\VargaAnd\vargaandrea_1.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\VasIne\vasine.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\VasIne\_email\backup_VasIne.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\vhe\backup_2018.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\vhe\backup_VallaiHajduE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\vhe\backup_VallaiHajduE_2017.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\vhe\backup_VallaiHajduE_lomtár.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\VékonyKliens\FulopneHCs\AppData\Local\Microsoft\Outlook\csilla.horvath@suliweb.hu.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\VékonyKliens\GaalR\AppData\Local\Microsoft\Outlook\reka.gaal@klik.gov.hu (1) – EI.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\VékonyKliens\GaalR\AppData\Local\Microsoft\Outlook\reka.gaal@klik.suliweb.hu – EI(2).pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\VékonyKliens\GaalR\AppData\Local\Microsoft\Outlook\reka.gaal@klik.suliweb.hu – EI.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\VékonyKliens\LaczkoZs\AppData\Local\Microsoft\Outlook\zsuzsa.laczko@klik.suliweb.hu – NISZ-EI.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:20 - Checking file: R:\_archiv\VékonyKliens\LaszloneKCS\AppData\Local\Microsoft\Outlook\csilla.kalmandy@klik.suliweb.hu – ei.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\VékonyKliens\SzaboLne\AppData\Local\Microsoft\Outlook\eniko.szollossy@klik.suliweb.hu – EI.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\VékonyKliens\TothAndras2\AppData\Local\Microsoft\Outlook\andras.toth@klik.suliweb.hu – NISZ-EI.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\VékonyKliens\ZahonyayE\AppData\Local\Microsoft\Outlook\erzsebet.zahonyay@klik.suliweb.hu – EI.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_20191127_gazdalkodas_backup\RaczZs\bck_11_11\_email\backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_20210312\CimreO\_email\CimreO_bac.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_20210312\EgriEd\Archív levelek\archive.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_20210312\EgriEd\Archív levelek\EgriEd_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_20210312\FeketeLne\_email\backup_FeketeLne.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_20210312\KarikaRR\_email\backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_20210312\KogyillaT\HegedusF.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_20210312\KogyillaT\_email\backup_KogyillaT.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_20210312\LudmanB\_email\LudmanB_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_20210312\MeszarosKM\_email\backup_MeszarosKM.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_20210312\NagyZolne\_email\ApagyiEdit_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_20210312\OtvosE\KovacsNagyneZE\_email\backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_20210312\OtvosE\Új mappa (3)\_email\szatmarineerika.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_20210312\OtvosE\Dokumentumok 3\Outlook-fájlok\archive.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_20210312\PapkineME\_email\backup_PapkineME.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_20210312\PenkeH\backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_20210312\PercsiM\_email\PercsiM_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_20210312\SzentesiE\dokumentumok\Outlook-fájlok\Outlook.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_20210312\SzentesiE\_email\SzentesiE_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_20210312\SzentesiE\_save\Dokumentumok\Outlook-fájlok\Outlook.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_20210312\SzilagyineFJ\_asztal\Outlook-fájlok\archive.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_20210312\TaskoJ\_email\backup_TaskoJ.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_20210312\TothAndras2\_email\backup_TothAndras2.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_backup_oe.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_backup_oe2.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_backup_pgyk.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_email\abranyiemil_suliweb.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_email\anita.holu.suliweb.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_email\beata.szilagyi.suliweb.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_email\bernadett_falusi_suliweb_hu.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_email\beszerzes_debrecen_klik_suliweb_hu.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_email\debrecen_kkgovhu.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_email\eva.evelin.nagy.suliweb.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_email\eva.tamas.suliweb.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_email\gabriella_nagy_suliweb_hu.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_email\istvanne.szilagyi.suliweb.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_email\kozfoglalkoztatott_klik_suliweb_hu.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_email\tankerulet_klik_suliweb_hu.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_informatika\_kabinet\E-feladas_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_oe_20171026.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_archiv\_pgyk_20170831.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_beszerzes\Beszerzési csoport\Gulyás-Ládi Dóra mentés\e_mail\backup_BucskoJ.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_beszerzes\Beszerzési csoport\Gulyás-Ládi Dóra mentés\e_mail\backup_GulyasLadiD.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_beszerzes\Beszerzési csoport\Gulyás-Ládi Dóra mentés\e_mail\backup_NagyGab.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_beszerzes\Beszerzési csoport\Gulyás-Ládi Dóra mentés\e_mail\backup_SoresK.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_beszerzes\Beszerzési csoport\J.KE\_email\backup_JKE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_beszerzes\Beszerzési csoport\J.KE\_email\backup_RajhoczkinePE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_eadat\KovacsnagyL\_email\backup_20220117\backup_20220117.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_eadat\KovacsnagyL\_email\kovacsnagyl.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_informatika\_debrecen_kk_gov_hu\debrecen_kkgovhu.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_informatika\_EMAIL\archiv.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_informatika\_EMAIL\covid_suliweb.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_informatika\_EMAIL\Debreceni TKK_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_informatika\_EMAIL\tavollet.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_informatika\_EMAIL\ugyfelfogadas.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_palyazat\VallaiHajduE\backup_VallaiHajduE_2017.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_palyazat\VallaiHajduE\backup_VallaiHajduE_2018.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_palyazat\VallaiHajduE\backup_VallaiHajduE_ideiglenes.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_palyazat\VallaiHajduE\backup_VallaiHajduE_lomtár.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_palyazat_2\_archiv\BorosCs\EFOP 3.1.6\archive2018.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_palyazat_2\_archiv\BorosCs\EFOP 3.1.6\archive2020.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_palyazat_2\_archiv\BorosCs\_email\backup_BorosCs.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_palyazat_2\_archiv\MatuzA\email\backup_matuza.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_palyazat_2\_archiv\VallaiHajduE\_email\backup_VallaiHajduE_2017.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_palyazat_2\_archiv\VallaiHajduE\_email\backup_VallaiHajduE_2018.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_palyazat_2\_archiv\VallaiHajduE\_email\backup_VallaiHajduE_ideiglenes.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_palyazat_2\_archiv\VallaiHajduE\_email\backup_VallaiHajduE_lomtár.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\_palyazat_U_2\TF33\backup_tf33.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: R:\Új mappa\backup_pgyk_kimeno.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: U:\AranyneRO\H\Outlook-fájlok\archive.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: U:\AranyneRO\H\Outlook-fájlok\orsolya.risko@klik.suliweb.hu – EI.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: U:\AsztalosZs\AppData\Local\Microsoft\Outlook\zsuzsa.asztalos@klik.suliweb.hu – EI.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: U:\AsztalosZs\OlahneSzE\_email\backup_SZOE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: U:\BalazsneKK\!asztal\Documents\Outlook-fájlok\Outlook-adatfájl – NISZ-EI.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: U:\BrandaneSzE\Dokumentumok mentés 20190111\Outlook-fájlok\Saját Outlook-adatfájl (1).pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: U:\DebreceniIza\_email\backup_DebreceniI.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: U:\GajdosneZE\AppData\Local\Microsoft\Outlook\erika.zovanyi@klik.suliweb.hu – EI.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: U:\KiralyS\_email\backup_KiralyS.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: U:\LeiterneTK\_email\LeiterneTK_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: U:\MaruzsneAAE\_email\backup_MaruzsneAAE.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: U:\MaruzsneAAE\_email\backup_MaruzsneAAE_20230810.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: U:\MateGa\_email\backup_MateGa.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: U:\MateGa\_email\MateGa_2020.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: U:\MesterL\_email\MesterL_email.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: U:\NagyneCsJ\_email\backup_NagyneCsJ.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: U:\SzabolaszloA\_email\Saját Outlook-adatfájl (1).pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: U:\SzantoEd\2019-ben készült számlák sap\backup_SzantoEd.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: U:\SzoboszlaineKE\JankoZ\_email\backup_JankoZ.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: U:\_informatika\_kabinet\E-feladas_backup.pst isInSearchDirectory: false isMissingInCurrentList: true
+2025-01-07 09:41:21 - Checking file: d:\OtvosE\backup_OtvosE_2019.pst isInSearchDirectory: true isMissingInCurrentList: false
+2025-01-07 09:41:21 - Checking file: d:\OtvosE\backup_OtvosE_kimeno.pst isInSearchDirectory: true isMissingInCurrentList: false
+2025-01-07 09:41:21 - Fájlinformációk frissítve és mentve az adatbázisban.
+2025-01-07 09:41:21 - Keresés és mentés teljes ideje: 11055 milliszekundum
+2025-01-07 09:41:37 - Processing file: R:\AranyneRO\_email\backup_AranyneRO.pst
+2025-01-07 09:41:37 - Processing file: R:\AsztalosZs\_email\backup.pst
+2025-01-07 09:41:37 - Processing file: R:\BalazsneKK\backup_BalazsneKK.pst
+2025-01-07 09:41:37 - Processing file: R:\ButiA\backup_ButiA_2018-2020.pst
+2025-01-07 09:41:37 - Processing file: R:\CsatoR\_email\backup_CsatoR.pst
+2025-01-07 09:41:37 - Processing file: R:\CsehiR\_Email\backup_CsehiR.pst
+2025-01-07 09:41:37 - Processing file: R:\CsehiR\_Email\jav\backup_CsehiR.pst
+2025-01-07 09:41:37 - Processing file: R:\DankaiGyne\jav_email\backup_DankaiGyne.pst
+2025-01-07 09:41:37 - Processing file: R:\DankaiGyne\régi_email\backup_DankaiGyne.pst
+2025-01-07 09:41:37 - Processing file: R:\CsehiR\_Email\jav\backup_CsehiR_2023.pst
+2025-01-07 09:41:38 - Opened connection [connectionId{localValue:8, serverValue:9}] to localhost:27017
+2025-01-07 09:41:38 - Opened connection [connectionId{localValue:4, serverValue:6}] to localhost:27017
+2025-01-07 09:41:38 - Opened connection [connectionId{localValue:7, serverValue:8}] to localhost:27017
+2025-01-07 09:41:38 - Opened connection [connectionId{localValue:9, serverValue:7}] to localhost:27017
+2025-01-07 09:41:38 - Opened connection [connectionId{localValue:5, serverValue:4}] to localhost:27017
+2025-01-07 09:41:38 - Opened connection [connectionId{localValue:6, serverValue:5}] to localhost:27017
+2025-01-07 09:41:38 - Opened connection [connectionId{localValue:10, serverValue:10}] to localhost:27017
+2025-01-07 09:41:38 - Opened connection [connectionId{localValue:11, serverValue:11}] to localhost:27017
+2025-01-07 09:41:42 - Unsupported message type: REPORT.IPM.Note.IPNRN in backup.pst
+2025-01-07 09:41:43 - Unsupported message type: REPORT.IPM.Note.IPNRN in backup.pst
+2025-01-07 09:41:44 - Unsupported message type: REPORT.IPM.Note.IPNRN in backup.pst
+2025-01-07 09:41:45 - Unsupported message type: REPORT.IPM.Note.IPNRN in backup.pst
+2025-01-07 09:43:17 - Skipping already processed email with ID: 77d22d3c83c450f33eed27d25f4dc3b22fde569d867b9b117915aafc3f7cf433
+2025-01-07 09:43:45 - Skipping already processed email with ID: 43d4dcf33b08a590212567718942033ab365b080b0ea91dfc7fb8d87e7753f1e
+2025-01-07 09:43:47 - Skipping already processed email with ID: a7dfa4f590e90e956debb7e9c8bdb4b290e5762f5da67827570316699980abad
+2025-01-07 09:44:06 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:06 - Unsupported message type: IPM.Schedule.Meeting.Canceled in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:06 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:06 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:06 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:06 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:07 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:07 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:07 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:07 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:07 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:07 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:07 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:08 - Unsupported message type: IPM.Schedule.Meeting.Canceled in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:08 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:08 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:08 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:08 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:08 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:08 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:08 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:08 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:08 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:09 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:09 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:09 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:09 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:09 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:09 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:10 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:10 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:12 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:12 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:12 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:12 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:12 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:12 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:12 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:12 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:12 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:12 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:12 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:12 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:13 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:13 - Unsupported message type: IPM.Schedule.Meeting.Resp.Pos in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:13 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:13 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:14 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:14 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:14 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:14 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:14 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:15 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:15 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:15 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:15 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:16 - Unsupported message type: IPM.Schedule.Meeting.Request in backup_ButiA_2018-2020.pst
+2025-01-07 09:44:32 - Opened connection [connectionId{localValue:12, serverValue:15}] to localhost:27017
+2025-01-07 09:53:00 - Starting BackendApplication using Java 11.0.23 on DESKTOP-M4B0VFA with PID 1760 (C:\Users\FabianM\IdeaProjects\suliweb\target\classes started by FabianM in C:\Users\FabianM\IdeaProjects\suliweb)
+2025-01-07 09:53:00 - No active profile set, falling back to default profiles: default
+2025-01-07 09:53:01 - For Jackson Kotlin classes support please add "com.fasterxml.jackson.module:jackson-module-kotlin" to the classpath
+2025-01-07 09:53:02 - Multiple Spring Data modules found, entering strict repository configuration mode!
+2025-01-07 09:53:02 - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-01-07 09:53:02 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.AuthorityRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 09:53:02 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.EmailRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 09:53:02 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.FileInfoRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 09:53:02 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.FileRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 09:53:02 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.LogEntryRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 09:53:02 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.OrganizationRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 09:53:02 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.UserRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 09:53:02 - Spring Data JPA - Could not safely identify store assignment for repository candidate interface hu.fmdev.backend.repository.nodetypes.CommitmentClaimRepository. If you want this repository to be a JPA repository, consider annotating your entities with one of these annotations: javax.persistence.Entity, javax.persistence.MappedSuperclass (preferred), or consider extending one of the following types with your repository: org.springframework.data.jpa.repository.JpaRepository.
+2025-01-07 09:53:02 - Finished Spring Data repository scanning in 180 ms. Found 0 JPA repository interfaces.
+2025-01-07 09:53:02 - Multiple Spring Data modules found, entering strict repository configuration mode!
+2025-01-07 09:53:02 - Bootstrapping Spring Data MongoDB repositories in DEFAULT mode.
+2025-01-07 09:53:03 - Finished Spring Data repository scanning in 287 ms. Found 8 MongoDB repository interfaces.
+2025-01-07 09:53:04 - Tomcat initialized with port(s): 8080 (http)
+2025-01-07 09:53:04 - Starting service [Tomcat]
+2025-01-07 09:53:04 - Starting Servlet engine: [Apache Tomcat/9.0.46]
+2025-01-07 09:53:04 - Initializing Spring embedded WebApplicationContext
+2025-01-07 09:53:04 - Root WebApplicationContext: initialization completed in 3734 ms
+2025-01-07 09:53:04 - HikariPool-1 - Starting...
+2025-01-07 09:53:04 - HikariPool-1 - Start completed.
+2025-01-07 09:53:04 - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-01-07 09:53:05 - HHH000412: Hibernate ORM core version 5.4.31.Final
+2025-01-07 09:53:05 - HCANN000001: Hibernate Commons Annotations {5.1.2.Final}
+2025-01-07 09:53:05 - HHH000400: Using dialect: org.hibernate.dialect.H2Dialect
+2025-01-07 09:53:06 - HHH000490: Using JtaPlatform implementation: [org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform]
+2025-01-07 09:53:06 - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-01-07 09:53:06 - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-01-07 09:53:06 - Cluster created with settings {hosts=[localhost:27017], mode=SINGLE, requiredClusterType=UNKNOWN, serverSelectionTimeout='30000 ms'}
+2025-01-07 09:53:06 - Opened connection [connectionId{localValue:1, serverValue:20}] to localhost:27017
+2025-01-07 09:53:06 - Opened connection [connectionId{localValue:2, serverValue:19}] to localhost:27017
+2025-01-07 09:53:06 - Monitor thread successfully connected to server with description ServerDescription{address=localhost:27017, type=STANDALONE, state=CONNECTED, ok=true, minWireVersion=0, maxWireVersion=21, maxDocumentSize=16777216, logicalSessionTimeoutMinutes=30, roundTripTimeNanos=81937600}
+2025-01-07 09:53:07 - 
+
+Using generated security password: f5955fd9-a8e7-4075-8e64-102d974495d1
+
+2025-01-07 09:53:07 - Will secure any request with [org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@9d2af36, org.springframework.security.web.context.SecurityContextPersistenceFilter@1800c1e3, org.springframework.security.web.header.HeaderWriterFilter@1ac25dbb, org.springframework.security.web.authentication.logout.LogoutFilter@34652065, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@4e357792, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@7641ed02, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@740ad32e, org.springframework.security.web.session.SessionManagementFilter@5b55c3d6, org.springframework.security.web.access.ExceptionTranslationFilter@43e7f104, org.springframework.security.web.access.intercept.FilterSecurityInterceptor@3e839aa3]
+2025-01-07 09:53:08 - Cannot find template location: classpath:/templates/ (please add some templates or check your Thymeleaf configuration)
+2025-01-07 09:53:08 - Tomcat started on port(s): 8080 (http) with context path ''
+2025-01-07 09:53:08 - Started BackendApplication in 8.55 seconds (JVM running for 11.237)
+2025-01-07 09:53:08 - Application availability state LivenessState changed to CORRECT
+2025-01-07 09:53:08 - Application availability state ReadinessState changed to ACCEPTING_TRAFFIC
+2025-01-07 09:53:14 - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2025-01-07 09:53:14 - Initializing Servlet 'dispatcherServlet'
+2025-01-07 09:53:14 - Completed initialization in 5 ms
+2025-01-07 09:53:16 - Opened connection [connectionId{localValue:3, serverValue:21}] to localhost:27017
+2025-01-07 09:53:16 - Processing file: d:\OtvosE\backup_OtvosE_kimeno.pst
+2025-01-07 09:53:16 - Processing file: d:\OtvosE\backup_OtvosE_2019.pst
+2025-01-07 09:53:16 - Opened connection [connectionId{localValue:4, serverValue:22}] to localhost:27017

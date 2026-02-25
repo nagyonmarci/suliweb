@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="myApp">
+<head>
+  <meta charset="UTF-8">
+  <title>Email Management</title>
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+  <script src="app/app.js"></script>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body ng-controller="EmailController as emailCtrl">
+<div class="container">
+  <h1>Email Management</h1>
+
+  <!-- List all emails -->
+  <div>
+    <h2>All Emails</h2>
+    <ul>
+      <li ng-repeat="email in emailCtrl.emails">
+        {{ email.subject }} - {{ email.senderEmailAddress }}
+        <button ng-click="emailCtrl.selectEmail(email.id)">Select</button>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Selected email details -->
+  <div ng-if="emailCtrl.selectedEmail">
+    <h2>Selected Email</h2>
+    <p><strong>Sender:</strong> {{ emailCtrl.selectedEmail.senderName }} ({{ emailCtrl.selectedEmail.senderEmailAddress }})</p>
+    <p><strong>Subject:</strong> {{ emailCtrl.selectedEmail.subject }}</p>
+    <p><strong>Received Time:</strong> {{ emailCtrl.selectedEmail.receivedTime | date:'medium' }}</p>
+    <p><strong>Body:</strong> {{ emailCtrl.selectedEmail.body }}</p>
+    <button ng-click="emailCtrl.deleteEmail(emailCtrl.selectedEmail.id)">Delete</button>
+  </div>
+
+  <!-- Form to add/update email -->
+  <div>
+    <h2>Add/Update Email</h2>
+    <form ng-submit="emailCtrl.saveOrUpdateEmail()">
+      <label>Subject:</label>
+      <input type="text" ngModel="emailCtrl.email.subject" required><br>
+      <label>Sender Name:</label>
+      <input type="text" ngModel="emailCtrl.email.senderName" required><br>
+      <label>Sender Email Address:</label>
+      <input type="email" ngModel="emailCtrl.email.senderEmailAddress" required><br>
+      <label>Body:</label>
+      <textarea rows="4" cols="50" ngModel="emailCtrl.email.body" required></textarea><br>
+      <button type="submit">Save Email</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>
