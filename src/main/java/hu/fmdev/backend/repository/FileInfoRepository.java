@@ -6,7 +6,8 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import java.util.List;
 import java.util.Optional;
 
-public interface FileInfoRepository extends MongoRepository<FileInfo, Long> {
+public interface FileInfoRepository extends MongoRepository<FileInfo, String> {
     Optional<FileInfo> findFirstByPath(String path);
+
     List<FileInfo> findByStatusIn(List<String> statuses);
 }

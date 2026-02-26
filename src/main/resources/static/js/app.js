@@ -28,12 +28,98 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnLoadFiles = document.getElementById('btn-load-files');
     const filesTableBody = document.getElementById('files-table-body');
 
+    // Filter Inputs (Moved up for availability)
+    const filterSubject = document.getElementById('filter-subject');
+    const filterSender = document.getElementById('filter-sender');
+    const filterPst = document.getElementById('filter-pst');
+    const filterImportance = document.getElementById('filter-importance');
+    const filterLimit = document.getElementById('filter-limit');
+    const sortableHeaders = document.querySelectorAll('.sortable');
+
     // Progress Tracking
     const progressContainer = document.getElementById('progress-container');
     const progressOperationName = document.getElementById('progress-operation-name');
     const progressText = document.getElementById('progress-text');
     const progressBarFill = document.getElementById('progress-bar-fill');
     let progressPollInterval = null;
+
+    // --- Utility: Logging & Notifications & Helpers ---
+
+    function debounce(func, timeout = 500) {
+        let timer;
+        return (...args) => {
+            clearTimeout(timer);
+            timer = setTimeout(() => { func.apply(this, args); }, timeout);
+        };
+    }
+
+    function logMessage(message, type = 'info') {
+        const entry = document.createElement('div');
+        entry.className = `log-entry ${type}`;
+
+        const timestamp = new Date().toLocaleTimeString('hu-HU', { hour12: false });
+        entry.textContent = `[${timestamp}] ${message}`;
+
+        logContainer.appendChild(entry);
+        logContainer.scrollTop = logContainer.scrollHeight;
+    }
+
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `<span>${message}</span>`;
+        if (toastContainer) {
+            toastContainer.appendChild(toast);
+        }
+
+        // Remove after animation (approx 4.3s)
+        setTimeout(() => {
+            if (toastContainer && toastContainer.contains(toast)) {
+                toastContainer.removeChild(toast);
+            }
+        }, 4500);
+    }
+
+    function setSystemStatus(status, text) {
+        systemStatusDot.className = `status-dot ${status}`;
+        systemStatusText.textContent = text;
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return null;
+        const d = new Date(dateStr);
+        return d.toLocaleString('hu-HU');
+    }
+
+    // --- API Wrapper ---
+    async function apiCall(url, method = 'GET', body = null, isFormData = false) {
+        setSystemStatus('busy', 'Feldolgozás alatt...');
+
+        const options = {
+            method: method,
+        };
+
+        if (body) {
+            options.body = body; // Ha FormData, a böngésző automatikusan beállítja a multipart headert
+        }
+
+        try {
+            const response = await fetch(url, options);
+            const textResponse = await response.text();
+
+            if (!response.ok) {
+                throw new Error(textResponse || `HTTP ${response.status}`);
+            }
+
+            setSystemStatus('online', 'Rendszer Aktív');
+            return textResponse;
+        } catch (error) {
+            setSystemStatus('online', 'Rendszer Aktív');
+            logMessage(`Hiba történt: ${error.message}`, 'error');
+            showToast('Hiba a kérés során', 'error');
+            throw error;
+        }
+    }
 
     // --- Progress Bar Logic ---
 
@@ -71,68 +157,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1000); // 1 sec poll
     }
 
-    // --- Utility: Logging & Notifications ---
-
-    function logMessage(message, type = 'info') {
-        const entry = document.createElement('div');
-        entry.className = `log-entry ${type}`;
-
-        const timestamp = new Date().toLocaleTimeString('hu-HU', { hour12: false });
-        entry.textContent = `[${timestamp}] ${message}`;
-
-        logContainer.appendChild(entry);
-        logContainer.scrollTop = logContainer.scrollHeight;
-    }
-
-    function showToast(message, type = 'info') {
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        toast.innerHTML = `<span>${message}</span>`;
-        toastContainer.appendChild(toast);
-
-        // Remove after animation (approx 4.3s)
-        setTimeout(() => {
-            if (toastContainer.contains(toast)) {
-                toastContainer.removeChild(toast);
-            }
-        }, 4500);
-    }
-
-    function setSystemStatus(status, text) {
-        systemStatusDot.className = `status-dot ${status}`;
-        systemStatusText.textContent = text;
-    }
-
-    // --- API Wrapper ---
-    async function apiCall(url, method = 'GET', body = null, isFormData = false) {
-        setSystemStatus('busy', 'Feldolgozás alatt...');
-
-        const options = {
-            method: method,
-        };
-
-        if (body) {
-            options.body = body; // Ha FormData, a böngésző automatikusan beállítja a multipart headert
-        }
-
-        try {
-            const response = await fetch(url, options);
-            const textResponse = await response.text();
-
-            if (!response.ok) {
-                throw new Error(textResponse || `HTTP ${response.status}`);
-            }
-
-            setSystemStatus('online', 'Rendszer Aktív');
-            return textResponse;
-        } catch (error) {
-            setSystemStatus('online', 'Rendszer Aktív');
-            logMessage(`Hiba történt: ${error.message}`, 'error');
-            showToast('Hiba a kérés során', 'error');
-            throw error;
-        }
-    }
-
     // --- Event Listeners: Search & DB ---
 
     btnSearchDb.addEventListener('click', async () => {
@@ -156,6 +180,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await apiCall(url, 'GET');
             logMessage(result, 'success');
             showToast("Keresés sikeresen befejeződött", "success");
+
+            // Auto-refresh file list after search
+            if (btnLoadFiles) btnLoadFiles.click();
         } catch (e) {
             // Error handled in apiCall
         } finally {
@@ -171,6 +198,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await apiCall('/find/updateDb', 'GET');
             logMessage(result, 'success');
             showToast("DB sikeresen frissítve", "success");
+
+            // Auto-refresh file list after update
+            if (btnLoadFiles) btnLoadFiles.click();
         } catch (e) { } finally {
             btnUpdateDb.disabled = false;
         }
@@ -274,8 +304,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) { }
     });
 
-    // --- DB Viewer Data Loading ---
-
     // --- Advanced Table State (Sorting & Filtering) ---
 
     let searchState = {
@@ -283,38 +311,27 @@ document.addEventListener('DOMContentLoaded', () => {
         sender: '',
         pstFile: '',
         importance: '',
+        limit: 100,
         sortBy: 'receivedTime',
         direction: 'desc'
     };
 
     // --- Search & Sort Interaction ---
 
-    const filterSubject = document.getElementById('filter-subject');
-    const filterSender = document.getElementById('filter-sender');
-    const filterPst = document.getElementById('filter-pst');
-    const filterImportance = document.getElementById('filter-importance');
-    const sortableHeaders = document.querySelectorAll('.sortable');
-
-    function debounce(func, timeout = 500) {
-        let timer;
-        return (...args) => {
-            clearTimeout(timer);
-            timer = setTimeout(() => { func.apply(this, args); }, timeout);
-        };
-    }
-
     const triggerSearch = debounce(() => {
-        searchState.subject = filterSubject.value;
-        searchState.sender = filterSender.value;
-        searchState.pstFile = filterPst.value;
-        searchState.importance = filterImportance.value;
+        searchState.subject = filterSubject ? filterSubject.value : '';
+        searchState.sender = filterSender ? filterSender.value : '';
+        searchState.pstFile = filterPst ? filterPst.value : '';
+        searchState.importance = filterImportance ? filterImportance.value : '';
+        searchState.limit = filterLimit ? (parseInt(filterLimit.value) || 100) : 100;
         loadEmails();
     });
 
-    filterSubject.addEventListener('input', triggerSearch);
-    filterSender.addEventListener('input', triggerSearch);
-    filterPst.addEventListener('input', triggerSearch);
-    filterImportance.addEventListener('change', triggerSearch);
+    if (filterSubject) filterSubject.addEventListener('input', triggerSearch);
+    if (filterSender) filterSender.addEventListener('input', triggerSearch);
+    if (filterPst) filterPst.addEventListener('input', triggerSearch);
+    if (filterImportance) filterImportance.addEventListener('change', triggerSearch);
+    if (filterLimit) filterLimit.addEventListener('change', triggerSearch);
 
     sortableHeaders.forEach(header => {
         header.addEventListener('click', () => {
@@ -341,6 +358,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- DB Viewer Data Loading ---
 
     const loadEmails = async () => {
+        if (!emailsTableBody) return;
+
         logMessage("Emailek keresése...", 'info');
         btnLoadEmails.disabled = true;
         btnLoadEmails.innerHTML = '<span class="status-dot busy"></span> Keresés...';
@@ -348,7 +367,6 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             setSystemStatus('busy', 'Keresés az adatbázisban...');
 
-            // Build URL with search state
             const params = new URLSearchParams();
             if (searchState.subject) params.append('subject', searchState.subject);
             if (searchState.sender) params.append('sender', searchState.sender);
@@ -356,7 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (searchState.importance) params.append('importance', searchState.importance);
             params.append('sortBy', searchState.sortBy);
             params.append('direction', searchState.direction);
-            params.append('limit', 100);
+            params.append('limit', searchState.limit);
 
             const response = await fetch(`/api/emails/search?${params.toString()}`);
 
@@ -368,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
             emailsTableBody.innerHTML = '';
 
             if (!data || data.length === 0) {
-                emailsTableBody.innerHTML = '<tr><td colspan="7" class="empty-state">Nincs a feltételeknek megfelelő email.</td></tr>';
+                emailsTableBody.innerHTML = '<tr><td colspan="17" class="empty-state">Nincs a feltételeknek megfelelő email.</td></tr>';
                 return;
             }
 
@@ -395,7 +413,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 tr.innerHTML = `
                     <td class="sticky-col" style="white-space: nowrap;">${dateStr}</td>
-                    <td class="sticky-col" style="white-space: nowrap; left: 140px;"><div style="max-width: 150px; overflow: hidden; text-overflow: ellipsis;" title="${email.senderName || ''}">${email.senderName || email.senderEmailAddress || '-'}</div></td>
+                    <td class="sticky-col" style="white-space: nowrap; left: 170px;"><div style="max-width: 150px; overflow: hidden; text-overflow: ellipsis;" title="${email.senderName || ''}">${email.senderName || email.senderEmailAddress || '-'}</div></td>
                     <td><div style="max-width: 250px; overflow: hidden; text-overflow: ellipsis;" title="${email.subject || ''}"><strong>${email.subject || '(Nincs Tárgy)'}</strong></div></td>
                     <td><div style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;" title="${(email.recipients || []).join(', ')}">${(email.recipients || []).join(', ') || '-'}</div></td>
                     <td><div style="max-width: 120px; overflow: hidden; text-overflow: ellipsis;">${email.pstFileName || '-'}</div></td>
@@ -452,10 +470,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // HTML Content
         const iframe = document.getElementById('modal-html-frame');
-        const doc = iframe.contentDocument || iframe.contentWindow.document;
-        doc.open();
-        doc.write(email.htmlContent || email.body || '<i>Nincs megjeleníthető tartalom.</i>');
-        doc.close();
+        const htmlContent = email.htmlContent || email.body || '<html><body style="font-family: sans-serif; color: #cbd5e1;"><i>Nincs megjeleníthető tartalom.</i></body></html>';
+
+        // Revoke previous URL to prevent memory leaks
+        if (window.currentEmailBlobUrl) {
+            URL.revokeObjectURL(window.currentEmailBlobUrl);
+        }
+
+        const blob = new Blob([htmlContent], { type: 'text/html; charset=utf-8' });
+        window.currentEmailBlobUrl = URL.createObjectURL(blob);
+        iframe.src = window.currentEmailBlobUrl;
 
         // Plain Text
         document.getElementById('modal-body-text').textContent = email.body || '';
@@ -503,12 +527,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return imp;
     }
 
-    function formatDate(dateStr) {
-        if (!dateStr) return null;
-        const d = new Date(dateStr);
-        return d.toLocaleString('hu-HU');
-    }
-
     function switchTab(tabId) {
         tabContents.forEach(content => {
             content.style.display = content.id === tabId ? 'block' : 'none';
@@ -522,9 +540,11 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
 
-    btnCloseModal.addEventListener('click', () => {
-        emailModal.style.display = 'none';
-    });
+    if (btnCloseModal) {
+        btnCloseModal.addEventListener('click', () => {
+            emailModal.style.display = 'none';
+        });
+    }
 
     window.addEventListener('click', (e) => {
         if (e.target === emailModal) emailModal.style.display = 'none';
@@ -545,50 +565,54 @@ document.addEventListener('DOMContentLoaded', () => {
             setSystemStatus('online', 'Rendszer Aktív');
 
             // Táblázat feltöltése
-            filesTableBody.innerHTML = '';
+            if (filesTableBody) {
+                filesTableBody.innerHTML = '';
 
-            if (!data || data.length === 0) {
-                filesTableBody.innerHTML = '<tr><td colspan="5" class="empty-state">Nincs megjeleníthető PST fájl az adatbázisban.</td></tr>';
-                showToast("Nincs fájl az adatbázisban", "info");
-                return;
-            }
-
-            const displayData = data.slice(-100).reverse(); // Mutassuk az utolsó 100-at
-
-            displayData.forEach(file => {
-                const tr = document.createElement('tr');
-
-                // Formázott dátum
-                let dateStr = file.lastModified || '-';
-                if (dateStr !== '-') {
-                    const d = new Date(dateStr);
-                    dateStr = d.toLocaleString('hu-HU');
+                if (!data || data.length === 0) {
+                    filesTableBody.innerHTML = '<tr><td colspan="5" class="empty-state">Nincs megjeleníthető PST fájl az adatbázisban.</td></tr>';
+                    showToast("Nincs fájl az adatbázisban", "info");
+                    return;
                 }
 
-                // Státusz színezése
-                let statusColor = "var(--text-main)";
-                if (file.status === "Feldolgozva") statusColor = "var(--success)";
-                else if (file.status === "Hiba") statusColor = "var(--danger)";
-                else if (file.status === "Új") statusColor = "var(--accent)";
+                const displayData = data.slice(-100).reverse(); // Mutassuk az utolsó 100-at
 
-                tr.innerHTML = `
-                    <td><strong>${file.fileName || '-'}</strong></td>
-                    <td><div style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${file.path || ''}">${file.path || '-'}</div></td>
-                    <td>${file.size ? file.size.toLocaleString('hu-HU') : '-'}</td>
-                    <td>${dateStr}</td>
-                    <td style="color: ${statusColor}; font-weight: 500;">${file.status || '-'}</td>
-                `;
-                filesTableBody.appendChild(tr);
-            });
+                displayData.forEach(file => {
+                    const tr = document.createElement('tr');
 
-            logMessage(`${data.length} PST fájl sikeresen betöltve.`, 'success');
-            showToast(`${data.length} fájl rekord betöltve`, "success");
+                    // Formázott dátum
+                    let dateStr = file.lastModified || '-';
+                    if (dateStr !== '-') {
+                        const d = new Date(dateStr);
+                        dateStr = d.toLocaleString('hu-HU');
+                    }
+
+                    // Státusz színezése (Ensuring compatibility with both English and Hungarian statuses)
+                    let statusColor = "var(--text-main)";
+                    if (file.status === "Feldolgozva" || file.status === "Processed") statusColor = "var(--success)";
+                    else if (file.status === "Hiba" || file.status === "Error") statusColor = "var(--danger)";
+                    else if (file.status === "Új" || file.status === "New") statusColor = "var(--accent)";
+
+                    tr.innerHTML = `
+                        <td><strong>${file.fileName || '-'}</strong></td>
+                        <td><div style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${file.path || ''}">${file.path || '-'}</div></td>
+                        <td>${file.size ? file.size.toLocaleString('hu-HU') : '-'}</td>
+                        <td>${dateStr}</td>
+                        <td style="color: ${statusColor}; font-weight: 500;">${file.status || '-'}</td>
+                    `;
+                    filesTableBody.appendChild(tr);
+                });
+
+                logMessage(`${data.length} PST fájl sikeresen betöltve.`, 'success');
+                showToast(`${data.length} fájl rekord betöltve`, "success");
+            }
 
         } catch (e) {
             setSystemStatus('online', 'Rendszer Aktív');
             logMessage(`Hiba a fájlok betöltésekor: ${e.message}`, 'error');
             showToast("Sikertelen betöltés", "error");
-            filesTableBody.innerHTML = '<tr><td colspan="5" class="empty-state" style="color: var(--danger);">Hiba történt az adatok betöltése közben.</td></tr>';
+            if (filesTableBody) {
+                filesTableBody.innerHTML = '<tr><td colspan="5" class="empty-state" style="color: var(--danger);">Hiba történt az adatok betöltése közben.</td></tr>';
+            }
         } finally {
             btnLoadFiles.disabled = false;
             btnLoadFiles.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v6h6"></path></svg> PST Fájlok Frissítése`;
