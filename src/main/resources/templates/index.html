@@ -214,6 +214,16 @@
                             <option value="0">Alacsony</option>
                         </select>
                     </div>
+                    <div class="filter-item">
+                        <label>Megjelenített elemek</label>
+                        <select id="filter-limit" class="modern-input">
+                            <option value="25">25 elem</option>
+                            <option value="50">50 elem</option>
+                            <option value="100" selected>100 elem</option>
+                            <option value="500">500 elem</option>
+                            <option value="1000">1000 elem</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -221,14 +231,32 @@
                 <table class="modern-table" id="emails-table">
                     <thead>
                         <tr>
-                            <th class="sortable" data-sort="receivedTime">Dátum <span class="sort-icon">⇅</span></th>
-                            <th class="sortable" data-sort="senderName">Feladó <span class="sort-icon">⇅</span></th>
+                            <th class="sortable sticky-col" data-sort="receivedTime">Dátum <span
+                                    class="sort-icon">⇅</span></th>
+                            <th class="sortable sticky-col" data-sort="senderName">Feladó <span
+                                    class="sort-icon">⇅</span></th>
                             <th class="sortable" data-sort="subject">Tárgy <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="recipients">Címzettek <span class="sort-icon">⇅</span></th>
                             <th class="sortable" data-sort="pstFileName">PST Forrás <span class="sort-icon">⇅</span>
                             </th>
+                            <th class="sortable" data-sort="folderPath">Mappa <span class="sort-icon">⇅</span></th>
                             <th class="sortable" data-sort="importance">Szint <span class="sort-icon">⇅</span></th>
                             <th class="sortable" data-sort="categories">Kategóriák <span class="sort-icon">⇅</span></th>
                             <th class="sortable" data-sort="isRead">Állapot <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="internetMessageId">Message ID <span
+                                    class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="conversationTopic">Beszélgetés Tárgya <span
+                                    class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="conversationId">Beszélgetés ID <span
+                                    class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="messageClass">Üzenet Osztály <span
+                                    class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="creationTime">Létrehozva <span class="sort-icon">⇅</span>
+                            </th>
+                            <th class="sortable" data-sort="lastModificationTime">Módosítva <span
+                                    class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="clientSubmitTime">Beküldve <span class="sort-icon">⇅</span>
+                            </th>
                             <th>Művelet</th>
                         </tr>
                     </thead>

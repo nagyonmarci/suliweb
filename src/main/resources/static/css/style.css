@@ -757,8 +757,8 @@ input:checked+.slider:before {
 #emails-table th:nth-child(2),
 #emails-table td:nth-child(2) {
     position: sticky;
-    left: 160px;
-    /* Adjusted from 140px to prevent overlap */
+    left: 170px;
+    /* Adjusted to prevent overlap with the first column */
     z-index: 10;
     background: #1e293b !important;
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.4);

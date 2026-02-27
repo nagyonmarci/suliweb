@@ -1,0 +1,17 @@
+# Adatok és titkok
+data/
+.env
+*.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Mac
+.DS_Store
+
+# Docker
+*.tar
