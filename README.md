@@ -33,8 +33,8 @@ Spring Boot alkalmazás Microsoft Outlook PST fájlok feldolgozásához. PST fá
 
 ## Előfeltételek
 
-- Java 17 (Eclipse Temurin JDK ajánlott)
-- Maven 3.8+
+- Java 25 (Eclipse Temurin JDK ajánlott)
+- Maven 3.9+
 - MongoDB 7+ (vagy Docker)
 - Node.js 22+ (frontend fejlesztéshez)
 - Docker + Docker Compose (konténerizált futtatáshoz)
@@ -142,7 +142,7 @@ suliweb/
 │   ├── package.json
 │   └── astro.config.mjs
 ├── pom.xml                              # Maven konfiguráció
-├── Dockerfile                           # Multi-stage build (JDK 17 → JRE 17)
+├── Dockerfile                           # Multi-stage build (JDK 25 → JRE 25)
 ├── docker-compose.yml                   # Teljes stack (frontend + backend + MongoDB)
 ├── .dockerignore                        # Docker build kizárások
 └── CLAUDE.md                            # Claude Code fejlesztési útmutató
@@ -204,23 +204,24 @@ synology.batch-size=100                 # Keresési batch méret
 ## Technológiai stack
 
 **Backend:**
-- Spring Boot 2.5 (Web, Data JPA, Security, MongoDB, Thymeleaf, OAuth2)
+- Java 25 (Eclipse Temurin) + Spring Boot 4.0 (Spring Framework 7, Jakarta EE 11)
+- Spring Web, Data JPA, Security 6, MongoDB, Thymeleaf, OAuth2
 - java-libpst - PST fájl feldolgozás
-- iText PDF + Apache PDFBox - PDF kezelés
+- iText PDF 8 + Apache PDFBox 3 - PDF kezelés
 - zip4j - ZIP tömörítés/titkosítás
 - JSch - SSH műveletek
 - Lombok, ModelMapper
 
 **Frontend:**
-- Astro 6 - Statikus oldal generálás
-- React 19 - Interaktív komponensek
+- Astro 6 - Statikus oldal generálás (Vite 7)
+- React 19.2 - Interaktív komponensek
 - Tailwind CSS 4 - Stílusok (@tailwindcss/vite plugin)
 
 **Infrastruktúra:**
-- MongoDB - Email és fájl adatok tárolása
+- MongoDB 7 - Email és fájl adatok tárolása
 - Docker + Docker Compose - Konténerizáció (multi-stage build)
 - nginx - Frontend szervírozás + API reverse proxy
-- Java 17 (Eclipse Temurin)
+- Java 25 LTS (Eclipse Temurin)
 
 ## Fejlesztés
 
