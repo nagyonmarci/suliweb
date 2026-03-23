@@ -11,25 +11,74 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - SPRING_DATA_MONGODB_URI=mongodb://admin:example@mongo:27017/emails?authSource=admin
+      - SPRING_DATA_MONGODB_URI=mongodb://admin:example@mongo:27017/emails?authSource=admin&directConnection=true
       - ATTACHMENTS_DIRECTORY=/app/attachments
+      - RAG_OLLAMA_BASE_URL=http://ollama:11434
     volumes:
       - attachments:/app/attachments
       - pst_source:/data/pst_source:ro
     depends_on:
       - mongo
+      - ollama
 
   mongo:
-    image: mongo:7
+    image: mongodb/mongodb-atlas-local:8.0
     ports:
       - "27017:27017"
     environment:
-      - MONGO_INITDB_ROOT_USERNAME=admin
-      - MONGO_INITDB_ROOT_PASSWORD=example
+      - MONGODB_INITDB_ROOT_USERNAME=admin
+      - MONGODB_INITDB_ROOT_PASSWORD=example
     volumes:
       - mongodb_data:/data/db
+
+  mongo-init:
+    image: mongodb/mongodb-atlas-local:8.0
+    depends_on:
+      - mongo
+    restart: "no"
+    entrypoint: >
+      mongosh "mongodb://admin:example@mongo:27017/emails?authSource=admin&directConnection=true" --eval '
+        db.document_chunks.createSearchIndex({
+          name: "chunk_vector_index",
+          type: "vectorSearch",
+          definition: {
+            fields: [{
+              type: "vector",
+              numDimensions: 768,
+              path: "embedding",
+              similarity: "cosine"
+            }]
+          }
+        });
+        print("Vector search index created");
+      '
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  ollama-pull:
+    image: ollama/ollama:latest
+    depends_on:
+      - ollama
+    restart: "no"
+    entrypoint: >
+      sh -c "sleep 5 && ollama pull nomic-embed-text"
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
 
 volumes:
   mongodb_data:
   attachments:
   pst_source:
+  ollama_data:

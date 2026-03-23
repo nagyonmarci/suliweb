@@ -60,6 +60,52 @@ export interface ProgressState {
   active: boolean;
 }
 
+// RAG types
+export interface SearchResult {
+  chunkId: string;
+  emailId: string;
+  sourceType: string;
+  attachmentFileName: string | null;
+  content: string;
+  emailSubject: string;
+  senderName: string;
+  senderEmailAddress: string;
+  pstFileName: string;
+  score: number;
+}
+
+export interface MatchedChunk {
+  content: string;
+  sourceType: string;
+  attachmentFileName: string | null;
+  score: number;
+}
+
+export interface EmailSearchResult {
+  email: Email;
+  bestScore: number;
+  matchedChunks: MatchedChunk[];
+}
+
+export interface RagStats {
+  totalEmails: number;
+  totalChunks: number;
+  embeddedChunks: number;
+  pendingChunks: number;
+  failedChunks: number;
+}
+
+export interface RagHealth {
+  ollamaAvailable: boolean;
+  ingestionRunning: boolean;
+  stats: RagStats;
+}
+
+export interface RagContext {
+  query: string;
+  context: string;
+}
+
 export const api = {
   // Emails
   getEmails: () => fetchJson<Email[]>('/api/emails'),
@@ -87,4 +133,17 @@ export const api = {
   // Synology
   findSynology: () => fetchJson<FileInfo[]>('/find/synology'),
   findSynologyToDb: () => fetchText('/find/synologyToDb'),
+
+  // RAG
+  ragIngest: () => fetchText('/api/rag/ingest', { method: 'POST' }),
+  ragReIngest: (emailId: string) => fetchText(`/api/rag/ingest/${emailId}`, { method: 'POST' }),
+  ragEmbed: () => fetchText('/api/rag/embed', { method: 'POST' }),
+  ragSearch: (q: string, topK = 10) =>
+    fetchJson<SearchResult[]>(`/api/rag/search?q=${encodeURIComponent(q)}&topK=${topK}`),
+  ragSearchEmails: (q: string, topK = 10) =>
+    fetchJson<EmailSearchResult[]>(`/api/rag/search/emails?q=${encodeURIComponent(q)}&topK=${topK}`),
+  ragContext: (q: string, topK = 10) =>
+    fetchJson<RagContext>(`/api/rag/context?q=${encodeURIComponent(q)}&topK=${topK}`),
+  ragStats: () => fetchJson<RagStats>('/api/rag/stats'),
+  ragHealth: () => fetchJson<RagHealth>('/api/rag/health'),
 };
