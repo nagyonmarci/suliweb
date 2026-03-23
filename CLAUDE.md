@@ -4,94 +4,95 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Spring Boot application designed for processing PST (Personal Storage Table) files from Microsoft Outlook. The application allows users to:
-- Search for PST files in specified directories
-- Process PST files to extract email content and attachments
-- Store extracted email data in MongoDB
-- Handle file uploads and processing from various sources
+Spring Boot 4.0 alkalmazás Microsoft Outlook PST fájlok feldolgozásához. PST fájlokat keres, emaileket és csatolmányokat kinyeri belőlük, majd MongoDB-ben tárolja az adatokat. Synology NAS integrációval és Astro 6 + React 19 frontend dashboarddal rendelkezik.
 
 ## Architecture
 
-The application follows a typical Spring Boot architecture with:
-- REST controllers for handling HTTP requests
-- Service classes for business logic
-- Repository classes for data access
-- Domain entities for data models
-- Configuration classes for application settings
+```
+Frontend (Astro 6 + React 19 + Tailwind CSS 4)
+  :80 (nginx reverse proxy) → :8080 backend | :4321 (dev)
+Backend (Spring Boot 4.0 / Spring Framework 7 / Jakarta EE 11)
+  Controllers → Services → Repositories → MongoDB
+Infrastructure
+  MongoDB 7 | Docker Compose | nginx
+```
 
 Key components:
-- `PstFinderController` and `PstFinderService`: For searching and indexing PST files
-- `PstProcessorController` and `PstProcessorService`: For processing PST files and extracting email data
-- MongoDB integration for storing email data
-- Support for processing PST files from uploaded files, text files listing paths, or database records
+- `PstFinderController` / `PstFinderService`: PST fájl keresés és indexelés
+- `PstProcessorController` / `PstProcessorService`: PST feldolgozás, email kinyerés
+- `SynologyPstFinderController` / `SynologyApiClient`: Synology NAS integráció
+- `EmailController`: Email CRUD + keresés
+- `ProgressTracker` / `ProgressController`: Feldolgozás állapot követés
 
-## Key Dependencies
+## Tech Stack
 
-- Spring Boot (web, data-jpa, security, validation, oauth2-client, thymeleaf)
-- MySQL and MongoDB for data storage
-- Apache PDFBox and iText for PDF processing
-- java-libpst for PST file processing
-- jsch for SSH operations
+**Backend:** Java 25 LTS, Spring Boot 4.0.4, Jakarta EE 11, MongoDB, java-libpst, iText 8, PDFBox 3
+**Frontend:** Astro 6, React 19.2, Tailwind CSS 4 (@tailwindcss/vite), TypeScript
+**Infra:** Docker + Docker Compose, nginx, Eclipse Temurin 25
 
 ## Development Commands
 
-To build the application:
 ```bash
-mvn clean install
-```
+# Backend
+mvn clean install          # Build
+mvn spring-boot:run        # Run
+mvn test                   # Tesztek
+mvn test -Dtest=ClassName  # Egy teszt
 
-To run the application:
-```bash
-mvn spring-boot:run
-```
+# Frontend
+cd frontend
+npm install                # Függőségek
+npm run dev                # Dev szerver (:4321)
+npm run build              # Production build
 
-To run tests:
-```bash
-mvn test
-```
-
-To run a specific test:
-```bash
-mvn test -Dtest=YourTestClass
+# Docker (teljes stack)
+docker compose up -d       # Indítás
+docker compose up -d --build  # Újraépítés
+docker compose logs -f     # Logok
 ```
 
 ## Key Files and Directories
 
 - `src/main/java/hu/fmdev/backend/controller/` - REST controllers
-- `src/main/java/hu/fmdev/backend/service/` - Business logic services
-- `src/main/java/hu/fmdev/backend/repository/` - Data access layers
+- `src/main/java/hu/fmdev/backend/service/` - Business logic
+- `src/main/java/hu/fmdev/backend/repository/` - MongoDB repositories
 - `src/main/java/hu/fmdev/backend/domain/` - Domain entities
+- `src/main/java/hu/fmdev/backend/config/` - SecurityConfig, SynologyConfig, ModelMapperConfig
 - `src/main/resources/application.properties` - Application configuration
-- `src/main/java/hu/fmdev/frontend/` - Frontend files (Angular application)
+- `frontend/src/` - Astro 6 + React frontend (pages, components, layouts, lib/api.ts)
+- `frontend/astro.config.mjs` - Astro config (Vite proxy, @tailwindcss/vite)
+- `frontend/nginx.conf` - Production reverse proxy
+- `Dockerfile` - Backend multi-stage build (JDK 25 → JRE 25)
+- `frontend/Dockerfile` - Frontend multi-stage build (Node 22 → nginx)
+- `docker-compose.yml` - Full stack (frontend + backend + MongoDB)
 
 ## Important Configuration
 
-The application uses MongoDB for email storage. The MongoDB connection is configured in `application.properties`:
-```
-spring.data.mongodb.uri=mongodb://admin:example@localhost:27017/emails
-```
+```properties
+# MongoDB
+spring.data.mongodb.uri=mongodb://admin:example@localhost:27017/emails?authSource=admin
 
-Attachments are stored in a directory specified by:
-```
-attachments.directory=C:/attachments
+# Csatolmányok
+attachments.directory=/app/attachments
+
+# Synology NAS (opcionális)
+synology.host=
+synology.username=
+synology.password=
+synology.path-prefix=/volume1
+synology.local-mount-prefix=/mnt/nas
+synology.search-extensions=pst,ost
+synology.batch-size=100
 ```
 
 ## Key Endpoints
 
-- `/find/pstToTxt` - Search for PST files and save to text file
-- `/find/pst` - Search for PST files and save to database
-- `/find/updateDb` - Update database records for files
-- `/pst/processFromFile` - Process PST file from upload
-- `/pst/processFromTxt` - Process PST files from text file listing paths
-- `/pst/processFromDb` - Process PST files from database records
-- `/pst/pause` and `/pst/resume` - Control processing pause/resume
-
-## Processing Features
-
-The application supports:
-- Parallel processing of multiple PST files
-- Pause/resume functionality for long-running operations
-- Attachment saving to configured directory
-- Duplicate detection using SHA-256 unique entry IDs
-- Support for various email message types (IPM.Note)
-- Error handling and logging throughout the process
+- `/api/emails` - Email CRUD + `/api/emails/search` szűrőkkel
+- `/api/file-infos` - Fájl információk
+- `/api/progress` - Feldolgozás állapota
+- `/find/pst` - PST fájlok keresése → adatbázisba
+- `/find/synology` - Synology NAS keresés
+- `/pst/processFromDb` - PST feldolgozás adatbázisból
+- `/pst/pause` / `/pst/resume` - Szüneteltetés/folytatás
+- `/pdf/fill` - PDF űrlap kitöltés
+- `/api/files/upload` - Fájl feltöltés (ZIP titkosítással)
