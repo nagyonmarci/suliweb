@@ -12,7 +12,8 @@ Spring Boot alkalmazás Microsoft Outlook PST fájlok feldolgozásához. PST fá
 - **Keresés** - Tárgy, feladó, címzett, mappa, fontosság szerinti szűrés
 - **Synology integráció** - NAS Universal Search API-n keresztül keres PST fájlokat
 - **PDF űrlap kitöltés** - iText alapú PDF form filler
-- **Modern dashboard** - Astro + React + Tailwind CSS frontend
+- **Modern dashboard** - Astro 6 + React 19 + Tailwind CSS 4 reszponzív frontend
+- **Docker támogatás** - Teljes stack konténerizáció (frontend + backend + MongoDB)
 
 ## Architektúra
 
@@ -45,9 +46,28 @@ Spring Boot alkalmazás Microsoft Outlook PST fájlok feldolgozásához. PST fá
 ```bash
 # Teljes stack indítása (frontend + backend + MongoDB)
 docker compose up -d
+
+# Build nélküli újraindítás
+docker compose up -d --build
+
+# Logok megtekintése
+docker compose logs -f
 ```
 
 Az alkalmazás elérhető: `http://localhost` (frontend + API proxy), `http://localhost:8080` (backend direkt)
+
+**Docker szolgáltatások:**
+
+| Szolgáltatás | Port | Leírás |
+|---|---|---|
+| `frontend` | 80 | Astro statikus fájlok + nginx reverse proxy |
+| `backend` | 8080 | Spring Boot API |
+| `mongo` | 27017 | MongoDB 7 adatbázis |
+
+**Volumes:**
+- `mongodb_data` - MongoDB adatok
+- `attachments` - Kinyert email csatolmányok
+- `pst_source` - PST forrásfájlok (read-only mount)
 
 ### Lokálisan
 
@@ -110,17 +130,22 @@ suliweb/
 │   └── util/                            # Hash, fájl I/O, HTML sanitizer
 ├── src/main/resources/
 │   └── application.properties           # Alkalmazás konfiguráció
-├── frontend/                            # Astro + React dashboard
+├── frontend/                            # Astro 6 + React dashboard
 │   ├── src/
 │   │   ├── pages/                       # Oldalak (index, emails, files, processing, synology)
 │   │   ├── components/                  # React komponensek
-│   │   ├── layouts/                     # Astro layout
+│   │   ├── layouts/                     # Astro layout (reszponzív sidebar)
+│   │   ├── styles/global.css            # Tailwind CSS 4 import
 │   │   └── lib/api.ts                   # API kliens
+│   ├── Dockerfile                       # Multi-stage build (Node 22 → nginx)
+│   ├── nginx.conf                       # Reverse proxy konfiguráció
 │   ├── package.json
 │   └── astro.config.mjs
 ├── pom.xml                              # Maven konfiguráció
-├── Dockerfile                           # Docker image (Eclipse Temurin 17)
-└── docker-compose.yml                   # App + MongoDB stack
+├── Dockerfile                           # Multi-stage build (JDK 17 → JRE 17)
+├── docker-compose.yml                   # Teljes stack (frontend + backend + MongoDB)
+├── .dockerignore                        # Docker build kizárások
+└── CLAUDE.md                            # Claude Code fejlesztési útmutató
 ```
 
 ## API végpontok
