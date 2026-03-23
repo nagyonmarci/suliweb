@@ -1,17 +1,15 @@
-FROM ubuntu:latest
-LABEL authors="FabianM"
+# Backend Dockerfile - Spring Boot
+FROM eclipse-temurin:17-jdk AS build
+WORKDIR /app
+COPY pom.xml .
+COPY src ./src
+RUN apt-get update && apt-get install -y maven && \
+    mvn clean package -DskipTests && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-ENTRYPOINT ["top", "-b"]
-
-# Használj OpenJDK 17 alapú képet
-FROM eclipse-temurin:17-jdk
-
-# Az alkalmazás fájljainak másolása a konténerbe
-ARG JAR_FILE=target/*.jar
-COPY ${JAR_FILE} app.jar
-
-# Az alkalmazás futtatásához szükséges port megnyitása
-EXPOSE 6969
-
-# Az alkalmazás indítása
-ENTRYPOINT ["java", "-jar", "/app.jar"]
+FROM eclipse-temurin:17-jre
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
+RUN mkdir -p /app/attachments /app/logs
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]

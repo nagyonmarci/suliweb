@@ -1,7 +1,5 @@
-const API_BASE = '/api';
-
-async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(path, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });
@@ -13,7 +11,7 @@ async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 async function fetchText(path: string, options?: RequestInit): Promise<string> {
-  const res = await fetch(`${API_BASE}${path}`, options);
+  const res = await fetch(path, options);
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`API error ${res.status}: ${text}`);
@@ -64,13 +62,13 @@ export interface ProgressState {
 
 export const api = {
   // Emails
-  getEmails: () => fetchApi<Email[]>('/emails'),
+  getEmails: () => fetchJson<Email[]>('/api/emails'),
 
   // FileInfo
-  getFileInfos: () => fetchApi<FileInfo[]>('/fileinfo'),
+  getFileInfos: () => fetchJson<FileInfo[]>('/api/file-infos'),
 
   // Progress
-  getProgress: () => fetchApi<ProgressState>('/api/progress'),
+  getProgress: () => fetchJson<ProgressState>('/api/progress'),
 
   // PST Finder
   findPst: (directories: string[], excludedDirectories?: string[]) => {
@@ -87,6 +85,6 @@ export const api = {
   resumeProcessing: () => fetchText('/pst/resume', { method: 'POST' }),
 
   // Synology
-  findSynology: () => fetchApi<FileInfo[]>('/find/synology'),
+  findSynology: () => fetchJson<FileInfo[]>('/find/synology'),
   findSynologyToDb: () => fetchText('/find/synologyToDb'),
 };

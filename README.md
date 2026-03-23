@@ -20,7 +20,7 @@ Spring Boot alkalmazás Microsoft Outlook PST fájlok feldolgozásához. PST fá
 ┌─────────────────────────────────────────────────────┐
 │                    Frontend (Astro)                  │
 │  Dashboard │ Email Browser │ File List │ Processing  │
-│                  :4321 → proxy → :8080               │
+│       :80 (nginx) → proxy → :8080 | :4321 (dev)      │
 ├─────────────────────────────────────────────────────┤
 │               Spring Boot Backend (:8080)            │
 │  Controllers → Services → Repositories → MongoDB    │
@@ -34,22 +34,20 @@ Spring Boot alkalmazás Microsoft Outlook PST fájlok feldolgozásához. PST fá
 
 - Java 17 (Eclipse Temurin JDK ajánlott)
 - Maven 3.8+
-- MongoDB 6+ (vagy Docker)
-- Node.js 18+ (frontend fejlesztéshez)
+- MongoDB 7+ (vagy Docker)
+- Node.js 22+ (frontend fejlesztéshez)
+- Docker + Docker Compose (konténerizált futtatáshoz)
 
 ## Gyors indítás
 
 ### Docker-rel (ajánlott)
 
 ```bash
-# Backend + MongoDB indítása
-docker-compose up -d
-
-# Frontend indítása
-cd frontend && npm install && npm run dev
+# Teljes stack indítása (frontend + backend + MongoDB)
+docker compose up -d
 ```
 
-Az alkalmazás elérhető: `http://localhost:6969` (backend), `http://localhost:4321` (frontend)
+Az alkalmazás elérhető: `http://localhost` (frontend + API proxy), `http://localhost:8080` (backend direkt)
 
 ### Lokálisan
 
@@ -189,13 +187,14 @@ synology.batch-size=100                 # Keresési batch méret
 - Lombok, ModelMapper
 
 **Frontend:**
-- Astro 4.16 - Statikus oldal generálás
-- React 18 - Interaktív komponensek
-- Tailwind CSS 3.4 - Stílusok
+- Astro 6 - Statikus oldal generálás
+- React 19 - Interaktív komponensek
+- Tailwind CSS 4 - Stílusok (@tailwindcss/vite plugin)
 
 **Infrastruktúra:**
 - MongoDB - Email és fájl adatok tárolása
-- Docker + Docker Compose - Konténerizáció
+- Docker + Docker Compose - Konténerizáció (multi-stage build)
+- nginx - Frontend szervírozás + API reverse proxy
 - Java 17 (Eclipse Temurin)
 
 ## Fejlesztés
