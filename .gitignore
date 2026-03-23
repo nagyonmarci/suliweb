@@ -36,7 +36,15 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+### Node ###
 node_modules/
 
 ### Data ###
 attachments/
+logs/
+*.tar.gz
+*.log
+
+### IDE ###
+.idea/
