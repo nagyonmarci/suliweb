@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api, type ProgressState } from '../lib/api';
+import { api, type ProgressState, type RagHealth } from '../lib/api';
 
 interface Stats {
   totalEmails: number;
@@ -11,10 +11,12 @@ interface Stats {
 export default function Dashboard() {
   const [stats, setStats] = useState<Stats>({ totalEmails: 0, totalFiles: 0, newFiles: 0, processedFiles: 0 });
   const [progress, setProgress] = useState<ProgressState | null>(null);
+  const [ragHealth, setRagHealth] = useState<RagHealth | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadStats();
+    loadRagHealth();
     const interval = setInterval(loadProgress, 2000);
     return () => clearInterval(interval);
   }, []);
@@ -41,6 +43,15 @@ export default function Dashboard() {
       setProgress(p);
     } catch {
       // backend may not be running
+    }
+  }
+
+  async function loadRagHealth() {
+    try {
+      const h = await api.ragHealth();
+      setRagHealth(h);
+    } catch {
+      // RAG may not be configured
     }
   }
 
@@ -75,12 +86,44 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* RAG Status */}
+      {ragHealth && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-gray-700">RAG Index</h3>
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${ragHealth.ollamaAvailable ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+              Ollama: {ragHealth.ollamaAvailable ? 'Online' : 'Offline'}
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <p className="text-xs text-gray-500">Indexelt chunkek</p>
+              <p className="text-xl font-bold text-blue-700">{ragHealth.stats.embeddedChunks.toLocaleString('hu-HU')}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Függőben</p>
+              <p className="text-xl font-bold text-amber-600">{ragHealth.stats.pendingChunks.toLocaleString('hu-HU')}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Sikertelen</p>
+              <p className="text-xl font-bold text-red-600">{ragHealth.stats.failedChunks.toLocaleString('hu-HU')}</p>
+            </div>
+          </div>
+          {ragHealth.ingestionRunning && (
+            <p className="text-xs text-blue-600 mt-3 animate-pulse">Indexelés folyamatban...</p>
+          )}
+        </div>
+      )}
+
       {/* Quick actions */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h3 className="text-sm font-semibold text-gray-700 mb-4">Gyors műveletek</h3>
         <div className="flex flex-wrap gap-3">
           <a href="/processing" className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">
             PST feldolgozás
+          </a>
+          <a href="/rag" className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors">
+            RAG keresés
           </a>
           <a href="/synology" className="px-4 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors">
             Synology keresés
