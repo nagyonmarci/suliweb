@@ -76,6 +76,25 @@ const navItems = [
             </a>
           ))}
         </nav>
+
+        <!-- User info at bottom of sidebar -->
+        <div class="p-4 border-t border-gray-700">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-sm font-medium shrink-0" id="user-avatar">?</span>
+              <span class="text-sm text-gray-300 truncate" id="user-display-name">...</span>
+            </div>
+            <button
+              id="logout-btn"
+              class="text-gray-400 hover:text-white transition-colors p-1 shrink-0"
+              title="Kijelentkezés"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </button>
+          </div>
+        </div>
       </aside>
 
       <!-- Main content -->
@@ -90,6 +109,38 @@ const navItems = [
     </div>
 
     <script>
+      // Auth check
+      if (!localStorage.getItem('accessToken')) {
+        window.location.href = '/login';
+      }
+
+      // Load user info
+      (async () => {
+        try {
+          const token = localStorage.getItem('accessToken');
+          if (!token) return;
+
+          const res = await fetch('/api/auth/me', {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+
+          if (res.ok) {
+            const user = await res.json();
+            const avatar = document.getElementById('user-avatar');
+            const displayName = document.getElementById('user-display-name');
+            if (avatar && user.username) {
+              avatar.textContent = user.username.charAt(0).toUpperCase();
+            }
+            if (displayName && user.username) {
+              displayName.textContent = user.username;
+            }
+          }
+        } catch {
+          // Silently fail - user info is non-critical
+        }
+      })();
+
+      // Sidebar toggle
       const toggle = document.getElementById('menu-toggle');
       const sidebar = document.getElementById('sidebar');
       const overlay = document.getElementById('sidebar-overlay');
@@ -119,6 +170,13 @@ const navItems = [
       });
 
       overlay?.addEventListener('click', closeMenu);
+
+      // Logout
+      document.getElementById('logout-btn')?.addEventListener('click', () => {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        window.location.href = '/login';
+      });
     </script>
   </body>
 </html>

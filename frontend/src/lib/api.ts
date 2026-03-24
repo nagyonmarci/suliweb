@@ -1,8 +1,80 @@
+// --- Auth token management ---
+
+function getAccessToken(): string | null {
+  return localStorage.getItem('accessToken');
+}
+
+function getRefreshToken(): string | null {
+  return localStorage.getItem('refreshToken');
+}
+
+function setTokens(accessToken: string, refreshToken: string): void {
+  localStorage.setItem('accessToken', accessToken);
+  localStorage.setItem('refreshToken', refreshToken);
+}
+
+function clearTokens(): void {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+}
+
+function authHeaders(): Record<string, string> {
+  const token = getAccessToken();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+async function tryRefreshToken(): Promise<boolean> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return false;
+
+  try {
+    const res = await fetch('/api/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (!res.ok) {
+      clearTokens();
+      return false;
+    }
+    const data = await res.json();
+    localStorage.setItem('accessToken', data.accessToken);
+    return true;
+  } catch {
+    clearTokens();
+    return false;
+  }
+}
+
+// --- Core fetch with auth ---
+
 async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json' },
+  let res = await fetch(path, {
     ...options,
+    headers: { ...authHeaders(), ...options?.headers },
   });
+
+  // Auto-refresh on 401
+  if (res.status === 401 && getRefreshToken()) {
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      res = await fetch(path, {
+        ...options,
+        headers: { ...authHeaders(), ...options?.headers },
+      });
+    }
+  }
+
+  if (res.status === 401) {
+    clearTokens();
+    window.location.href = '/login';
+    throw new Error('Unauthorized');
+  }
+
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`API error ${res.status}: ${text}`);
@@ -11,13 +83,36 @@ async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 async function fetchText(path: string, options?: RequestInit): Promise<string> {
-  const res = await fetch(path, options);
+  let res = await fetch(path, {
+    ...options,
+    headers: { ...authHeaders(), ...options?.headers },
+  });
+
+  // Auto-refresh on 401
+  if (res.status === 401 && getRefreshToken()) {
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      res = await fetch(path, {
+        ...options,
+        headers: { ...authHeaders(), ...options?.headers },
+      });
+    }
+  }
+
+  if (res.status === 401) {
+    clearTokens();
+    window.location.href = '/login';
+    throw new Error('Unauthorized');
+  }
+
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`API error ${res.status}: ${text}`);
   }
   return res.text();
 }
+
+// --- Types ---
 
 export interface Email {
   id: string;
@@ -106,7 +201,53 @@ export interface RagContext {
   context: string;
 }
 
+export interface AuthUser {
+  username: string;
+  email: string;
+  authorities: string[];
+}
+
+// --- API ---
+
 export const api = {
+  // Auth
+  login: async (username: string, password: string) => {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Login failed: ${text}`);
+    }
+    const data = await res.json();
+    setTokens(data.accessToken, data.refreshToken);
+    return data;
+  },
+
+  register: async (username: string, password: string, email: string) => {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password, email }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Registration failed: ${text}`);
+    }
+    return res.json();
+  },
+
+  logout: () => {
+    clearTokens();
+    window.location.href = '/login';
+  },
+
+  getMe: () => fetchJson<AuthUser>('/api/auth/me'),
+
+  isLoggedIn: () => !!getAccessToken(),
+
   // Emails
   getEmails: () => fetchJson<Email[]>('/api/emails'),
 

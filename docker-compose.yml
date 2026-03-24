@@ -24,6 +24,7 @@ services:
       - SYNOLOGY_LOCAL_MOUNT_PREFIX=${SYNOLOGY_LOCAL_MOUNT_PREFIX:-/mnt/nas}
       - SYNOLOGY_SEARCH_EXTENSIONS=${SYNOLOGY_SEARCH_EXTENSIONS:-pst,ost}
       - SYNOLOGY_BATCH_SIZE=${SYNOLOGY_BATCH_SIZE:-100}
+      - JWT_SECRET=${JWT_SECRET:-dGhpc0lzQVNlY3VyZUtleUZvckpXVFRva2VuU2lnbmluZ1B1cnBvc2VzT25seQ==}
     volumes:
       - attachments:/app/attachments
       - pst_source:/data/pst_source:ro
