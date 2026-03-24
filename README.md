@@ -1,6 +1,6 @@
 # SuliWeb - PST Email Processor
 
-Spring Boot alkalmazás Microsoft Outlook PST fájlok feldolgozásához. PST fájlokat keres, emaileket és csatolmányokat kinyeri belőlük, majd MongoDB-ben tárolja az adatokat. Synology NAS integrációval és modern Astro + React frontend dashboarddal rendelkezik.
+Spring Boot alkalmazás Microsoft Outlook PST fájlok feldolgozásához. PST fájlokat keres, emaileket és csatolmányokat kinyeri belőlük, majd MongoDB-ben tárolja az adatokat. Synology NAS integrációval, RAG szemantikus kereséssel és Astro 6 + React 19 frontend dashboarddal rendelkezik.
 
 ## Funkciók
 
@@ -10,10 +10,11 @@ Spring Boot alkalmazás Microsoft Outlook PST fájlok feldolgozásához. PST fá
 - **Szüneteltetés/folytatás** - Hosszú feldolgozási műveletek vezérlése
 - **Csatolmány mentés** - Konfigurálható könyvtárba ment
 - **Keresés** - Tárgy, feladó, címzett, mappa, fontosság szerinti szűrés
+- **RAG szemantikus keresés** - Ollama embedding + MongoDB Atlas Vector Search email tartalmak és csatolmányok között
 - **Synology integráció** - NAS Universal Search API-n keresztül keres PST fájlokat
 - **PDF űrlap kitöltés** - iText alapú PDF form filler
 - **Modern dashboard** - Astro 6 + React 19 + Tailwind CSS 4 reszponzív frontend
-- **Docker támogatás** - Teljes stack konténerizáció (frontend + backend + MongoDB)
+- **Docker támogatás** - Teljes stack konténerizáció (frontend + backend + MongoDB + Ollama)
 
 ## Architektúra
 
@@ -21,13 +22,14 @@ Spring Boot alkalmazás Microsoft Outlook PST fájlok feldolgozásához. PST fá
 ┌─────────────────────────────────────────────────────┐
 │                    Frontend (Astro)                  │
 │  Dashboard │ Email Browser │ File List │ Processing  │
-│       :80 (nginx) → proxy → :8080 | :4321 (dev)      │
+│       :80 (nginx) → proxy → :8080 | :4321 (dev)     │
 ├─────────────────────────────────────────────────────┤
 │               Spring Boot Backend (:8080)            │
 │  Controllers → Services → Repositories → MongoDB    │
+│  RAG Pipeline: Tika → Chunking → Ollama Embedding   │
 ├─────────────────────────────────────────────────────┤
-│   MongoDB (emails, fileInfo, users, logs)            │
-│   Synology NAS API  │  Fájlrendszer (PST fájlok)    │
+│   MongoDB Atlas Local (emails, chunks, vector index) │
+│   Ollama (:11434) │ Synology NAS API │ Fájlrendszer │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -44,7 +46,7 @@ Spring Boot alkalmazás Microsoft Outlook PST fájlok feldolgozásához. PST fá
 ### Docker-rel (ajánlott)
 
 ```bash
-# Teljes stack indítása (frontend + backend + MongoDB)
+# Teljes stack indítása (frontend + backend + MongoDB + Ollama)
 docker compose up -d
 
 # Build nélküli újraindítás
@@ -52,6 +54,9 @@ docker compose up -d --build
 
 # Logok megtekintése
 docker compose logs -f
+
+# Leállítás
+docker compose down
 ```
 
 Az alkalmazás elérhető: `http://localhost` (frontend + API proxy), `http://localhost:8080` (backend direkt)
@@ -62,12 +67,16 @@ Az alkalmazás elérhető: `http://localhost` (frontend + API proxy), `http://lo
 |---|---|---|
 | `frontend` | 80 | Astro statikus fájlok + nginx reverse proxy |
 | `backend` | 8080 | Spring Boot API |
-| `mongo` | 27017 | MongoDB 7 adatbázis |
+| `mongo` | 27017 | MongoDB Atlas Local 8.0 (vector search támogatás) |
+| `mongo-init` | - | Vector search index létrehozása (egyszer fut le) |
+| `ollama` | 11434 | Ollama LLM szerver (embedding generálás) |
+| `ollama-pull` | - | `nomic-embed-text` modell automatikus letöltése |
 
 **Volumes:**
 - `mongodb_data` - MongoDB adatok
 - `attachments` - Kinyert email csatolmányok
 - `pst_source` - PST forrásfájlok (read-only mount)
+- `ollama_data` - Ollama modellek cache
 
 ### Lokálisan
 
@@ -94,12 +103,14 @@ suliweb/
 │   ├── config/
 │   │   ├── SecurityConfig.java          # Spring Security
 │   │   ├── ModelMapperConfig.java       # ModelMapper bean
-│   │   └── SynologyConfig.java          # Synology NAS konfiguráció
+│   │   ├── SynologyConfig.java          # Synology NAS konfiguráció
+│   │   └── RagConfig.java              # RAG pipeline konfiguráció
 │   ├── controller/
 │   │   ├── EmailController.java         # /api/emails - CRUD + keresés
 │   │   ├── PstFinderController.java     # /find - PST fájl keresés
 │   │   ├── PstProcessorController.java  # /pst - PST feldolgozás
 │   │   ├── SynologyPstFinderController.java  # /find/synology
+│   │   ├── RagController.java           # /api/rag - RAG keresés + indexelés
 │   │   ├── ProgressController.java      # /api/progress
 │   │   ├── FileInfoController.java      # /api/file-infos
 │   │   ├── FileUploadController.java    # /api/files/upload
@@ -113,9 +124,16 @@ suliweb/
 │   │   ├── FileService.java             # Fájl indexelés
 │   │   ├── FileUploadService.java       # ZIP tömörítés + titkosítás
 │   │   ├── PdfFormFillerService.java    # PDF űrlap kitöltés
-│   │   └── ProgressTracker.java         # Folyamat állapot követés
+│   │   ├── ProgressTracker.java         # Folyamat állapot követés
+│   │   └── rag/
+│   │       ├── ChunkingService.java     # Szöveg darabolás (overlap)
+│   │       ├── TextExtractionService.java # Apache Tika szövegkinyerés
+│   │       ├── EmbeddingService.java    # Ollama embedding generálás
+│   │       ├── RagIngestionService.java # Email+csatolmány indexelés
+│   │       └── RagSearchService.java    # Szemantikus keresés (vector search)
 │   ├── domain/
 │   │   ├── Email.java                   # Email MongoDB dokumentum
+│   │   ├── DocumentChunk.java           # RAG chunk + embedding vektor
 │   │   ├── FileInfo.java                # PST fájl információ
 │   │   ├── FileEntity.java              # Általános fájl entitás
 │   │   ├── User.java                    # Felhasználó
@@ -128,6 +146,15 @@ suliweb/
 │   ├── exceptionhandler/                # Globális hibakezelés
 │   ├── logger/                          # Központi naplózás (MongoDB)
 │   └── util/                            # Hash, fájl I/O, HTML sanitizer
+├── src/test/java/hu/fmdev/backend/     # Unit tesztek
+│   ├── controller/
+│   │   └── RagControllerTest.java
+│   └── service/rag/
+│       ├── ChunkingServiceTest.java
+│       ├── TextExtractionServiceTest.java
+│       ├── EmbeddingServiceTest.java
+│       ├── RagIngestionServiceTest.java
+│       └── RagSearchServiceTest.java
 ├── src/main/resources/
 │   └── application.properties           # Alkalmazás konfiguráció
 ├── frontend/                            # Astro 6 + React dashboard
@@ -143,7 +170,7 @@ suliweb/
 │   └── astro.config.mjs
 ├── pom.xml                              # Maven konfiguráció
 ├── Dockerfile                           # Multi-stage build (JDK 25 → JRE 25)
-├── docker-compose.yml                   # Teljes stack (frontend + backend + MongoDB)
+├── docker-compose.yml                   # Teljes stack (6 szolgáltatás)
 ├── .dockerignore                        # Docker build kizárások
 └── CLAUDE.md                            # Claude Code fejlesztési útmutató
 ```
@@ -172,6 +199,18 @@ suliweb/
 | `/pst/pause` | POST | Feldolgozás szüneteltetése |
 | `/pst/resume` | POST | Feldolgozás folytatása |
 
+### RAG (Retrieval-Augmented Generation)
+| Végpont | Metódus | Leírás |
+|---------|---------|--------|
+| `/api/rag/ingest` | POST | Összes feldolgozatlan email indexelése (chunk + embedding) |
+| `/api/rag/ingest/{emailId}` | POST | Egy email újraindexelése |
+| `/api/rag/embed` | POST | Pending chunk-ok embedding generálása |
+| `/api/rag/search?q=&topK=` | GET | Szemantikus keresés (chunk szintű találatok) |
+| `/api/rag/search/emails?q=&topK=` | GET | Szemantikus keresés (email szintű csoportosítás) |
+| `/api/rag/context?q=&topK=` | GET | LLM-nek formázott kontextus lekérdezés |
+| `/api/rag/stats` | GET | Indexelési statisztikák |
+| `/api/rag/health` | GET | Ollama + indexelés állapot |
+
 ### Egyéb
 | Végpont | Metódus | Leírás |
 |---------|---------|--------|
@@ -191,6 +230,16 @@ spring.data.mongodb.uri=mongodb://admin:example@localhost:27018/emails?authSourc
 # Csatolmányok mentési helye
 attachments.directory=/app/attachments
 
+# RAG pipeline
+rag.ollama-base-url=http://localhost:11434
+rag.embedding-model=nomic-embed-text
+rag.embedding-dimensions=768
+rag.chunk-size=512
+rag.chunk-overlap=64
+rag.search-top-k=10
+rag.search-min-score=0.5
+rag.ingestion-threads=4
+
 # Synology NAS (opcionális)
 synology.host=                          # NAS IP/hostname
 synology.username=                      # NAS felhasználó
@@ -205,8 +254,9 @@ synology.batch-size=100                 # Keresési batch méret
 
 **Backend:**
 - Java 25 (Eclipse Temurin) + Spring Boot 4.0 (Spring Framework 7, Jakarta EE 11)
-- Spring Web, Data JPA, Security 6, MongoDB, Thymeleaf, OAuth2
+- Spring Web, WebFlux, Data MongoDB, Security, Thymeleaf, OAuth2
 - java-libpst - PST fájl feldolgozás
+- Apache Tika - Szövegkinyerés (PDF, DOC, XLS, PPT, stb.)
 - iText PDF 8 + Apache PDFBox 3 - PDF kezelés
 - zip4j - ZIP tömörítés/titkosítás
 - JSch - SSH műveletek
@@ -217,9 +267,15 @@ synology.batch-size=100                 # Keresési batch méret
 - React 19.2 - Interaktív komponensek
 - Tailwind CSS 4 - Stílusok (@tailwindcss/vite plugin)
 
+**RAG pipeline:**
+- Ollama - Lokális embedding generálás (nomic-embed-text, 768 dimenzió)
+- MongoDB Atlas Vector Search - Cosine hasonlóság alapú keresés
+- Apache Tika - Csatolmány szövegkinyerés (PDF, Office, stb.)
+
 **Infrastruktúra:**
-- MongoDB 7 - Email és fájl adatok tárolása
-- Docker + Docker Compose - Konténerizáció (multi-stage build)
+- MongoDB Atlas Local 8.0 - Adattárolás + vector search
+- Ollama - LLM szerver (GPU támogatás)
+- Docker + Docker Compose - Konténerizáció (6 szolgáltatás, multi-stage build)
 - nginx - Frontend szervírozás + API reverse proxy
 - Java 25 LTS (Eclipse Temurin)
 
@@ -230,13 +286,35 @@ synology.batch-size=100                 # Keresési batch méret
 mvn test
 
 # Egy adott teszt futtatása
-mvn test -Dtest=YourTestClass
+mvn test -Dtest=ChunkingServiceTest
 
 # Frontend fejlesztői szerver
 cd frontend && npm run dev
 
 # Frontend build
 cd frontend && npm run build
+```
+
+## Docker Compose szolgáltatások
+
+A `docker-compose.yml` 6 szolgáltatást tartalmaz:
+
+1. **frontend** - Astro 6 build → nginx (:80), reverse proxy a backend felé
+2. **backend** - Spring Boot (:8080), MongoDB + Ollama kapcsolattal
+3. **mongo** - MongoDB Atlas Local 8.0 (:27017), vector search támogatás
+4. **mongo-init** - `document_chunks` kollekcióra vector search index létrehozása (egyszer fut)
+5. **ollama** - Ollama LLM szerver (:11434), GPU támogatással
+6. **ollama-pull** - `nomic-embed-text` modell automatikus letöltése induláskor
+
+```bash
+# Indítás (minden szolgáltatás)
+docker compose up -d
+
+# Csak backend + MongoDB (RAG nélkül)
+docker compose up -d backend mongo
+
+# GPU nélkül (Ollama CPU módban fut)
+# Töröld a deploy.resources szekciót a docker-compose.yml-ből
 ```
 
 ## Licenc
