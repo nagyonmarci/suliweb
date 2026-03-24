@@ -25,6 +25,8 @@ public class RagConfig {
 
     private int ingestionBatchSize = 50;
     private int ingestionThreads = 4;
+    private int embeddingThreads = 2;
+    private int embeddingTimeoutSeconds = 120;
 
     @Bean
     public WebClient ollamaWebClient() {

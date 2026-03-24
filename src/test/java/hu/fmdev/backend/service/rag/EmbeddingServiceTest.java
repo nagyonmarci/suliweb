@@ -107,6 +107,71 @@ class EmbeddingServiceTest {
         assertTrue(result.isEmpty());
     }
 
+    // --- embedBatch tests ---
+
+    @Test
+    void embedBatch_nullInput_returnsEmptyList() {
+        List<List<Double>> result = embeddingService.embedBatch(null);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void embedBatch_emptyList_returnsEmptyList() {
+        List<List<Double>> result = embeddingService.embedBatch(List.of());
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void embedBatch_multipleTexts_returnsMultipleEmbeddings() {
+        mockServer.enqueue(new MockResponse()
+                .setBody("{\"embeddings\": [[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]}")
+                .addHeader("Content-Type", "application/json"));
+
+        List<List<Double>> result = embeddingService.embedBatch(List.of("text1", "text2", "text3"));
+
+        assertEquals(3, result.size());
+        assertEquals(0.1, result.get(0).get(0), 0.001);
+        assertEquals(0.3, result.get(1).get(0), 0.001);
+        assertEquals(0.5, result.get(2).get(0), 0.001);
+    }
+
+    @Test
+    void embedBatch_sendsArrayInput() throws InterruptedException {
+        mockServer.enqueue(new MockResponse()
+                .setBody("{\"embeddings\": [[0.1], [0.2]]}")
+                .addHeader("Content-Type", "application/json"));
+
+        embeddingService.embedBatch(List.of("hello", "world"));
+
+        RecordedRequest request = mockServer.takeRequest();
+        assertEquals("/api/embed", request.getPath());
+        String body = request.getBody().readUtf8();
+        assertTrue(body.contains("nomic-embed-text"));
+        // Input should be an array, not a single string
+        assertTrue(body.contains("[\"hello\",\"world\"]") || body.contains("[\"hello\", \"world\"]"),
+                "Request body should contain array input: " + body);
+    }
+
+    @Test
+    void embedBatch_serverError_returnsEmptyList() {
+        mockServer.enqueue(new MockResponse().setResponseCode(500));
+
+        List<List<Double>> result = embeddingService.embedBatch(List.of("text1", "text2"));
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void embed_delegatesToEmbedBatch() {
+        mockServer.enqueue(new MockResponse()
+                .setBody("{\"embeddings\": [[0.1, 0.2, 0.3]]}")
+                .addHeader("Content-Type", "application/json"));
+
+        List<Double> result = embeddingService.embed("single text");
+
+        assertEquals(3, result.size());
+        assertEquals(0.1, result.get(0), 0.001);
+    }
+
     @Test
     void isAvailable_serverUp_returnsTrue() {
         mockServer.enqueue(new MockResponse()

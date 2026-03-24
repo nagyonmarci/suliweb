@@ -179,38 +179,69 @@ class RagIngestionServiceTest {
     }
 
     @Test
-    void embedPendingChunks_successfulEmbedding_updatesStatus() {
-        DocumentChunk pending = new DocumentChunk();
-        pending.setId("c1");
-        pending.setContent("Test content");
-        pending.setIngestionStatus("pending");
+    void embedPendingChunks_batchEmbedding_updatesAllChunks() {
+        DocumentChunk chunk1 = new DocumentChunk();
+        chunk1.setId("c1");
+        chunk1.setContent("Content 1");
+        chunk1.setIngestionStatus("pending");
 
-        when(chunkRepository.findByIngestionStatus("pending")).thenReturn(List.of(pending));
-        when(embeddingService.embed("Test content")).thenReturn(List.of(0.1, 0.2, 0.3));
+        DocumentChunk chunk2 = new DocumentChunk();
+        chunk2.setId("c2");
+        chunk2.setContent("Content 2");
+        chunk2.setIngestionStatus("pending");
+
+        when(chunkRepository.findByIngestionStatus("pending")).thenReturn(List.of(chunk1, chunk2));
+        when(embeddingService.embedBatch(List.of("Content 1", "Content 2")))
+                .thenReturn(List.of(List.of(0.1, 0.2), List.of(0.3, 0.4)));
 
         service.embedPendingChunks();
 
-        verify(chunkRepository).save(argThat(chunk ->
-                "embedded".equals(chunk.getIngestionStatus()) &&
-                chunk.getEmbedding() != null &&
-                chunk.getEmbedding().size() == 3 &&
-                chunk.getEmbeddedAt() != null));
+        verify(chunkRepository).saveAll(argThat((List<DocumentChunk> chunks) ->
+                chunks.size() == 2 &&
+                "embedded".equals(chunks.get(0).getIngestionStatus()) &&
+                "embedded".equals(chunks.get(1).getIngestionStatus()) &&
+                chunks.get(0).getEmbedding().size() == 2 &&
+                chunks.get(1).getEmbedding().size() == 2));
     }
 
     @Test
-    void embedPendingChunks_emptyEmbedding_setsFailedStatus() {
-        DocumentChunk pending = new DocumentChunk();
-        pending.setId("c2");
-        pending.setContent("Problematic content");
-        pending.setIngestionStatus("pending");
+    void embedPendingChunks_batchFailure_setsAllFailed() {
+        DocumentChunk chunk1 = new DocumentChunk();
+        chunk1.setId("c1");
+        chunk1.setContent("Content 1");
+        chunk1.setIngestionStatus("pending");
 
-        when(chunkRepository.findByIngestionStatus("pending")).thenReturn(List.of(pending));
-        when(embeddingService.embed("Problematic content")).thenReturn(List.of());
+        when(chunkRepository.findByIngestionStatus("pending")).thenReturn(List.of(chunk1));
+        when(embeddingService.embedBatch(any())).thenThrow(new RuntimeException("Ollama down"));
 
         service.embedPendingChunks();
 
-        verify(chunkRepository).save(argThat(chunk ->
-                "failed".equals(chunk.getIngestionStatus())));
+        verify(chunkRepository).saveAll(argThat((List<DocumentChunk> chunks) ->
+                "failed".equals(chunks.getFirst().getIngestionStatus())));
+    }
+
+    @Test
+    void embedPendingChunks_partialBatchResult_marksExtraAsFailed() {
+        DocumentChunk chunk1 = new DocumentChunk();
+        chunk1.setId("c1");
+        chunk1.setContent("Content 1");
+        chunk1.setIngestionStatus("pending");
+
+        DocumentChunk chunk2 = new DocumentChunk();
+        chunk2.setId("c2");
+        chunk2.setContent("Content 2");
+        chunk2.setIngestionStatus("pending");
+
+        when(chunkRepository.findByIngestionStatus("pending")).thenReturn(List.of(chunk1, chunk2));
+        // Only 1 embedding returned for 2 chunks
+        when(embeddingService.embedBatch(List.of("Content 1", "Content 2")))
+                .thenReturn(List.of(List.of(0.1, 0.2)));
+
+        service.embedPendingChunks();
+
+        verify(chunkRepository).saveAll(argThat((List<DocumentChunk> chunks) ->
+                "embedded".equals(chunks.get(0).getIngestionStatus()) &&
+                "failed".equals(chunks.get(1).getIngestionStatus())));
     }
 
     @Test
@@ -219,7 +250,7 @@ class RagIngestionServiceTest {
 
         service.embedPendingChunks();
 
-        verify(chunkRepository, never()).save(any());
+        verify(chunkRepository, never()).saveAll(any());
     }
 
     @Test
@@ -232,14 +263,20 @@ class RagIngestionServiceTest {
         DocumentChunk newChunk = new DocumentChunk();
         newChunk.setIngestionStatus("pending");
         newChunk.setContent("new body");
-        when(chunkRepository.findByEmailId("e7")).thenReturn(List.of(newChunk));
-        when(embeddingService.embed("new body")).thenReturn(List.of(0.5));
+
+        DocumentChunk subjectChunk = new DocumentChunk();
+        subjectChunk.setIngestionStatus("pending");
+        subjectChunk.setContent("Reindex");
+
+        when(chunkRepository.findByEmailId("e7")).thenReturn(List.of(newChunk, subjectChunk));
+        when(embeddingService.embedBatch(List.of("new body", "Reindex")))
+                .thenReturn(List.of(List.of(0.5), List.of(0.6)));
 
         service.reIngestEmail("e7");
 
         verify(chunkRepository).deleteByEmailId("e7");
-        verify(chunkRepository).saveAll(any());
-        verify(embeddingService).embed("new body");
+        verify(chunkRepository).saveAll(chunksCaptor.capture()); // ingestEmail saveAll
+        verify(embeddingService).embedBatch(List.of("new body", "Reindex"));
     }
 
     @Test

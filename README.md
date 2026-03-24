@@ -375,7 +375,41 @@ A projekt továbbfejlesztéséhez javasolt eszközök és minták:
 ### Teljesítmény
 - **Spring Cache (`@Cacheable`)** - Email lekérdezések és RAG keresési eredmények cache-elése
 - **MongoDB indexek** - Compound indexek a gyakori keresési mintákhoz (`sender + receivedTime`, `subject text index`)
-- **Ollama batch embedding** - Jelenleg egyenként generál embedding-eket; batch API hívásokkal 5-10x gyorsulás érhető el
+- **~~Ollama batch embedding~~** - ✅ Megvalósítva: `EmbeddingService.embedBatch()` + párhuzamos feldolgozás (`rag.embedding-threads`, `rag.ingestion-batch-size`)
+
+### Go/Rust átállás elemzése
+
+A projekt szűk keresztmetszetei GPU inference (Ollama) és I/O (MongoDB, fájl olvasás), nem CPU számítás. Nyelv csere **nem javasolt**:
+
+| Szempont | Java 25 (jelenlegi) | Go | Rust |
+|----------|---------------------|-----|------|
+| PST könyvtár | java-libpst ✅ | ❌ nincs | ❌ nincs |
+| Szöveg kinyerés | Tika ✅ (300+ formátum) | ❌ nincs egyenértékű | ❌ nincs |
+| HTTP kliens | Netty ✅ | net/http ✅ | reqwest ✅ |
+| MongoDB driver | ✅ érett | ✅ érett | ✅ érett |
+| GC latency | ZGC <1ms | ~1-10ms | nincs GC |
+| Memória | ~200-500MB | ~50-150MB | ~30-100MB |
+| Spring ökoszisztéma | ✅ teljes | ❌ | ❌ |
+
+**Konklúzió:** A batch embedding optimalizáció Java-ban 5-10x gyorsulást ad, ami nagyobb nyereség mint egy teljes nyelv csere. Java 25 Virtual Threads + ZGC versenyképes I/O workload-oknál. A java-libpst és Apache Tika Go/Rust-ban nem létezik — pótlásuk nem reális.
+
+### Autentikáció: Directus vs natív Spring Security
+
+**Döntés: natív Spring Security** (Directus nem szükséges)
+
+| Szempont | Directus | Spring Security |
+|----------|----------|----------------|
+| MongoDB támogatás | ❌ (PostgreSQL/MySQL) | ✅ natív |
+| Architektúra | +1 Node.js service + DB | meglévő stack |
+| Testreszabhatóság | korlátozott | teljes |
+| Meglévő kóddal | dupla adatforrás | könnyű integráció |
+
+A projekt már rendelkezik User/Authority/Organization entitásokkal és repository-kkal. A `spring-boot-starter-security` és `spring-boot-starter-oauth2-client` dependency-k megvannak. A hiányzó lépések:
+1. `nimbus-jose-jwt` dependency + `JwtTokenProvider` service
+2. `JwtAuthenticationFilter` + `UserDetailsService`
+3. `BCryptPasswordEncoder` + `AuthController` (`/api/auth/login`, `/register`, `/refresh`)
+4. `SecurityConfig` átírás (JWT filter, endpoint protection, CORS)
+5. `@PreAuthorize` annotációk a controllerekre
 
 ## Licenc
 

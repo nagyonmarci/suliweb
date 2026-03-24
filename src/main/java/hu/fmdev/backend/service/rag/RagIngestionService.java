@@ -145,6 +145,7 @@ public class RagIngestionService {
 
     /**
      * Generates embeddings for all chunks that don't have one yet.
+     * Uses batch API calls and parallel processing for performance.
      */
     public void embedPendingChunks() {
         List<DocumentChunk> pending = chunkRepository.findByIngestionStatus("pending");
@@ -153,56 +154,85 @@ public class RagIngestionService {
             return;
         }
 
-        CentralLogger.logInfo("Embedding " + pending.size() + " pending chunks");
+        int batchSize = ragConfig.getIngestionBatchSize();
+        List<List<DocumentChunk>> batches = partitionList(pending, batchSize);
+
+        CentralLogger.logInfo("Embedding " + pending.size() + " pending chunks in "
+                + batches.size() + " batches (batch size: " + batchSize + ")");
         progressTracker.startOperation("Embedding generálás", pending.size());
 
+        ExecutorService executor = Executors.newFixedThreadPool(ragConfig.getEmbeddingThreads());
         try {
-            for (DocumentChunk chunk : pending) {
-                try {
-                    List<Double> embedding = embeddingService.embed(chunk.getContent());
-                    if (!embedding.isEmpty()) {
-                        chunk.setEmbedding(embedding);
-                        chunk.setIngestionStatus("embedded");
-                        chunk.setEmbeddedAt(LocalDateTime.now());
-                    } else {
-                        chunk.setIngestionStatus("failed");
-                    }
-                    chunkRepository.save(chunk);
-                } catch (Exception e) {
-                    chunk.setIngestionStatus("failed");
-                    chunkRepository.save(chunk);
-                    CentralLogger.logError("Embedding failed for chunk: " + chunk.getId(), e);
-                } finally {
-                    progressTracker.increment();
-                }
-            }
+            List<Callable<Void>> tasks = batches.stream()
+                    .map(batch -> (Callable<Void>) () -> {
+                        embedBatch(batch);
+                        return null;
+                    })
+                    .toList();
+            executor.invokeAll(tasks);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            CentralLogger.logError("Embedding interrupted", e);
         } finally {
+            executor.shutdown();
             progressTracker.stopOperation();
         }
     }
 
     /**
+     * Embeds a batch of chunks using a single Ollama API call.
+     */
+    private void embedBatch(List<DocumentChunk> batch) {
+        List<String> texts = batch.stream().map(DocumentChunk::getContent).toList();
+
+        try {
+            List<List<Double>> embeddings = embeddingService.embedBatch(texts);
+
+            for (int i = 0; i < batch.size(); i++) {
+                DocumentChunk chunk = batch.get(i);
+                if (i < embeddings.size() && !embeddings.get(i).isEmpty()) {
+                    chunk.setEmbedding(embeddings.get(i));
+                    chunk.setIngestionStatus("embedded");
+                    chunk.setEmbeddedAt(LocalDateTime.now());
+                } else {
+                    chunk.setIngestionStatus("failed");
+                }
+                progressTracker.increment();
+            }
+            chunkRepository.saveAll(batch);
+        } catch (Exception e) {
+            CentralLogger.logError("Batch embedding failed for " + batch.size() + " chunks", e);
+            for (DocumentChunk chunk : batch) {
+                chunk.setIngestionStatus("failed");
+                progressTracker.increment();
+            }
+            chunkRepository.saveAll(batch);
+        }
+    }
+
+    private <T> List<List<T>> partitionList(List<T> list, int size) {
+        List<List<T>> partitions = new ArrayList<>();
+        for (int i = 0; i < list.size(); i += size) {
+            partitions.add(list.subList(i, Math.min(i + size, list.size())));
+        }
+        return partitions;
+    }
+
+    /**
      * Re-ingests a specific email (deletes old chunks and recreates).
+     * Uses batch embedding for the new chunks.
      */
     public void reIngestEmail(String emailId) {
         chunkRepository.deleteByEmailId(emailId);
         Email email = emailRepository.findById(emailId).orElse(null);
         if (email != null) {
             ingestEmail(email);
-            // Embed the newly created chunks for this email
             List<DocumentChunk> chunks = chunkRepository.findByEmailId(emailId);
-            for (DocumentChunk chunk : chunks) {
-                if ("pending".equals(chunk.getIngestionStatus())) {
-                    List<Double> embedding = embeddingService.embed(chunk.getContent());
-                    if (!embedding.isEmpty()) {
-                        chunk.setEmbedding(embedding);
-                        chunk.setIngestionStatus("embedded");
-                        chunk.setEmbeddedAt(LocalDateTime.now());
-                    } else {
-                        chunk.setIngestionStatus("failed");
-                    }
-                    chunkRepository.save(chunk);
-                }
+            List<DocumentChunk> pendingChunks = chunks.stream()
+                    .filter(c -> "pending".equals(c.getIngestionStatus()))
+                    .toList();
+            if (!pendingChunks.isEmpty()) {
+                embedBatch(new ArrayList<>(pendingChunks));
             }
         }
     }
