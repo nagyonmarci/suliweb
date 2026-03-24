@@ -148,13 +148,20 @@ suliweb/
 │   └── util/                            # Hash, fájl I/O, HTML sanitizer
 ├── src/test/java/hu/fmdev/backend/     # Unit tesztek
 │   ├── controller/
-│   │   └── RagControllerTest.java
-│   └── service/rag/
-│       ├── ChunkingServiceTest.java
-│       ├── TextExtractionServiceTest.java
-│       ├── EmbeddingServiceTest.java
-│       ├── RagIngestionServiceTest.java
-│       └── RagSearchServiceTest.java
+│   │   ├── RagControllerTest.java
+│   │   └── SynologyPstFinderControllerTest.java
+│   ├── service/
+│   │   ├── ProgressTrackerTest.java
+│   │   ├── PstProcessorServiceTest.java
+│   │   ├── SynologyPstFinderServiceTest.java
+│   │   └── rag/
+│   │       ├── ChunkingServiceTest.java
+│   │       ├── TextExtractionServiceTest.java
+│   │       ├── EmbeddingServiceTest.java
+│   │       ├── RagIngestionServiceTest.java
+│   │       └── RagSearchServiceTest.java
+│   └── util/
+│       └── HashUtilTest.java
 ├── src/main/resources/
 │   └── application.properties           # Alkalmazás konfiguráció
 ├── frontend/                            # Astro 6 + React dashboard
@@ -170,7 +177,8 @@ suliweb/
 │   └── astro.config.mjs
 ├── pom.xml                              # Maven konfiguráció
 ├── Dockerfile                           # Multi-stage build (JDK 25 → JRE 25)
-├── docker-compose.yml                   # Teljes stack (6 szolgáltatás)
+├── docker-compose.yml                   # Teljes stack (6 szolgáltatás, health checks)
+├── .env.example                         # Környezeti változók sablon
 ├── .dockerignore                        # Docker build kizárások
 └── CLAUDE.md                            # Claude Code fejlesztési útmutató
 ```
@@ -297,14 +305,24 @@ cd frontend && npm run build
 
 ## Docker Compose szolgáltatások
 
-A `docker-compose.yml` 6 szolgáltatást tartalmaz:
+A `docker-compose.yml` 6 szolgáltatást tartalmaz, health check-kel és restart policy-val:
 
-1. **frontend** - Astro 6 build → nginx (:80), reverse proxy a backend felé
-2. **backend** - Spring Boot (:8080), MongoDB + Ollama kapcsolattal
-3. **mongo** - MongoDB Atlas Local 8.0 (:27017), vector search támogatás
-4. **mongo-init** - `document_chunks` kollekcióra vector search index létrehozása (egyszer fut)
-5. **ollama** - Ollama LLM szerver (:11434), GPU támogatással
-6. **ollama-pull** - `nomic-embed-text` modell automatikus letöltése induláskor
+| Szolgáltatás | Restart | Health check | Leírás |
+|---|---|---|---|
+| `frontend` | unless-stopped | backend healthy | Astro 6 → nginx (:80) |
+| `backend` | unless-stopped | `/api/progress` curl | Spring Boot (:8080) |
+| `mongo` | unless-stopped | `mongosh ping` | MongoDB Atlas Local 8.0 (:27017) |
+| `mongo-init` | no | - | Vector search index (egyszer fut) |
+| `ollama` | unless-stopped | `/api/tags` curl | Ollama LLM (:11434, GPU) |
+| `ollama-pull` | no | - | `nomic-embed-text` letöltés |
+
+**Környezeti változók** - `.env` fájlból olvasva (lásd `.env.example`):
+
+```bash
+# .env fájl létrehozása
+cp .env.example .env
+# Szerkesztés a saját értékekre (Synology, MongoDB jelszó, stb.)
+```
 
 ```bash
 # Indítás (minden szolgáltatás)
@@ -313,9 +331,51 @@ docker compose up -d
 # Csak backend + MongoDB (RAG nélkül)
 docker compose up -d backend mongo
 
+# Health check állapot ellenőrzés
+docker compose ps
+
 # GPU nélkül (Ollama CPU módban fut)
 # Töröld a deploy.resources szekciót a docker-compose.yml-ből
 ```
+
+**Volumes:**
+- `mongodb_data` - MongoDB adatok
+- `attachments` - Kinyert csatolmányok
+- `pst_source` - PST forrásfájlok (read-only)
+- `ollama_data` - Ollama modellek
+- `logs` - Backend alkalmazás logok
+
+## Fejlesztési javaslatok
+
+A projekt továbbfejlesztéséhez javasolt eszközök és minták:
+
+### Tesztelés
+- **Testcontainers** - Integrációs tesztek valódi MongoDB-vel konténerben (`@Testcontainers` + `MongoDBContainer`). A jelenlegi unit tesztek Mockito-val mockólják a repository réteget; Testcontainers-szel a teljes pipeline (service → repository → MongoDB) tesztelhető
+- **ArchUnit** - Architektúra szabályok automatikus ellenőrzése (pl. service réteg ne függjön közvetlenül controller-től)
+- **WireMock** - Synology API és Ollama HTTP hívások integrációs tesztelése (a jelenlegi MockWebServer-es megoldás kiváltására is alkalmas)
+
+### Monitorozás és dokumentáció
+- **Spring Boot Actuator** - `/actuator/health`, `/actuator/metrics`, `/actuator/info` végpontok; Prometheus/Grafana integrációhoz `micrometer-registry-prometheus` dependency
+- **SpringDoc OpenAPI (Swagger)** - Automatikus API dokumentáció generálás a meglévő controllerekből (`springdoc-openapi-starter-webmvc-ui`), elérhető a `/swagger-ui.html` címen
+- **Structured logging** - `logback-logstash-encoder` JSON formátumú logokhoz, ELK/Loki stack-be gyűjtéshez
+
+### CI/CD
+- **GitHub Actions** - Automatikus build, teszt futtatás és Docker image push. Javasolt pipeline:
+  ```
+  push → mvn test → mvn package → docker build → docker push → deploy
+  ```
+- **Testcontainers Cloud** - CI környezetben a MongoDB tesztek futtatásához
+- **Dependabot / Renovate** - Automatikus dependency frissítések (Spring Boot, npm csomagok)
+
+### Biztonság
+- **Spring Security + OAuth2** - A jelenlegi SecurityConfig bővítése JWT token validációval
+- **Vault / AWS Secrets Manager** - MongoDB és Synology jelszavak externalizálása (a `.env` fájl helyett)
+- **OWASP ZAP** - Automatikus biztonsági szkennelés a CI pipeline-ban
+
+### Teljesítmény
+- **Spring Cache (`@Cacheable`)** - Email lekérdezések és RAG keresési eredmények cache-elése
+- **MongoDB indexek** - Compound indexek a gyakori keresési mintákhoz (`sender + receivedTime`, `subject text index`)
+- **Ollama batch embedding** - Jelenleg egyenként generál embedding-eket; batch API hívásokkal 5-10x gyorsulás érhető el
 
 ## Licenc
 

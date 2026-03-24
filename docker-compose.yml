@@ -3,41 +3,68 @@ services:
     build: ./frontend
     ports:
       - "80:80"
+    restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
   backend:
     build: .
     ports:
       - "8080:8080"
+    restart: unless-stopped
     environment:
-      - SPRING_DATA_MONGODB_URI=mongodb://admin:example@mongo:27017/emails?authSource=admin&directConnection=true
+      - SPRING_DATA_MONGODB_URI=mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-example}@mongo:27017/emails?authSource=admin&directConnection=true
       - ATTACHMENTS_DIRECTORY=/app/attachments
       - RAG_OLLAMA_BASE_URL=http://ollama:11434
+      - SYNOLOGY_HOST=${SYNOLOGY_HOST:-}
+      - SYNOLOGY_USERNAME=${SYNOLOGY_USERNAME:-}
+      - SYNOLOGY_PASSWORD=${SYNOLOGY_PASSWORD:-}
+      - SYNOLOGY_PATH_PREFIX=${SYNOLOGY_PATH_PREFIX:-/volume1}
+      - SYNOLOGY_LOCAL_MOUNT_PREFIX=${SYNOLOGY_LOCAL_MOUNT_PREFIX:-/mnt/nas}
+      - SYNOLOGY_SEARCH_EXTENSIONS=${SYNOLOGY_SEARCH_EXTENSIONS:-pst,ost}
+      - SYNOLOGY_BATCH_SIZE=${SYNOLOGY_BATCH_SIZE:-100}
     volumes:
       - attachments:/app/attachments
       - pst_source:/data/pst_source:ro
+      - logs:/app/logs
     depends_on:
-      - mongo
-      - ollama
+      mongo:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/progress || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
 
   mongo:
     image: mongodb/mongodb-atlas-local:8.0
     ports:
       - "27017:27017"
+    restart: unless-stopped
     environment:
-      - MONGODB_INITDB_ROOT_USERNAME=admin
-      - MONGODB_INITDB_ROOT_PASSWORD=example
+      - MONGODB_INITDB_ROOT_USERNAME=${MONGO_USER:-admin}
+      - MONGODB_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD:-example}
     volumes:
       - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   mongo-init:
     image: mongodb/mongodb-atlas-local:8.0
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     restart: "no"
     entrypoint: >
-      mongosh "mongodb://admin:example@mongo:27017/emails?authSource=admin&directConnection=true" --eval '
+      mongosh "mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-example}@mongo:27017/emails?authSource=admin&directConnection=true" --eval '
         db.document_chunks.createSearchIndex({
           name: "chunk_vector_index",
           type: "vectorSearch",
@@ -57,8 +84,15 @@ services:
     image: ollama/ollama:latest
     ports:
       - "11434:11434"
+    restart: unless-stopped
     volumes:
       - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     deploy:
       resources:
         reservations:
@@ -70,10 +104,11 @@ services:
   ollama-pull:
     image: ollama/ollama:latest
     depends_on:
-      - ollama
+      ollama:
+        condition: service_healthy
     restart: "no"
     entrypoint: >
-      sh -c "sleep 5 && ollama pull nomic-embed-text"
+      sh -c "ollama pull nomic-embed-text"
     environment:
       - OLLAMA_HOST=http://ollama:11434
 
@@ -82,3 +117,4 @@ volumes:
   attachments:
   pst_source:
   ollama_data:
+  logs:
