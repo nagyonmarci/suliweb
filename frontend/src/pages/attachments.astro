@@ -1,0 +1,8 @@
+---
+import Layout from '../layouts/Layout.astro';
+import AttachmentList from '../components/AttachmentList.tsx';
+---
+
+<Layout title="Csatolmányok" activePage="/attachments">
+  <AttachmentList client:load />
+</Layout>

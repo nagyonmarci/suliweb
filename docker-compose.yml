@@ -1,26 +1,127 @@
-version: '3.8'
 services:
-  app:
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  backend:
     build: .
     ports:
-      - "6969:8080"
+      - "8080:8080"
+    restart: unless-stopped
     environment:
-      - SPRING_DATA_MONGODB_URI=mongodb://admin:example@mongo:27017/emails?authSource=admin
+      - SPRING_PROFILES_ACTIVE=docker
+      - SYNOLOGY_HOST=${SYNOLOGY_HOST:-}
+      - SYNOLOGY_USERNAME=${SYNOLOGY_USERNAME:-}
+      - SYNOLOGY_PASSWORD=${SYNOLOGY_PASSWORD:-}
+      - SYNOLOGY_PATH_PREFIX=${SYNOLOGY_PATH_PREFIX:-/volume1}
+      - SYNOLOGY_LOCAL_MOUNT_PREFIX=${SYNOLOGY_LOCAL_MOUNT_PREFIX:-/mnt/nas}
+      - SYNOLOGY_SEARCH_EXTENSIONS=${SYNOLOGY_SEARCH_EXTENSIONS:-pst,ost}
+      - SYNOLOGY_BATCH_SIZE=${SYNOLOGY_BATCH_SIZE:-100}
+      - JWT_SECRET=${JWT_SECRET:-dGhpc0lzQVNlY3VyZUtleUZvckpXVFRva2VuU2lnbmluZ1B1cnBvc2VzT25seQ==}
+      - SPRING_DATA_MONGODB_URI=mongodb://mongo:27017/emails?directConnection=true
+    command: ["--spring.profiles.active=docker"]
     volumes:
-      - /Users/fabianm/PSTs:/data/pst_source:ro
-      - ./attachments:/app/attachments
+      - attachments:/app/attachments
+      - pst_source:/data/pst_source:ro
+      - logs:/app/logs
+      - /Volumes/archiv:/Volumes/archiv:ro
+      - /Volumes/data:/Volumes/data:ro
+      - /Volumes/eadat:/Volumes/eadat:ro
+      - /Users/fabianm/PSTs:/Users/fabianm/PSTs:ro
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/progress || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
 
   mongo:
-    image: mongo:latest
+    image: mongodb/mongodb-atlas-local:8.0
+    hostname: mongo
     ports:
-      - "27018:27017"
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=admin
-      - MONGO_INITDB_ROOT_PASSWORD=example
+      - "27017:27017"
+    restart: unless-stopped
     volumes:
       - mongodb_data:/data/db
+      - mongodb_configdb:/data/configdb
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  mongo-init:
+    image: mongodb/mongodb-atlas-local:8.0
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: >
+      mongosh "mongodb://mongo:27017/emails?directConnection=true" --eval '
+        db.createCollection("document_chunks");
+        // Text index for keyword search lane (hybrid RAG)
+        db.document_chunks.createIndex(
+          { content: "text", emailSubject: "text", senderName: "text" },
+          { name: "chunk_text_index", weights: { content: 10, emailSubject: 5, senderName: 1 } }
+        );
+        // Vector search index (1024 dims for bge-m3) - works on Atlas local
+        db.document_chunks.createSearchIndex({
+          name: "chunk_vector_index",
+          type: "vectorSearch",
+          definition: {
+            fields: [{
+              type: "vector",
+              numDimensions: 1024,
+              path: "embedding",
+              similarity: "cosine"
+            }]
+          }
+        });
+        print("Indexes created");
+      '
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    profiles:
+      - rag
+
+  ollama-pull:
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: >
+      sh -c "ollama pull bge-m3"
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    profiles:
+      - rag
 
 volumes:
   mongodb_data:
+  mongodb_configdb:
+  attachments:
+  pst_source:
+  ollama_data:
+  logs:

@@ -7,7 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.time.LocalDateTime;
@@ -44,9 +44,12 @@ public class CentralLogger {
 
     public static void logError(String message, Throwable t) {
         logger.error(message, t);
-        StringWriter sw = new StringWriter();
-        t.printStackTrace(new PrintWriter(sw));
-        String stackTrace = sw.toString();
+        String stackTrace = null;
+        if (t != null) {
+            StringWriter sw = new StringWriter();
+            t.printStackTrace(new PrintWriter(sw));
+            stackTrace = sw.toString();
+        }
         instance.saveLogEntry("ERROR", message, stackTrace);
     }
 

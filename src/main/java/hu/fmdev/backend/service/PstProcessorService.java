@@ -8,6 +8,7 @@ import hu.fmdev.backend.domain.Email;
 import hu.fmdev.backend.domain.FileInfo;
 import hu.fmdev.backend.exceptionhandler.PstProcessingException;
 import hu.fmdev.backend.logger.CentralLogger;
+import hu.fmdev.backend.repository.AttachmentRepository;
 import hu.fmdev.backend.repository.EmailRepository;
 import hu.fmdev.backend.repository.FileInfoRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,6 +32,7 @@ import java.util.stream.Collectors;
 public class PstProcessorService {
     private final EmailRepository emailRepository;
     private final FileInfoRepository fileInfoRepository;
+    private final AttachmentRepository attachmentRepository;
     private final ProgressTracker progressTracker;
     private volatile boolean paused = false;
 
@@ -59,9 +61,10 @@ public class PstProcessorService {
     }
 
     public PstProcessorService(EmailRepository emailRepository, FileInfoRepository fileInfoRepository,
-            ProgressTracker progressTracker) {
+            AttachmentRepository attachmentRepository, ProgressTracker progressTracker) {
         this.emailRepository = emailRepository;
         this.fileInfoRepository = fileInfoRepository;
+        this.attachmentRepository = attachmentRepository;
         this.progressTracker = progressTracker;
     }
 
@@ -113,7 +116,9 @@ public class PstProcessorService {
         List<Callable<Void>> tasks = fileInfoList.stream()
                 .map(fileInfo -> (Callable<Void>) () -> {
                     try {
+                        String fileName = Paths.get(fileInfo.getPath()).getFileName().toString();
                         CentralLogger.logInfo("Processing file: " + fileInfo.getPath());
+                        progressTracker.setStatusDetail("Feldolgozás: " + fileName);
                         processPstFile(fileInfo.getPath().trim(), saveAttachments);
                         fileInfo.setStatus("Processed");
                         fileInfoRepository.save(fileInfo);
@@ -165,7 +170,7 @@ public class PstProcessorService {
         PSTFile pst = null;
         try {
             pst = new PSTFile(pstFile.getAbsolutePath());
-            processFolder(pst.getRootFolder(), pstFile.getName(), saveAttachments);
+            processRootFolder(pst.getRootFolder(), pstFile.getName(), saveAttachments);
         } catch (Exception e) {
             throw new IOException("Error processing PST file at " + pstFile.getAbsolutePath(), e);
         } finally {
@@ -193,12 +198,34 @@ public class PstProcessorService {
         return file;
     }
 
-    private void processFolder(PSTFolder folder, String pstFileName, boolean saveAttachments) throws Exception {
-        String currentFolderPath = folder.getDisplayName();
+    private void processRootFolder(PSTFolder rootFolder, String pstFileName, boolean saveAttachments) throws Exception {
+        processMessages(rootFolder, pstFileName, "", saveAttachments);
+        if (rootFolder.hasSubfolders()) {
+            for (PSTFolder subFolder : rootFolder.getSubFolders()) {
+                processFolder(subFolder, pstFileName, "", saveAttachments);
+            }
+        }
+    }
+
+    private void processFolder(PSTFolder folder, String pstFileName, String parentPath, boolean saveAttachments) throws Exception {
+        String currentName = folder.getDisplayName();
+        
+        String currentFolderPath;
+        if (parentPath.isEmpty() && (
+                currentName.equalsIgnoreCase("Outlook-adatfájl teteje") ||
+                currentName.equalsIgnoreCase("Top of Outlook data file") ||
+                currentName.equalsIgnoreCase("Top of Information Store") ||
+                currentName.equalsIgnoreCase("Top of Personal Folders") ||
+                currentName.equalsIgnoreCase("Személyes mappák"))) {
+            currentFolderPath = "";
+        } else {
+            currentFolderPath = parentPath.isEmpty() ? currentName : parentPath + " / " + currentName;
+        }
+
         processMessages(folder, pstFileName, currentFolderPath, saveAttachments);
         if (folder.hasSubfolders()) {
             for (PSTFolder subFolder : folder.getSubFolders()) {
-                processFolder(subFolder, pstFileName, saveAttachments);
+                processFolder(subFolder, pstFileName, currentFolderPath, saveAttachments);
             }
         }
     }
@@ -222,17 +249,27 @@ public class PstProcessorService {
         checkPaused(); // Ellenőrizzük, hogy szüneteltetett-e a feldolgozás
         String uniqueEntryId = generateUniqueEntryId(pstFileName, message.getDescriptorNodeId());
 
-        if (emailRepository.existsByUniqueEntryId(uniqueEntryId)) {
-            CentralLogger.logInfo("Skipping already processed email with ID: " + uniqueEntryId);
+        java.util.Optional<Email> existingOpt = emailRepository.findByUniqueEntryId(uniqueEntryId);
+        if (existingOpt.isPresent()) {
+            Email existingEmail = existingOpt.get();
+            if (!currentFolderPath.equals(existingEmail.getFolderPath())) {
+                existingEmail.setFolderPath(currentFolderPath);
+                emailRepository.save(existingEmail);
+                CentralLogger.logInfo("Updated folder path for existing email: " + uniqueEntryId);
+            } else {
+                CentralLogger.logInfo("Skipping already processed email with ID: " + uniqueEntryId);
+            }
             return;
         }
 
         Email email = createNewEmail(uniqueEntryId, pstFileName, currentFolderPath);
         updateEmailWithMessageDetails(email, message);
+        emailRepository.save(email); // Save first to get the ID
+
         if (saveAttachments) {
-            saveEmailWithAttachments(email, message, pstFileName, uniqueEntryId);
+            saveEmailWithAttachments(email, message, pstFileName);
+            emailRepository.save(email); // Save again if attachments were added
         }
-        emailRepository.save(email);
     }
 
     private Email createNewEmail(String uniqueEntryId, String pstFileName, String currentFolderPath) {
@@ -297,10 +334,10 @@ public class PstProcessorService {
         return LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
     }
 
-    private void saveEmailWithAttachments(Email email, PSTMessage message, String pstFileName, String uniqueEntryId)
+    private void saveEmailWithAttachments(Email email, PSTMessage message, String pstFileName)
             throws Exception {
         try {
-            List<String> attachmentPaths = saveAttachments(message, pstFileName, uniqueEntryId);
+            List<String> attachmentPaths = saveAttachments(message, pstFileName, email);
             email.setAttachmentPaths(attachmentPaths);
         } catch (Exception e) {
             throw new Exception("Failed to save attachments.", e);
@@ -338,14 +375,20 @@ public class PstProcessorService {
         return messageType.startsWith("IPM.Note");
     }
 
-    private List<String> saveAttachments(PSTMessage message, String pstFileName, String uniqueEntryId)
+    private List<String> saveAttachments(PSTMessage message, String pstFileName, Email email)
             throws Exception {
         List<String> attachmentPaths = new ArrayList<>();
-        String attachmentsDirPath = attachmentsDirectory + "/" + pstFileName + "/" + uniqueEntryId;
-        Path directoryPath = Paths.get(attachmentsDirPath);
+        
+        // Central directory for deduplicated files
+        Path hashesDirPath = Paths.get(attachmentsDirectory, "hashes");
+        if (!Files.exists(hashesDirPath)) {
+            Files.createDirectories(hashesDirPath);
+        }
 
-        if (!Files.exists(directoryPath)) {
-            Files.createDirectories(directoryPath);
+        // Temp directory for streaming before we know the hash
+        Path tempDirPath = Paths.get(attachmentsDirectory, "temp", email.getUniqueEntryId());
+        if (!Files.exists(tempDirPath)) {
+            Files.createDirectories(tempDirPath);
         }
 
         int attachmentCount = message.getNumberOfAttachments();
@@ -355,18 +398,60 @@ public class PstProcessorService {
             if (filename == null || filename.isEmpty()) {
                 filename = "attachment" + i;
             }
-            Path filePath = directoryPath.resolve(filename);
-            File attachmentFile = filePath.toFile();
+            
+            Path tempFilePath = tempDirPath.resolve(filename + ".tmp");
+            File tempAttachmentFile = tempFilePath.toFile();
+            String fileHash;
 
-            try (OutputStream os = new FileOutputStream(attachmentFile);
-                    InputStream in = attachment.getFileInputStream()) {
+            try (OutputStream os = new FileOutputStream(tempAttachmentFile);
+                 InputStream in = attachment.getFileInputStream()) {
+                 
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                java.security.DigestOutputStream dos = new java.security.DigestOutputStream(os, digest);
+                
                 byte[] buffer = new byte[8192];
                 int len;
                 while ((len = in.read(buffer)) > 0) {
-                    os.write(buffer, 0, len);
+                    dos.write(buffer, 0, len);
                 }
+                dos.flush();
+                
+                byte[] hashBytes = digest.digest();
+                StringBuilder hexString = new StringBuilder();
+                for (byte b : hashBytes) {
+                    String hex = Integer.toHexString(0xff & b);
+                    if (hex.length() == 1) hexString.append('0');
+                    hexString.append(hex);
+                }
+                fileHash = hexString.toString();
             }
-            attachmentPaths.add(filePath.toString());
+            
+            Path finalFilePath = hashesDirPath.resolve(fileHash);
+            if (!Files.exists(finalFilePath)) {
+                Files.move(tempFilePath, finalFilePath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            } else {
+                Files.deleteIfExists(tempFilePath);
+            }
+            
+            attachmentPaths.add(finalFilePath.toString());
+
+            // Create and save Attachment entity
+            hu.fmdev.backend.domain.Attachment attachmentEntity = new hu.fmdev.backend.domain.Attachment();
+            attachmentEntity.setEmailId(email.getId());
+            attachmentEntity.setFilename(filename);
+            attachmentEntity.setSize(finalFilePath.toFile().length());
+            attachmentEntity.setLocalPath(finalFilePath.toString());
+            attachmentEntity.setHash(fileHash);
+            attachmentEntity.setPstFileName(pstFileName);
+            attachmentEntity.setCreationTime(LocalDateTime.now());
+            attachmentEntity.setContentType(Files.probeContentType(finalFilePath));
+            
+            // Context from email
+            attachmentEntity.setEmailSubject(email.getSubject());
+            attachmentEntity.setSenderName(email.getSenderName());
+            attachmentEntity.setReceivedTime(email.getReceivedTime());
+            
+            attachmentRepository.save(attachmentEntity);
         }
         return attachmentPaths;
     }

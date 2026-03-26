@@ -1,0 +1,7 @@
+frontend/
+.git
+.idea
+*.tar.gz
+logs/
+attachments/
+node_modules/
