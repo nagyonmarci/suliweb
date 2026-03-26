@@ -9,9 +9,10 @@ const { title, activePage = '' } = Astro.props;
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: 'home' },
-  { href: '/emails', label: 'Emails', icon: 'mail' },
+  { href: '/emails', label: 'E-mailek', icon: 'mail' },
   { href: '/rag', label: 'RAG Keresés', icon: 'search' },
-  { href: '/files', label: 'Fájlok', icon: 'folder' },
+  { href: '/files', label: 'PST fájlok', icon: 'folder' },
+  { href: '/attachments', label: 'Csatolmányok', icon: 'paperclip' },
   { href: '/processing', label: 'Feldolgozás', icon: 'cpu' },
   { href: '/synology', label: 'Synology', icon: 'server' },
 ];
@@ -69,6 +70,7 @@ const navItems = [
                 {item.icon === 'mail' && '✉'}
                 {item.icon === 'search' && '🔍'}
                 {item.icon === 'folder' && '📁'}
+                {item.icon === 'paperclip' && '📎'}
                 {item.icon === 'cpu' && '⚙'}
                 {item.icon === 'server' && '🖥'}
               </span>

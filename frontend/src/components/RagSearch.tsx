@@ -78,6 +78,29 @@ export default function RagSearch() {
     }
   }
 
+  async function handleResetFailed() {
+    setMessage('');
+    try {
+      const result = await api.ragResetFailed();
+      setMessage(result);
+      loadHealth();
+    } catch (e: any) {
+      setMessage('Hiba: ' + e.message);
+    }
+  }
+
+  async function handleResetAll() {
+    if (!confirm('Biztosan törölni szeretnél minden eddigi RAG indexelést és elölről kezdeni?')) return;
+    setMessage('');
+    try {
+      const result = await api.ragResetAll();
+      setMessage(result);
+      loadHealth();
+    } catch (e: any) {
+      setMessage('Hiba: ' + e.message);
+    }
+  }
+
   function toggleChunkExpand(index: number) {
     setExpandedChunks(prev => {
       const next = new Set(prev);
@@ -116,7 +139,16 @@ export default function RagSearch() {
 
       {/* Ingestion controls */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Indexelés</h3>
+        <div className="flex justify-between items-start mb-4">
+          <h3 className="text-sm font-semibold text-gray-700">Indexelés kezelése</h3>
+          <button
+            onClick={handleResetAll}
+            className="text-xs text-red-500 hover:text-red-700 underline"
+          >
+            Indexelés törlése és újrakezdés
+          </button>
+        </div>
+        
         <div className="flex flex-wrap gap-3">
           <button
             onClick={handleIngest}
@@ -125,19 +157,27 @@ export default function RagSearch() {
           >
             {health?.ingestionRunning ? 'Indexelés folyamatban...' : ingesting ? 'Indítás...' : 'Emailek indexelése'}
           </button>
+          
           <button
             onClick={handleEmbed}
-            disabled={!stats?.pendingChunks}
+            disabled={!stats?.pendingChunks || health?.ingestionRunning}
             className="px-4 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors"
           >
             Embedding generálás ({stats?.pendingChunks ?? 0} függő)
           </button>
+
+          {stats?.failedChunks && stats.failedChunks > 0 ? (
+            <button
+              onClick={handleResetFailed}
+              className="px-4 py-2 bg-amber-100 text-amber-700 text-sm rounded-lg hover:bg-amber-200 transition-colors border border-amber-200"
+            >
+              {stats.failedChunks} hiba visszaállítása
+            </button>
+          ) : null}
         </div>
-        {stats?.failedChunks ? (
-          <p className="text-xs text-red-500 mt-2">{stats.failedChunks} sikertelen chunk</p>
-        ) : null}
+        
         {message && (
-          <p className={`text-sm mt-3 ${message.includes('hiba') || message.includes('Hiba') ? 'text-red-600' : 'text-green-600'}`}>
+          <p className={`text-sm mt-3 p-2 rounded ${message.includes('hiba') || message.includes('Hiba') ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>
             {message}
           </p>
         )}

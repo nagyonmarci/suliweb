@@ -111,4 +111,18 @@ public class RagController {
                 "stats", stats
         );
     }
+
+    /** Resets all 'failed' chunks to 'pending' so embedding can be retried. */
+    @PostMapping("/reset-failed")
+    public ResponseEntity<String> resetFailed() {
+        int count = ingestionService.resetFailed();
+        return ResponseEntity.ok("Visszaállítva " + count + " sikertelen chunk 'pending' állapotba");
+    }
+
+    /** Deletes ALL chunks so a completely fresh ingestion can be started. */
+    @PostMapping("/reset-all")
+    public ResponseEntity<String> resetAll() {
+        long count = ingestionService.resetAll();
+        return ResponseEntity.ok("Törölve " + count + " chunk – indítsd el az indexelést újra");
+    }
 }

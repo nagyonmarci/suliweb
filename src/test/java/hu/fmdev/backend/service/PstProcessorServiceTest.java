@@ -1,6 +1,7 @@
 package hu.fmdev.backend.service;
 
 import hu.fmdev.backend.domain.FileInfo;
+import hu.fmdev.backend.repository.AttachmentRepository;
 import hu.fmdev.backend.repository.EmailRepository;
 import hu.fmdev.backend.repository.FileInfoRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,6 +25,7 @@ class PstProcessorServiceTest {
 
     @Mock private EmailRepository emailRepository;
     @Mock private FileInfoRepository fileInfoRepository;
+    @Mock private AttachmentRepository attachmentRepository;
     @Mock private ProgressTracker progressTracker;
 
     private PstProcessorService service;
@@ -33,7 +35,7 @@ class PstProcessorServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new PstProcessorService(emailRepository, fileInfoRepository, progressTracker);
+        service = new PstProcessorService(emailRepository, fileInfoRepository, attachmentRepository, progressTracker);
     }
 
     // --- generateUniqueEntryId ---

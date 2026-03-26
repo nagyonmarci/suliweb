@@ -25,14 +25,14 @@ public class SynologyApiClient {
 
     public void login() {
         String url = UriComponentsBuilder
-                .fromHttpUrl(config.getHost())
+                .fromUriString(config.getHost())
                 .path("/webapi/auth.cgi")
                 .queryParam("api", "SYNO.API.Auth")
-                .queryParam("version", "3")
+                .queryParam("version", "6")
                 .queryParam("method", "login")
                 .queryParam("account", config.getUsername())
                 .queryParam("passwd", config.getPassword())
-                .queryParam("session", "FileIndexing")
+                .queryParam("session", "FileStation")
                 .queryParam("format", "cookie")
                 .toUriString();
 
@@ -57,12 +57,12 @@ public class SynologyApiClient {
         if (sid == null) return;
 
         String url = UriComponentsBuilder
-                .fromHttpUrl(config.getHost())
+                .fromUriString(config.getHost())
                 .path("/webapi/auth.cgi")
                 .queryParam("api", "SYNO.API.Auth")
-                .queryParam("version", "3")
+                .queryParam("version", "6")
                 .queryParam("method", "logout")
-                .queryParam("session", "FileIndexing")
+                .queryParam("session", "FileStation")
                 .queryParam("_sid", sid)
                 .toUriString();
 
@@ -77,20 +77,38 @@ public class SynologyApiClient {
     }
 
     public int getTotalCount(String extension) {
-        String url = buildSearchUrl(extension, 0, 0);
-
         try {
-            String response = restTemplate.getForObject(url, String.class);
+            String url = UriComponentsBuilder
+                    .fromUriString(config.getHost())
+                    .path("/webapi/entry.cgi")
+                    .toUriString();
+
+            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            headers.setContentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED);
+
+            org.springframework.util.MultiValueMap<String, String> map = new org.springframework.util.LinkedMultiValueMap<>();
+            map.add("api", "SYNO.Finder.FileIndexing.Search");
+            map.add("version", "1");
+            map.add("method", "search");
+            map.add("_sid", sid);
+            map.add("criteria_list", "[{\"field\":\"SYNOMDExtension\",\"value\":\"" + extension + "\"}]");
+            map.add("search_weight_list", "[{\"field\":\"SYNOMDSearchFileName\",\"weight\":8.5,\"trailing_wildcard\":true}]");
+            map.add("keyword", "");
+            map.add("from", "0");
+            map.add("size", "1");
+
+            org.springframework.http.HttpEntity<org.springframework.util.MultiValueMap<String, String>> request = new org.springframework.http.HttpEntity<>(map, headers);
+            String response = restTemplate.postForObject(url, request, String.class);
             JsonNode root = objectMapper.readTree(response);
 
             if (root.path("success").asBoolean()) {
                 return root.path("data").path("total").asInt();
             } else {
-                CentralLogger.logError("Synology keresés sikertelen: " + extension, null);
+                CentralLogger.logError("Synology total count sikertelen: " + extension + ", válasz: " + response, null);
                 return 0;
             }
         } catch (Exception e) {
-            CentralLogger.logError("Synology keresés hiba: " + extension, e);
+            CentralLogger.logError("Synology total count hiba: " + extension, e);
             return 0;
         }
     }
@@ -110,10 +128,29 @@ public class SynologyApiClient {
         int batchSize = config.getBatchSize();
 
         while (offset < total) {
-            String url = buildSearchUrl(extension, offset, batchSize);
-
             try {
-                String response = restTemplate.getForObject(url, String.class);
+                String url = UriComponentsBuilder
+                        .fromUriString(config.getHost())
+                        .path("/webapi/entry.cgi")
+                        .toUriString();
+
+                org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+                headers.setContentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED);
+
+                org.springframework.util.MultiValueMap<String, String> map = new org.springframework.util.LinkedMultiValueMap<>();
+                map.add("api", "SYNO.Finder.FileIndexing.Search");
+                map.add("version", "1");
+                map.add("method", "search");
+                map.add("_sid", sid);
+                map.add("criteria_list", "[{\"field\":\"SYNOMDExtension\",\"value\":\"" + extension + "\"}]");
+                map.add("fields", "[\"SYNOMDFSName\",\"SYNOMDFSSize\",\"SYNOMDPath\",\"SYNOMDSharePath\",\"SYNOMDExtension\",\"SYNOMDIsDir\",\"SYNOMDOwnerUserName\",\"SYNOMDContentCreationDate\",\"SYNOMDContentModificationDate\"]");
+                map.add("search_weight_list", "[{\"field\":\"SYNOMDSearchFileName\",\"weight\":8.5,\"trailing_wildcard\":true}]");
+                map.add("keyword", "");
+                map.add("from", String.valueOf(offset));
+                map.add("size", String.valueOf(batchSize));
+
+                org.springframework.http.HttpEntity<org.springframework.util.MultiValueMap<String, String>> request = new org.springframework.http.HttpEntity<>(map, headers);
+                String response = restTemplate.postForObject(url, request, String.class);
                 JsonNode root = objectMapper.readTree(response);
 
                 if (root.path("success").asBoolean()) {
@@ -124,7 +161,7 @@ public class SynologyApiClient {
                         }
                     }
                 } else {
-                    CentralLogger.logError("Synology keresés sikertelen, offset: " + offset, null);
+                    CentralLogger.logError("Synology keresés sikertelen, offset: " + offset + ", válasz: " + response, null);
                 }
             } catch (Exception e) {
                 CentralLogger.logError("Synology keresés hiba, offset: " + offset, e);
@@ -136,23 +173,7 @@ public class SynologyApiClient {
         return allHits;
     }
 
-    private String buildSearchUrl(String extension, int offset, int limit) {
-        String criteriaValue = "[\"SYNOMDExtension:=" + extension + "\"]";
-
-        return UriComponentsBuilder
-                .fromHttpUrl(config.getHost())
-                .path("/webapi/entry.cgi")
-                .queryParam("api", "SYNO.Finder.FileIndexing.Search")
-                .queryParam("version", "1")
-                .queryParam("method", "search")
-                .queryParam("criteria_logic", "or")
-                .queryParam("criteria", criteriaValue)
-                .queryParam("offset", offset)
-                .queryParam("limit", limit)
-                .queryParam("additional", "[\"SYNOMDExtension\",\"SYNOMDFSName\",\"SYNOMDFSSize\",\"SYNOMDPath\",\"SYNOMDSharePath\",\"SYNOMDOwnerUserName\",\"SYNOMDLastModifiedDate\"]")
-                .queryParam("_sid", sid)
-                .toUriString();
-    }
+    // A buildSearchUrl már nincs használatban, mivel POST kéréseket használunk LinkedMultiValueMap-pel
 
     @PreDestroy
     public void cleanup() {

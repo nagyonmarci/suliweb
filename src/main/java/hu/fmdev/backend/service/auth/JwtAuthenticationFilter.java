@@ -29,17 +29,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         String token = extractToken(request);
 
-        if (token != null && jwtTokenProvider.validateToken(token)) {
-            String username = jwtTokenProvider.getUsernameFromToken(token);
-            Set<String> authorities = jwtTokenProvider.getAuthoritiesFromToken(token);
+        if (token != null) {
+            if (jwtTokenProvider.validateToken(token)) {
+                String username = jwtTokenProvider.getUsernameFromToken(token);
+                Set<String> authorities = jwtTokenProvider.getAuthoritiesFromToken(token);
 
-            var grantedAuthorities = authorities.stream()
-                    .map(SimpleGrantedAuthority::new)
-                    .collect(Collectors.toSet());
+                var grantedAuthorities = authorities.stream()
+                        .map(SimpleGrantedAuthority::new)
+                        .collect(Collectors.toSet());
 
-            var authentication = new UsernamePasswordAuthenticationToken(
-                    username, null, grantedAuthorities);
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+                var authentication = new UsernamePasswordAuthenticationToken(
+                        username, null, grantedAuthorities);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            } else {
+                logger.warn("Érvénytelen JWT token az API kérésben: " + request.getRequestURI());
+            }
+        } else if (request.getRequestURI().startsWith("/api/") && !request.getRequestURI().contains("/auth/") && !request.getRequestURI().equals("/api/progress")) {
+            logger.debug("Nincs JWT token az API kérésben: " + request.getRequestURI());
         }
 
         filterChain.doFilter(request, response);

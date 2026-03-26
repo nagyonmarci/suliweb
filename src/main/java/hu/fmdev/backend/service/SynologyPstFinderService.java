@@ -54,12 +54,10 @@ public class SynologyPstFinderService {
 
     public void findAndSaveFiles() {
         List<FileInfo> files = findPstFilesOnNas();
-
-        for (FileInfo fileInfo : files) {
-            pstFinderService.saveOrUpdateFileInfos(List.of(fileInfo), List.of());
+        if (!files.isEmpty()) {
+            pstFinderService.saveOrUpdateFileInfos(files, List.of(synologyConfig.getLocalMountPrefix()));
         }
-
-        CentralLogger.logInfo("Synology fájlok mentve az adatbázisba: " + files.size() + " db.");
+        CentralLogger.logInfo("Synology fájlok feldolgozva: " + files.size() + " db.");
     }
 
     private FileInfo mapHitToFileInfo(JsonNode hit) {
@@ -68,6 +66,9 @@ public class SynologyPstFinderService {
             String fileName = hit.path("SYNOMDFSName").asText("");
             long size = hit.path("SYNOMDFSSize").asLong(0);
             long lastModifiedEpoch = hit.path("SYNOMDLastModifiedDate").asLong(0);
+            if (lastModifiedEpoch == 0) {
+                lastModifiedEpoch = hit.path("SYNOMDContentModificationDate").asLong(0);
+            }
 
             if (synologyPath.isEmpty() || fileName.isEmpty()) {
                 return null;

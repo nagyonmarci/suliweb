@@ -7,16 +7,17 @@ import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
 
 @Service
 public class TextExtractionService {
 
     private final Tika tika = new Tika();
 
+    // Max characters sent to the chunker per email to prevent OOM under parallel load
+    private static final int MAX_BODY_CHARS = 50_000;
+
     /**
      * Extracts plain text from any supported file using Apache Tika.
-     * Supports PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, images (OCR if configured), etc.
      */
     public String extractTextFromFile(String filePath) {
         File file = new File(filePath);
@@ -36,22 +37,26 @@ public class TextExtractionService {
 
     /**
      * Strips HTML tags and returns clean plain text from email body.
-     * Falls back to Tika HTML parsing for complex HTML.
+     * Uses lightweight regex stripping instead of Tika to avoid heap spikes under parallel load.
      */
     public String extractTextFromHtml(String html) {
         if (html == null || html.isBlank()) {
             return "";
         }
+        // Remove <style> and <script> blocks entirely
+        String text = html.replaceAll("(?is)<style[^>]*>.*?</style>", " ")
+                          .replaceAll("(?is)<script[^>]*>.*?</script>", " ")
+                          // Strip all remaining HTML tags
+                          .replaceAll("<[^>]+>", " ")
+                          // Collapse whitespace
+                          .replaceAll("\\s+", " ")
+                          .trim();
 
-        try {
-            String text = tika.parseToString(
-                    new java.io.ByteArrayInputStream(html.getBytes(java.nio.charset.StandardCharsets.UTF_8)),
-                    new org.apache.tika.metadata.Metadata());
-            return text != null ? text.trim() : "";
-        } catch (IOException | TikaException e) {
-            CentralLogger.logError("HTML text extraction failed", e);
-            return html.replaceAll("<[^>]+>", " ").replaceAll("\\s+", " ").trim();
+        // Hard cap to prevent memory pressure from huge emails
+        if (text.length() > MAX_BODY_CHARS) {
+            text = text.substring(0, MAX_BODY_CHARS);
         }
+        return text;
     }
 
     /**
@@ -60,7 +65,8 @@ public class TextExtractionService {
      */
     public String getEmailTextContent(String body, String htmlContent) {
         if (body != null && !body.isBlank()) {
-            return body.trim();
+            String trimmed = body.trim();
+            return trimmed.length() > MAX_BODY_CHARS ? trimmed.substring(0, MAX_BODY_CHARS) : trimmed;
         }
         if (htmlContent != null && !htmlContent.isBlank()) {
             return extractTextFromHtml(htmlContent);

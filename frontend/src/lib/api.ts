@@ -69,7 +69,7 @@ async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
     }
   }
 
-  if (res.status === 401) {
+  if (res.status === 401 || res.status === 403) {
     clearTokens();
     window.location.href = '/login';
     throw new Error('Unauthorized');
@@ -147,11 +147,26 @@ export interface FileInfo {
   status: string;
 }
 
+export interface Attachment {
+  id: string;
+  emailId: string;
+  filename: string;
+  contentType: string;
+  size: number;
+  localPath: string;
+  pstFileName: string;
+  creationTime: string;
+  emailSubject: string;
+  senderName: string;
+  receivedTime: string;
+}
+
 export interface ProgressState {
   currentOperation: string;
   totalItems: number;
   processedItems: number;
   percentage: number;
+  statusDetail?: string;
   active: boolean;
 }
 
@@ -250,12 +265,53 @@ export const api = {
 
   // Emails
   getEmails: () => fetchJson<Email[]>('/api/emails'),
+  searchEmails: (params: Record<string, string>) => {
+    const query = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) {
+      if (v !== undefined && v !== '') {
+        query.append(k, v);
+      }
+    }
+    return fetchJson<Email[]>(`/api/emails/search?${query.toString()}`);
+  },
+  getEmailCount: () => fetchJson<number>('/api/emails/count'),
+  getEmailById: (id: string) => fetchJson<Email>(`/api/emails/${id}`),
 
   // FileInfo
   getFileInfos: () => fetchJson<FileInfo[]>('/api/file-infos'),
+  getFileInfoCounts: () => fetchJson<{ total: number; pending: number; processed: number }>('/api/file-infos/counts'),
 
   // Progress
   getProgress: () => fetchJson<ProgressState>('/api/progress'),
+
+  // Attachments
+  getAttachments: () => fetchJson<Attachment[]>('/api/attachments'),
+  getAttachmentsByEmail: (emailId: string) => fetchJson<Attachment[]>(`/api/attachments/email/${emailId}`),
+  searchAttachments: (params: Record<string, string>) => {
+    const query = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) {
+      if (v !== undefined && v !== '') {
+        query.append(k, v);
+      }
+    }
+    return fetchJson<Attachment[]>(`/api/attachments/search?${query.toString()}`);
+  },
+  getAttachmentCount: () => fetchJson<number>('/api/attachments/count'),
+  downloadAttachment: async (id: string, filename: string) => {
+    const res = await fetch(`/api/attachments/${id}/download`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error('Download failed');
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  },
 
   // PST Finder
   findPst: (directories: string[], excludedDirectories?: string[]) => {
@@ -287,4 +343,6 @@ export const api = {
     fetchJson<RagContext>(`/api/rag/context?q=${encodeURIComponent(q)}&topK=${topK}`),
   ragStats: () => fetchJson<RagStats>('/api/rag/stats'),
   ragHealth: () => fetchJson<RagHealth>('/api/rag/health'),
+  ragResetFailed: () => fetchText('/api/rag/reset-failed', { method: 'POST' }),
+  ragResetAll: () => fetchText('/api/rag/reset-all', { method: 'POST' }),
 };

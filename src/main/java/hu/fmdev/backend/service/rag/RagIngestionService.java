@@ -9,7 +9,7 @@ import hu.fmdev.backend.repository.EmailRepository;
 import hu.fmdev.backend.service.ProgressTracker;
 import org.springframework.stereotype.Service;
 
-import java.nio.file.Path;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -60,43 +60,67 @@ public class RagIngestionService {
 
         running = true;
         try {
-            List<Email> allEmails = emailRepository.findAll();
-            List<Email> toProcess = allEmails.stream()
-                    .filter(email -> !chunkRepository.existsByEmailIdAndSourceTypeAndChunkIndex(
-                            email.getId(), "email_body", 0))
-                    .toList();
+            // Count how many emails still need processing (no email_body chunk yet)
+            long totalEmails = emailRepository.count();
+            CentralLogger.logInfo("RAG ingestion starting. Total emails in DB: " + totalEmails);
+            progressTracker.startOperation("RAG indexelés", (int) totalEmails);
 
-            if (toProcess.isEmpty()) {
-                CentralLogger.logInfo("No new emails to ingest for RAG");
-                return;
-            }
-
-            CentralLogger.logInfo("RAG ingestion starting for " + toProcess.size() + " emails");
-            progressTracker.startOperation("RAG indexelés", toProcess.size());
+            int pageSize = 200;
+            int page = 0;
+            int processed = 0;
 
             ExecutorService executor = Executors.newFixedThreadPool(ragConfig.getIngestionThreads());
-            List<Callable<Void>> tasks = toProcess.stream()
-                    .map(email -> (Callable<Void>) () -> {
-                        try {
-                            ingestEmail(email);
-                        } catch (Exception e) {
-                            CentralLogger.logError("RAG ingestion failed for email: " + email.getId(), e);
-                        } finally {
-                            progressTracker.increment();
-                        }
-                        return null;
-                    })
-                    .toList();
 
-            try {
-                executor.invokeAll(tasks);
-            } finally {
-                executor.shutdown();
-                progressTracker.stopOperation();
+            while (true) {
+                // Load one page at a time to avoid heap exhaustion
+                var pageRequest = org.springframework.data.domain.PageRequest.of(page, pageSize);
+                var emailPage = emailRepository.findAll(pageRequest);
+                if (emailPage.isEmpty()) break;
+
+                List<Email> toProcess = emailPage.stream()
+                        .filter(email -> !chunkRepository.existsByEmailIdAndSourceTypeAndChunkIndex(
+                                email.getId(), "email_body", 0))
+                        .toList();
+
+                if (!toProcess.isEmpty()) {
+                    List<Callable<Void>> tasks = toProcess.stream()
+                            .map(email -> (Callable<Void>) () -> {
+                                try {
+                                    ingestEmail(email);
+                                } catch (Exception e) {
+                                    CentralLogger.logError("RAG ingestion failed for email: " + email.getId(), e);
+                                } finally {
+                                    progressTracker.increment();
+                                }
+                                return null;
+                            })
+                            .toList();
+
+                    try {
+                        executor.invokeAll(tasks);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        CentralLogger.logError("RAG ingestion interrupted", e);
+                        break;
+                    }
+
+                    // Embed the chunks generated from this page before moving to the next
+                    // This prevents the 'pending' list from growing too large in the DB/memory
+                    embedPendingChunks();
+                } else {
+                    // All emails on this page already processed, still advance progress
+                    emailPage.forEach(e -> progressTracker.increment());
+                }
+
+                processed += emailPage.getNumberOfElements();
+                CentralLogger.logInfo("RAG ingestion progress: " + processed + " / " + totalEmails);
+
+                if (!emailPage.hasNext()) break;
+                page++;
             }
 
-            // Now embed all pending chunks
-            embedPendingChunks();
+            executor.shutdown();
+            progressTracker.stopOperation();
 
             CentralLogger.logInfo("RAG ingestion completed");
         } finally {
@@ -106,6 +130,8 @@ public class RagIngestionService {
 
     /**
      * Ingests a single email: extracts text, chunks it, stores chunks.
+     * NOTE: Attachment processing is intentionally disabled for performance.
+     *       Only email body and subject are indexed.
      */
     public void ingestEmail(Email email) {
         List<DocumentChunk> chunks = new ArrayList<>();
@@ -122,20 +148,6 @@ public class RagIngestionService {
         // 2. Chunk subject as a separate searchable unit
         if (email.getSubject() != null && !email.getSubject().isBlank()) {
             chunks.add(createChunk(email, "email_subject", null, null, 0, email.getSubject()));
-        }
-
-        // 3. Extract and chunk attachment text
-        if (email.getAttachmentPaths() != null) {
-            for (String attachmentPath : email.getAttachmentPaths()) {
-                String attachmentText = textExtractionService.extractTextFromFile(attachmentPath);
-                if (!attachmentText.isBlank()) {
-                    String fileName = Path.of(attachmentPath).getFileName().toString();
-                    List<String> attachmentChunks = chunkingService.chunkText(attachmentText);
-                    for (int i = 0; i < attachmentChunks.size(); i++) {
-                        chunks.add(createChunk(email, "attachment", attachmentPath, fileName, i, attachmentChunks.get(i)));
-                    }
-                }
-            }
         }
 
         if (!chunks.isEmpty()) {
@@ -271,4 +283,25 @@ public class RagIngestionService {
 
     public record IngestionStats(long totalEmails, long totalChunks, long embeddedChunks,
                                  long pendingChunks, long failedChunks) {}
+
+    /** Resets all 'failed' chunks back to 'pending' so embedding can be retried. */
+    public int resetFailed() {
+        List<DocumentChunk> failed = chunkRepository.findByIngestionStatus("failed");
+        for (DocumentChunk chunk : failed) {
+            chunk.setIngestionStatus("pending");
+            chunk.setEmbedding(null);
+            chunk.setEmbeddedAt(null);
+        }
+        chunkRepository.saveAll(failed);
+        CentralLogger.logInfo("Reset " + failed.size() + " failed chunks to pending");
+        return failed.size();
+    }
+
+    /** Deletes ALL chunks so a completely fresh ingestion can be started. */
+    public long resetAll() {
+        long count = chunkRepository.count();
+        chunkRepository.deleteAll();
+        CentralLogger.logInfo("Deleted all " + count + " chunks for fresh ingestion");
+        return count;
+    }
 }

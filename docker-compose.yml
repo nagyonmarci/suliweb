@@ -14,9 +14,7 @@ services:
       - "8080:8080"
     restart: unless-stopped
     environment:
-      - SPRING_DATA_MONGODB_URI=mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-example}@mongo:27017/emails?authSource=admin&directConnection=true
-      - ATTACHMENTS_DIRECTORY=/app/attachments
-      - RAG_OLLAMA_BASE_URL=http://ollama:11434
+      - SPRING_PROFILES_ACTIVE=docker
       - SYNOLOGY_HOST=${SYNOLOGY_HOST:-}
       - SYNOLOGY_USERNAME=${SYNOLOGY_USERNAME:-}
       - SYNOLOGY_PASSWORD=${SYNOLOGY_PASSWORD:-}
@@ -25,15 +23,19 @@ services:
       - SYNOLOGY_SEARCH_EXTENSIONS=${SYNOLOGY_SEARCH_EXTENSIONS:-pst,ost}
       - SYNOLOGY_BATCH_SIZE=${SYNOLOGY_BATCH_SIZE:-100}
       - JWT_SECRET=${JWT_SECRET:-dGhpc0lzQVNlY3VyZUtleUZvckpXVFRva2VuU2lnbmluZ1B1cnBvc2VzT25seQ==}
+      - SPRING_DATA_MONGODB_URI=mongodb://mongo:27017/emails?directConnection=true
+    command: ["--spring.profiles.active=docker", "--spring.data.mongodb.uri=mongodb://mongo:27017/emails?directConnection=true", "--spring.mongodb.uri=mongodb://mongo:27017/emails?directConnection=true"]
     volumes:
       - attachments:/app/attachments
       - pst_source:/data/pst_source:ro
       - logs:/app/logs
+      - /Volumes/archiv:/Volumes/archiv:ro
+      - /Volumes/data:/Volumes/data:ro
+      - /Volumes/eadat:/Volumes/eadat:ro
+      - /Users/fabianm/PSTs:/Users/fabianm/PSTs:ro
     depends_on:
       mongo:
         condition: service_healthy
-      ollama:
-        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/api/progress || exit 1"]
       interval: 30s
@@ -43,20 +45,19 @@ services:
 
   mongo:
     image: mongodb/mongodb-atlas-local:8.0
+    hostname: mongo
     ports:
       - "27017:27017"
     restart: unless-stopped
-    environment:
-      - MONGODB_INITDB_ROOT_USERNAME=${MONGO_USER:-admin}
-      - MONGODB_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD:-example}
     volumes:
       - mongodb_data:/data/db
+      - mongodb_configdb:/data/configdb
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 20s
+      start_period: 30s
 
   mongo-init:
     image: mongodb/mongodb-atlas-local:8.0
@@ -65,7 +66,8 @@ services:
         condition: service_healthy
     restart: "no"
     entrypoint: >
-      mongosh "mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-example}@mongo:27017/emails?authSource=admin&directConnection=true" --eval '
+      mongosh "mongodb://mongo:27017/emails?directConnection=true" --eval '
+        db.createCollection("document_chunks");
         db.document_chunks.createSearchIndex({
           name: "chunk_vector_index",
           type: "vectorSearch",
@@ -94,13 +96,8 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+    profiles:
+      - rag
 
   ollama-pull:
     image: ollama/ollama:latest
@@ -112,9 +109,12 @@ services:
       sh -c "ollama pull nomic-embed-text"
     environment:
       - OLLAMA_HOST=http://ollama:11434
+    profiles:
+      - rag
 
 volumes:
   mongodb_data:
+  mongodb_configdb:
   attachments:
   pst_source:
   ollama_data:

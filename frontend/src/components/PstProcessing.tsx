@@ -87,7 +87,10 @@ export default function PstProcessing() {
               </button>
             </div>
           </div>
-          <p className="text-sm text-gray-600 mb-2">{progress.currentOperation}</p>
+          <p className="text-sm text-gray-600 mb-1">{progress.currentOperation}</p>
+          {progress.statusDetail && (
+            <p className="text-xs text-blue-600 mb-2 font-medium italic">{progress.statusDetail}</p>
+          )}
           <div className="w-full bg-gray-200 rounded-full h-4">
             <div
               className="bg-blue-600 h-4 rounded-full transition-all duration-500 flex items-center justify-center"

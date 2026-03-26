@@ -16,16 +16,30 @@ public class EmailController {
     @Autowired
     private EmailRepository emailRepository;
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(EmailController.class);
+
     @Autowired
     private org.springframework.data.mongodb.core.MongoTemplate mongoTemplate;
 
     @GetMapping
     public List<Email> getAllEmails() {
-        return emailRepository.findAll();
+        log.info("Lekérdezés: összes e-mail (limit 1000)");
+        org.springframework.data.mongodb.core.query.Query query = new org.springframework.data.mongodb.core.query.Query();
+        query.limit(1000);
+        query.with(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "receivedTime"));
+        List<Email> emails = mongoTemplate.find(query, Email.class);
+        log.info("E-mailek száma a válaszban: {}", emails.size());
+        return emails;
+    }
+
+    @GetMapping("/count")
+    public long countAllEmails() {
+        return mongoTemplate.count(new org.springframework.data.mongodb.core.query.Query(), Email.class);
     }
 
     @GetMapping("/search")
     public List<Email> searchEmails(
+            @RequestParam(required = false) String q,
             @RequestParam(required = false) String subject,
             @RequestParam(required = false) String sender,
             @RequestParam(required = false) String recipient,
@@ -33,39 +47,69 @@ public class EmailController {
             @RequestParam(required = false) String folder,
             @RequestParam(required = false) Integer importance,
             @RequestParam(required = false) Boolean isRead,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime startDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime endDate,
             @RequestParam(defaultValue = "receivedTime") String sortBy,
             @RequestParam(defaultValue = "desc") String direction,
             @RequestParam(defaultValue = "100") int limit) {
 
         org.springframework.data.mongodb.core.query.Query query = new org.springframework.data.mongodb.core.query.Query();
+        java.util.List<org.springframework.data.mongodb.core.query.Criteria> andCriteria = new java.util.ArrayList<>();
+
+        if (q != null && !q.trim().isEmpty()) {
+            org.springframework.data.mongodb.core.query.Criteria[] criteriaList = {
+                org.springframework.data.mongodb.core.query.Criteria.where("subject").regex(q, "i"),
+                org.springframework.data.mongodb.core.query.Criteria.where("senderName").regex(q, "i"),
+                org.springframework.data.mongodb.core.query.Criteria.where("senderEmailAddress").regex(q, "i"),
+                org.springframework.data.mongodb.core.query.Criteria.where("body").regex(q, "i"),
+                org.springframework.data.mongodb.core.query.Criteria.where("htmlContent").regex(q, "i"),
+                org.springframework.data.mongodb.core.query.Criteria.where("folderPath").regex(q, "i"),
+                org.springframework.data.mongodb.core.query.Criteria.where("attachmentPaths").regex(q, "i")
+            };
+            andCriteria.add(new org.springframework.data.mongodb.core.query.Criteria().orOperator(criteriaList));
+        }
 
         if (subject != null && !subject.isEmpty()) {
-            query.addCriteria(
+            andCriteria.add(
                     org.springframework.data.mongodb.core.query.Criteria.where("subject").regex(subject, "i"));
         }
         if (sender != null && !sender.isEmpty()) {
-            query.addCriteria(new org.springframework.data.mongodb.core.query.Criteria().orOperator(
+            andCriteria.add(new org.springframework.data.mongodb.core.query.Criteria().orOperator(
                     org.springframework.data.mongodb.core.query.Criteria.where("senderName").regex(sender, "i"),
-                    org.springframework.data.mongodb.core.query.Criteria.where("senderEmailAddress").regex(sender,
-                            "i")));
+                    org.springframework.data.mongodb.core.query.Criteria.where("senderEmailAddress").regex(sender, "i")));
         }
         if (recipient != null && !recipient.isEmpty()) {
-            query.addCriteria(
+            andCriteria.add(
                     org.springframework.data.mongodb.core.query.Criteria.where("recipients").regex(recipient, "i"));
         }
         if (pstFile != null && !pstFile.isEmpty()) {
-            query.addCriteria(
+            andCriteria.add(
                     org.springframework.data.mongodb.core.query.Criteria.where("pstFileName").regex(pstFile, "i"));
         }
         if (folder != null && !folder.isEmpty()) {
-            query.addCriteria(
+            andCriteria.add(
                     org.springframework.data.mongodb.core.query.Criteria.where("folderPath").regex(folder, "i"));
         }
         if (importance != null) {
-            query.addCriteria(org.springframework.data.mongodb.core.query.Criteria.where("importance").is(importance));
+            andCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("importance").is(importance));
         }
         if (isRead != null) {
-            query.addCriteria(org.springframework.data.mongodb.core.query.Criteria.where("isRead").is(isRead));
+            andCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("isRead").is(isRead));
+        }
+        
+        if (startDate != null || endDate != null) {
+            org.springframework.data.mongodb.core.query.Criteria dateCriteria = org.springframework.data.mongodb.core.query.Criteria.where("receivedTime");
+            if (startDate != null) {
+                dateCriteria.gte(startDate);
+            }
+            if (endDate != null) {
+                dateCriteria.lte(endDate);
+            }
+            andCriteria.add(dateCriteria);
+        }
+
+        if (!andCriteria.isEmpty()) {
+            query.addCriteria(new org.springframework.data.mongodb.core.query.Criteria().andOperator(andCriteria.toArray(new org.springframework.data.mongodb.core.query.Criteria[0])));
         }
 
         org.springframework.data.domain.Sort.Direction dir = direction.equalsIgnoreCase("asc")

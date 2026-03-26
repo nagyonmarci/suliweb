@@ -13,6 +13,7 @@ export default function Dashboard() {
   const [progress, setProgress] = useState<ProgressState | null>(null);
   const [ragHealth, setRagHealth] = useState<RagHealth | null>(null);
   const [loading, setLoading] = useState(true);
+  const [statsError, setStatsError] = useState<string | null>(null);
 
   useEffect(() => {
     loadStats();
@@ -23,15 +24,20 @@ export default function Dashboard() {
 
   async function loadStats() {
     try {
-      const [emails, files] = await Promise.all([api.getEmails(), api.getFileInfos()]);
+      setStatsError(null);
+      const [emailCount, fileCounts] = await Promise.all([
+        api.getEmailCount(),
+        api.getFileInfoCounts(),
+      ]);
       setStats({
-        totalEmails: emails.length,
-        totalFiles: files.length,
-        newFiles: files.filter(f => f.status === 'New' || f.status === 'Modified').length,
-        processedFiles: files.filter(f => f.status === 'Processed').length,
+        totalEmails: emailCount,
+        totalFiles: fileCounts.total,
+        newFiles: fileCounts.pending,
+        processedFiles: fileCounts.processed,
       });
     } catch (e) {
       console.error('Stats betöltési hiba:', e);
+      setStatsError('A statisztikák betöltése sikertelen. Ellenőrizd, hogy a backend fut-e.');
     } finally {
       setLoading(false);
     }
@@ -61,6 +67,24 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Error banner */}
+      {statsError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+          <svg className="w-5 h-5 text-red-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          </svg>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-red-700">{statsError}</p>
+          </div>
+          <button
+            onClick={loadStats}
+            className="text-sm text-red-600 hover:text-red-800 font-medium underline shrink-0"
+          >
+            Újrapróbál
+          </button>
+        </div>
+      )}
+
       {/* Stat cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard label="Összes email" value={stats.totalEmails} color="blue" />

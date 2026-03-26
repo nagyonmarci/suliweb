@@ -108,7 +108,7 @@ public class PstFinderService {
     }
 
     private void saveOrUpdateFile(FileInfo fileInfo) {
-        CentralLogger.logInfo("Fájl feldolgozása: " + fileInfo.getPath());
+        CentralLogger.logDebug("Fájl feldolgozása: " + fileInfo.getPath());
         Optional<FileInfo> existingFileInfoOpt = fileInfoRepository.findFirstByPath(fileInfo.getPath());
         if (existingFileInfoOpt.isPresent()) {
             FileInfo existingFileInfo = existingFileInfoOpt.get();
@@ -132,7 +132,7 @@ public class PstFinderService {
                 .map(Paths::get)
                 .anyMatch(dir -> Paths.get(fileInfo.getPath()).startsWith(dir));
         boolean isMissingInCurrentList = !foundFilePaths.contains(fileInfo.getPath());
-        CentralLogger.logInfo("Checking file: " + fileInfo.getPath() + " isInSearchDirectory: " + isInSearchDirectory + " isMissingInCurrentList: " + isMissingInCurrentList);
+        CentralLogger.logDebug("Checking file: " + fileInfo.getPath() + " isInSearchDirectory: " + isInSearchDirectory + " isMissingInCurrentList: " + isMissingInCurrentList);
 
         if (isInSearchDirectory && isMissingInCurrentList) {
             fileInfo.setStatus("Deleted");
