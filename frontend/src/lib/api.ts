@@ -216,6 +216,24 @@ export interface RagContext {
   context: string;
 }
 
+export interface ChatSource {
+  emailId: string;
+  subject: string;
+  sender: string;
+  score: number;
+}
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  sources?: ChatSource[];
+}
+
+export interface ChatResponse {
+  answer: string;
+  sources: ChatSource[];
+}
+
 export interface AuthUser {
   username: string;
   email: string;
@@ -346,4 +364,9 @@ export const api = {
   ragHealth: () => fetchJson<RagHealth>('/api/rag/health'),
   ragResetFailed: () => fetchText('/api/rag/reset-failed', { method: 'POST' }),
   ragResetAll: () => fetchText('/api/rag/reset-all', { method: 'POST' }),
+  ragChat: (message: string, topK = 8) =>
+    fetchJson<ChatResponse>('/api/rag/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message, topK }),
+    }),
 };

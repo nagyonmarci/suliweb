@@ -35,6 +35,10 @@ public class RagConfig {
     // Significantly increases indexing time but improves search coverage.
     private boolean includeAttachments = false;
 
+    // Chat (RAG-grounded LLM) settings
+    private String chatModel = "llama3.2";
+    private int chatContextTopK = 8;
+
 
     @Bean
     public WebClient ollamaWebClient() {

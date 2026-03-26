@@ -2,6 +2,7 @@ package hu.fmdev.backend.controller;
 
 import hu.fmdev.backend.config.RagConfig;
 import hu.fmdev.backend.service.rag.EmbeddingService;
+import hu.fmdev.backend.service.rag.RagChatService;
 import hu.fmdev.backend.service.rag.RagIngestionService;
 import hu.fmdev.backend.service.rag.RagSearchService;
 import org.springframework.http.ResponseEntity;
@@ -18,15 +19,18 @@ public class RagController {
     private final RagSearchService searchService;
     private final EmbeddingService embeddingService;
     private final RagConfig ragConfig;
+    private final RagChatService chatService;
 
     public RagController(RagIngestionService ingestionService,
                          RagSearchService searchService,
                          EmbeddingService embeddingService,
-                         RagConfig ragConfig) {
+                         RagConfig ragConfig,
+                         RagChatService chatService) {
         this.ingestionService = ingestionService;
         this.searchService = searchService;
         this.embeddingService = embeddingService;
         this.ragConfig = ragConfig;
+        this.chatService = chatService;
     }
 
     /**
@@ -96,6 +100,20 @@ public class RagController {
             @RequestParam(defaultValue = "10") int topK) {
         String context = searchService.buildContext(q, topK);
         return Map.of("query", q, "context", context);
+    }
+
+    /**
+     * RAG-grounded chat: retrieves relevant email chunks and sends them as context
+     * to a local Ollama LLM, returning a natural-language answer + source emails.
+     */
+    @PostMapping("/chat")
+    public ResponseEntity<RagChatService.ChatResponse> chat(@RequestBody RagChatService.ChatRequest request) {
+        try {
+            RagChatService.ChatResponse response = chatService.chat(request.message(), request.topK());
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     /**

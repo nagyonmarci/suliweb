@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { api, type SearchResult, type EmailSearchResult, type RagStats, type RagHealth, type Email } from '../lib/api';
 
 type ViewMode = 'chunks' | 'emails';
+type RagMode = 'all' | 'search' | 'manage';
 
-export default function RagSearch() {
+export default function RagSearch({ mode = 'all' }: { mode?: RagMode }) {
   const [query, setQuery] = useState('');
   const [topK, setTopK] = useState(10);
   const [viewMode, setViewMode] = useState<ViewMode>('emails');
@@ -116,139 +117,146 @@ export default function RagSearch() {
 
   return (
     <div className="space-y-6">
-      {/* Health & Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className={`rounded-xl border p-4 ${health?.ollamaAvailable ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-          <p className="text-xs font-medium opacity-75">Ollama</p>
-          <p className={`text-lg font-bold ${health?.ollamaAvailable ? 'text-green-700' : 'text-red-700'}`}>
-            {health?.ollamaAvailable ? 'Elérhető' : 'Nem elérhető'}
-          </p>
-        </div>
-        <div className="rounded-xl border p-4 bg-blue-50 border-blue-200">
-          <p className="text-xs font-medium text-blue-600">Indexelt chunkek</p>
-          <p className="text-lg font-bold text-blue-700">{stats?.embeddedChunks?.toLocaleString('hu-HU') ?? '-'}</p>
-        </div>
-        <div className="rounded-xl border p-4 bg-amber-50 border-amber-200">
-          <p className="text-xs font-medium text-amber-600">Függőben</p>
-          <p className="text-lg font-bold text-amber-700">{stats?.pendingChunks?.toLocaleString('hu-HU') ?? '-'}</p>
-        </div>
-        <div className="rounded-xl border p-4 bg-gray-50 border-gray-200">
-          <p className="text-xs font-medium text-gray-600">Összes chunk</p>
-          <p className="text-lg font-bold text-gray-700">{stats?.totalChunks?.toLocaleString('hu-HU') ?? '-'}</p>
-        </div>
-      </div>
 
-      {/* Ingestion controls */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <div className="flex justify-between items-start mb-4">
-          <h3 className="text-sm font-semibold text-gray-700">Indexelés kezelése</h3>
-          <button
-            onClick={handleResetAll}
-            className="text-xs text-red-500 hover:text-red-700 underline"
-          >
-            Indexelés törlése és újrakezdés
-          </button>
-        </div>
-        
-        <div className="flex flex-wrap gap-3">
-          <div className="flex flex-col gap-2">
-            <button
-              onClick={handleIngest}
-              disabled={ingesting || health?.ingestionRunning}
-              className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-            >
-              {health?.ingestionRunning ? 'Indexelés folyamatban...' : ingesting ? 'Indítás...' : 'Emailek indexelése'}
-            </button>
-            {/* Attachment toggle */}
-            <label className={`flex items-center gap-2 cursor-pointer select-none ${
-              (ingesting || health?.ingestionRunning) ? 'opacity-50 pointer-events-none' : ''
-            }`}>
-              <div
-                onClick={() => setIncludeAttachments(v => !v)}
-                className={`relative inline-flex items-center w-9 h-5 rounded-full transition-colors ${
-                  includeAttachments ? 'bg-blue-600' : 'bg-gray-300'
-                }`}
+      {/* Health & Stats + Ingestion controls – hidden in search-only mode */}
+      {mode !== 'search' && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className={`rounded-xl border p-4 ${health?.ollamaAvailable ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+              <p className="text-xs font-medium opacity-75">Ollama</p>
+              <p className={`text-lg font-bold ${health?.ollamaAvailable ? 'text-green-700' : 'text-red-700'}`}>
+                {health?.ollamaAvailable ? 'Elérhető' : 'Nem elérhető'}
+              </p>
+            </div>
+            <div className="rounded-xl border p-4 bg-blue-50 border-blue-200">
+              <p className="text-xs font-medium text-blue-600">Indexelt chunkek</p>
+              <p className="text-lg font-bold text-blue-700">{stats?.embeddedChunks?.toLocaleString('hu-HU') ?? '-'}</p>
+            </div>
+            <div className="rounded-xl border p-4 bg-amber-50 border-amber-200">
+              <p className="text-xs font-medium text-amber-600">Függőben</p>
+              <p className="text-lg font-bold text-amber-700">{stats?.pendingChunks?.toLocaleString('hu-HU') ?? '-'}</p>
+            </div>
+            <div className="rounded-xl border p-4 bg-gray-50 border-gray-200">
+              <p className="text-xs font-medium text-gray-600">Összes chunk</p>
+              <p className="text-lg font-bold text-gray-700">{stats?.totalChunks?.toLocaleString('hu-HU') ?? '-'}</p>
+            </div>
+          </div>
+
+          {/* Ingestion controls */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-sm font-semibold text-gray-700">Indexelés kezelése</h3>
+              <button
+                onClick={handleResetAll}
+                className="text-xs text-red-500 hover:text-red-700 underline"
               >
-                <span className={`absolute left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                  includeAttachments ? 'translate-x-4' : 'translate-x-0'
-                }`} />
+                Indexelés törlése és újrakezdés
+              </button>
+            </div>
+            
+            <div className="flex flex-wrap gap-3">
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={handleIngest}
+                  disabled={ingesting || health?.ingestionRunning}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  {health?.ingestionRunning ? 'Indexelés folyamatban...' : ingesting ? 'Indítás...' : 'Emailek indexelése'}
+                </button>
+                {/* Attachment toggle */}
+                <label className={`flex items-center gap-2 cursor-pointer select-none ${
+                  (ingesting || health?.ingestionRunning) ? 'opacity-50 pointer-events-none' : ''
+                }`}>
+                  <div
+                    onClick={() => setIncludeAttachments(v => !v)}
+                    className={`relative inline-flex items-center w-9 h-5 rounded-full transition-colors ${
+                      includeAttachments ? 'bg-blue-600' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span className={`absolute left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                      includeAttachments ? 'translate-x-4' : 'translate-x-0'
+                    }`} />
+                  </div>
+                  <span className="text-xs text-gray-600">
+                    Csatolányok szövegkinyerese (PDF, DOCX…) – lassabb
+                  </span>
+                </label>
               </div>
-              <span className="text-xs text-gray-600">
-                Csatolányok szövegkinyerese (PDF, DOCX…) – lassabb
-              </span>
-            </label>
-          </div>
-          
-          <button
-            onClick={handleEmbed}
-            disabled={!stats?.pendingChunks || health?.ingestionRunning}
-            className="px-4 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors"
-          >
-            Embedding generálás ({stats?.pendingChunks ?? 0} függő)
-          </button>
+              
+              <button
+                onClick={handleEmbed}
+                disabled={!stats?.pendingChunks || health?.ingestionRunning}
+                className="px-4 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors"
+              >
+                Embedding generálás ({stats?.pendingChunks ?? 0} függő)
+              </button>
 
-          {stats?.failedChunks && stats.failedChunks > 0 ? (
-            <button
-              onClick={handleResetFailed}
-              className="px-4 py-2 bg-amber-100 text-amber-700 text-sm rounded-lg hover:bg-amber-200 transition-colors border border-amber-200"
-            >
-              {stats.failedChunks} hiba visszaállítása
-            </button>
-          ) : null}
+              {stats?.failedChunks && stats.failedChunks > 0 ? (
+                <button
+                  onClick={handleResetFailed}
+                  className="px-4 py-2 bg-amber-100 text-amber-700 text-sm rounded-lg hover:bg-amber-200 transition-colors border border-amber-200"
+                >
+                  {stats.failedChunks} hiba visszaállítása
+                </button>
+              ) : null}
+            </div>
+            
+            {message && (
+              <p className={`text-sm mt-3 p-2 rounded ${message.includes('hiba') || message.includes('Hiba') ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>
+                {message}
+              </p>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Search form – hidden in manage-only mode */}
+      {mode !== 'manage' && (
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Szemantikus keresés</h3>
+          <form onSubmit={handleSearch} className="space-y-3">
+            <div className="flex gap-3">
+              <input
+                type="text"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Írj be egy kérdést vagy keresőkifejezést..."
+                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <button
+                type="submit"
+                disabled={searching || !query.trim()}
+                className="px-5 py-2.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors whitespace-nowrap"
+              >
+                {searching ? 'Keresés...' : 'Keresés'}
+              </button>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-500">Nézet:</label>
+                <select
+                  value={viewMode}
+                  onChange={e => setViewMode(e.target.value as ViewMode)}
+                  className="text-sm border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="emails">Email csoportosítás</option>
+                  <option value="chunks">Chunk részletek</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-500">Max találat:</label>
+                <select
+                  value={topK}
+                  onChange={e => setTopK(Number(e.target.value))}
+                  className="text-sm border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </div>
+            </div>
+          </form>
         </div>
-        
-        {message && (
-          <p className={`text-sm mt-3 p-2 rounded ${message.includes('hiba') || message.includes('Hiba') ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>
-            {message}
-          </p>
-        )}
-      </div>
-
-      {/* Search form */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Szemantikus keresés</h3>
-        <form onSubmit={handleSearch} className="space-y-3">
-          <div className="flex gap-3">
-            <input
-              type="text"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Írj be egy kérdést vagy keresőkifejezést..."
-              className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            <button
-              type="submit"
-              disabled={searching || !query.trim()}
-              className="px-5 py-2.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors whitespace-nowrap"
-            >
-              {searching ? 'Keresés...' : 'Keresés'}
-            </button>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-gray-500">Nézet:</label>
-              <select
-                value={viewMode}
-                onChange={e => setViewMode(e.target.value as ViewMode)}
-                className="text-sm border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="emails">Email csoportosítás</option>
-                <option value="chunks">Chunk részletek</option>
-              </select>
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-gray-500">Max találat:</label>
-              <select
-                value={topK}
-                onChange={e => setTopK(Number(e.target.value))}
-                className="text-sm border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
-            </div>
-          </div>
-        </form>
-      </div>
+      )}
 
       {/* Email detail modal */}
       {selectedEmail && (

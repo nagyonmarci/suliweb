@@ -2,6 +2,7 @@ package hu.fmdev.backend.controller;
 
 import hu.fmdev.backend.config.RagConfig;
 import hu.fmdev.backend.service.rag.EmbeddingService;
+import hu.fmdev.backend.service.rag.RagChatService;
 import hu.fmdev.backend.service.rag.RagIngestionService;
 import hu.fmdev.backend.service.rag.RagSearchService;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,12 +25,13 @@ class RagControllerTest {
     @Mock private RagSearchService searchService;
     @Mock private EmbeddingService embeddingService;
     @Mock private RagConfig ragConfig;
+    @Mock private RagChatService chatService;
 
     private RagController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new RagController(ingestionService, searchService, embeddingService, ragConfig);
+        controller = new RagController(ingestionService, searchService, embeddingService, ragConfig, chatService);
     }
 
     // --- /api/rag/ingest ---

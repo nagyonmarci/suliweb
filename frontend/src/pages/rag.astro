@@ -1,8 +1,73 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import RagSearch from '../components/RagSearch.tsx';
+import RagChat from '../components/RagChat.tsx';
 ---
 
-<Layout title="RAG Keresés" activePage="/rag">
-  <RagSearch client:load />
+<Layout title="RAG – Levelezési asszisztens" activePage="/rag">
+  <!-- Tab nav -->
+  <div class="mb-6">
+    <div class="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit">
+      <button
+        id="tab-chat"
+        onclick="switchTab('chat')"
+        class="tab-btn px-5 py-2 text-sm font-medium rounded-lg transition-all bg-white shadow text-blue-700"
+      >💬 Chat</button>
+      <button
+        id="tab-search"
+        onclick="switchTab('search')"
+        class="tab-btn px-5 py-2 text-sm font-medium rounded-lg transition-all text-gray-600 hover:text-gray-900"
+      >🔍 Szemantikus keresés</button>
+      <button
+        id="tab-manage"
+        onclick="switchTab('manage')"
+        class="tab-btn px-5 py-2 text-sm font-medium rounded-lg transition-all text-gray-600 hover:text-gray-900"
+      >⚙️ Kezelés</button>
+    </div>
+  </div>
+
+  <!-- Tab panels -->
+  <div id="panel-chat">
+    <RagChat client:load />
+  </div>
+
+  <div id="panel-search" class="hidden">
+    <RagSearch client:load mode="search" />
+  </div>
+
+  <div id="panel-manage" class="hidden">
+    <RagSearch client:load mode="manage" />
+  </div>
 </Layout>
+
+<script>
+  function switchTab(tab: string) {
+    const panels = ['chat', 'search', 'manage'];
+    panels.forEach(p => {
+      const panel = document.getElementById('panel-' + p);
+      const btn   = document.getElementById('tab-' + p);
+      if (!panel || !btn) return;
+      if (p === tab) {
+        panel.classList.remove('hidden');
+        btn.classList.add('bg-white', 'shadow', 'text-blue-700');
+        btn.classList.remove('text-gray-600', 'hover:text-gray-900');
+      } else {
+        panel.classList.add('hidden');
+        btn.classList.remove('bg-white', 'shadow', 'text-blue-700');
+        btn.classList.add('text-gray-600', 'hover:text-gray-900');
+      }
+    });
+  }
+
+  // Restore active tab from URL hash
+  const hash = window.location.hash.replace('#', '') || 'chat';
+  if (['chat', 'search', 'manage'].includes(hash)) switchTab(hash);
+
+  // Update hash on tab switch
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.id.replace('tab-', '');
+      history.replaceState(null, '', '#' + id);
+    });
+  });
+</script>
