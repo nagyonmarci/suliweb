@@ -2,8 +2,8 @@ package hu.fmdev.backend.controller;
 
 import hu.fmdev.backend.domain.Attachment;
 import hu.fmdev.backend.repository.AttachmentRepository;
+import hu.fmdev.backend.service.FileAccessService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -20,6 +20,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/attachments")
@@ -28,6 +29,7 @@ public class AttachmentController {
 
     private final AttachmentRepository attachmentRepository;
     private final org.springframework.data.mongodb.core.MongoTemplate mongoTemplate;
+    private final FileAccessService fileAccessService;
 
     @GetMapping("/search")
     public List<Attachment> searchAttachments(
@@ -62,7 +64,6 @@ public class AttachmentController {
             andCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("filename").regex(filename, "i"));
         }
         if (extension != null && !extension.isEmpty()) {
-            // matches end of filename .ext
             andCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("filename").regex("\\." + extension + "$", "i"));
         }
         if (minSize != null || maxSize != null) {
@@ -87,6 +88,12 @@ public class AttachmentController {
             andCriteria.add(dateCriteria);
         }
 
+        // PST file access restriction
+        Set<String> allowedPstNames = fileAccessService.getAllowedPstFileNames();
+        if (allowedPstNames != null) {
+            andCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("pstFileName").in(allowedPstNames));
+        }
+
         if (!andCriteria.isEmpty()) {
             query.addCriteria(new org.springframework.data.mongodb.core.query.Criteria().andOperator(andCriteria.toArray(new org.springframework.data.mongodb.core.query.Criteria[0])));
         }
@@ -103,12 +110,29 @@ public class AttachmentController {
 
     @GetMapping
     public List<Attachment> getAllAttachments() {
-        return attachmentRepository.findAll(PageRequest.of(0, 1000, Sort.by(Sort.Direction.DESC, "creationTime"))).getContent();
+        Set<String> allowedPstNames = fileAccessService.getAllowedPstFileNames();
+        if (allowedPstNames == null) {
+            return attachmentRepository.findAll(
+                    org.springframework.data.domain.PageRequest.of(0, 1000, Sort.by(Sort.Direction.DESC, "creationTime"))
+            ).getContent();
+        }
+        org.springframework.data.mongodb.core.query.Query query = new org.springframework.data.mongodb.core.query.Query(
+                org.springframework.data.mongodb.core.query.Criteria.where("pstFileName").in(allowedPstNames)
+        );
+        query.with(Sort.by(Sort.Direction.DESC, "creationTime")).limit(1000);
+        return mongoTemplate.find(query, Attachment.class);
     }
 
     @GetMapping("/count")
     public long getAttachmentCount() {
-        return attachmentRepository.count();
+        Set<String> allowedPstNames = fileAccessService.getAllowedPstFileNames();
+        if (allowedPstNames == null) {
+            return attachmentRepository.count();
+        }
+        org.springframework.data.mongodb.core.query.Query query = new org.springframework.data.mongodb.core.query.Query(
+                org.springframework.data.mongodb.core.query.Criteria.where("pstFileName").in(allowedPstNames)
+        );
+        return mongoTemplate.count(query, Attachment.class);
     }
 
     @GetMapping("/email/{emailId}")
@@ -124,8 +148,13 @@ public class AttachmentController {
         }
 
         Attachment attachment = attachmentOpt.get();
-        Path path = Paths.get(attachment.getLocalPath());
 
+        Set<String> allowedPstNames = fileAccessService.getAllowedPstFileNames();
+        if (allowedPstNames != null && !allowedPstNames.contains(attachment.getPstFileName())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        Path path = Paths.get(attachment.getLocalPath());
         if (!Files.exists(path)) {
             return ResponseEntity.status(HttpStatus.GONE).build();
         }
@@ -136,7 +165,6 @@ public class AttachmentController {
             if (contentType == null) {
                 contentType = "application/octet-stream";
             }
-
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType(contentType))
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + attachment.getFilename() + "\"")
