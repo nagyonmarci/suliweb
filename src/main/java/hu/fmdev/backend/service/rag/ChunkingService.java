@@ -53,10 +53,18 @@ public class ChunkingService {
                 chunks.add(chunk);
             }
 
-            // Move forward by (chunkSize - overlap), but respect word boundaries
+            // Move forward by (chunkSize - overlap)
+            int prevStart = start;
             start = end - overlap;
-            if (start <= 0 && end > 0) {
+            
+            // Critical fix: If a word is longer than (chunkSize - overlap), the new start 
+            // might go backwards or stay the same. Force it to move forward to prevent infinite loops.
+            if (start <= prevStart) {
                 start = end;
+            }
+            
+            if (start < 0) {
+                start = 0;
             }
             // Avoid infinite loop
             if (start >= normalized.length()) {

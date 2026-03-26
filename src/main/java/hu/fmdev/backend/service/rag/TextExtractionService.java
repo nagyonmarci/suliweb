@@ -3,6 +3,7 @@ package hu.fmdev.backend.service.rag;
 import hu.fmdev.backend.logger.CentralLogger;
 import org.apache.tika.Tika;
 import org.apache.tika.exception.TikaException;
+import org.jsoup.Jsoup;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -35,22 +36,24 @@ public class TextExtractionService {
         }
     }
 
+
+
     /**
      * Strips HTML tags and returns clean plain text from email body.
-     * Uses lightweight regex stripping instead of Tika to avoid heap spikes under parallel load.
+     * Uses Jsoup for memory-safe and fast O(N) HTML parsing.
      */
     public String extractTextFromHtml(String html) {
         if (html == null || html.isBlank()) {
             return "";
         }
-        // Remove <style> and <script> blocks entirely
-        String text = html.replaceAll("(?is)<style[^>]*>.*?</style>", " ")
-                          .replaceAll("(?is)<script[^>]*>.*?</script>", " ")
-                          // Strip all remaining HTML tags
-                          .replaceAll("<[^>]+>", " ")
-                          // Collapse whitespace
-                          .replaceAll("\\s+", " ")
-                          .trim();
+        
+        // Cap raw HTML BEFORE memory-intensive parsing to prevent DOM explosions on massive base64 images
+        if (html.length() > MAX_BODY_CHARS * 2) {
+            html = html.substring(0, MAX_BODY_CHARS * 2);
+        }
+        
+        // Jsoup is highly optimized and immune to regex catastrophic backtracking
+        String text = Jsoup.parse(html).text();
 
         // Hard cap to prevent memory pressure from huge emails
         if (text.length() > MAX_BODY_CHARS) {

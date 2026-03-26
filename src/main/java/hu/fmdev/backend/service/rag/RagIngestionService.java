@@ -65,7 +65,8 @@ public class RagIngestionService {
             CentralLogger.logInfo("RAG ingestion starting. Total emails in DB: " + totalEmails);
             progressTracker.startOperation("RAG indexelés", (int) totalEmails);
 
-            int pageSize = 200;
+            // Load a small batch to prevent OOM when the DB returns massive base64 HTML emails
+            int pageSize = 20;
             int page = 0;
             int processed = 0;
 
