@@ -1,6 +1,8 @@
 # SuliWeb - PST Email Processor
 
-Spring Boot alkalmazás Microsoft Outlook PST fájlok feldolgozásához. PST fájlokat keres, emaileket és csatolmányokat kinyeri belőlük, majd MongoDB-ben tárolja az adatokat. Synology NAS integrációval, RAG szemantikus kereséssel és Astro 6 + React 19 frontend dashboarddal rendelkezik.
+Spring Boot 4.0 alkalmazás Microsoft Outlook PST fájlok feldolgozásához. PST fájlokat keres, emaileket és csatolmányokat kinyeri belőlük, majd MongoDB-ben tárolja az adatokat. Synology NAS integrációval, JWT-alapú autentikációval, RAG szemantikus kereséssel és Astro 6 + React 19 frontend dashboarddal rendelkezik.
+
+> **Aktív ág:** `claude/spring-security`
 
 ## Funkciók
 
@@ -13,6 +15,9 @@ Spring Boot alkalmazás Microsoft Outlook PST fájlok feldolgozásához. PST fá
 - **RAG szemantikus keresés** - Ollama embedding + MongoDB Atlas Vector Search email tartalmak és csatolmányok között
 - **Synology integráció** - NAS Universal Search API-n keresztül keres PST fájlokat
 - **PDF űrlap kitöltés** - iText alapú PDF form filler
+- **JWT autentikáció** - Spring Security 7 alapú, access token (15 perc) + refresh token (7 nap), BCrypt jelszókezelés
+- **Titkosított ZIP feltöltés** - zip4j alapú titkosított archívum feltöltés/letöltés
+- **Strukturált naplózás** - Központi MongoDB alapú naplózás (CentralLogger)
 - **Modern dashboard** - Astro 6 + React 19 + Tailwind CSS 4 reszponzív frontend
 - **Docker támogatás** - Teljes stack konténerizáció (frontend + backend + MongoDB + Ollama)
 
@@ -185,6 +190,14 @@ suliweb/
 
 ## API végpontok
 
+### Autentikáció
+| Végpont | Metódus | Leírás |
+|---------|---------|--------|
+| `/api/auth/register` | POST | Új felhasználó regisztrálása |
+| `/api/auth/login` | POST | Bejelentkezés → access + refresh token |
+| `/api/auth/refresh` | POST | Access token megújítása refresh tokennel |
+| `/api/auth/me` | GET | Bejelentkezett felhasználó adatai |
+
 ### Emailek
 | Végpont | Metódus | Leírás |
 |---------|---------|--------|
@@ -219,11 +232,21 @@ suliweb/
 | `/api/rag/stats` | GET | Indexelési statisztikák |
 | `/api/rag/health` | GET | Ollama + indexelés állapot |
 
+### Csatolmányok
+| Végpont | Metódus | Leírás |
+|---------|---------|--------|
+| `/api/attachments` | GET | Csatolmányok listája |
+| `/api/attachments/search` | GET | Keresés (filename, extension, size, sender, dátum) |
+| `/api/attachments/count` | GET | Csatolmányok száma |
+| `/api/attachments/email/{emailId}` | GET | Email csatolmányai |
+| `/api/attachments/{id}/download` | GET | Csatolmány letöltése |
+
 ### Egyéb
 | Végpont | Metódus | Leírás |
 |---------|---------|--------|
 | `/api/progress` | GET | Feldolgozás állapota |
 | `/api/file-infos` | GET | Fájl információk |
+| `/api/file-infos/counts` | GET | PST számlálók (total/pending/processed) |
 | `/api/files/upload` | POST | Fájl feltöltés (ZIP titkosítással) |
 | `/pdf/fill` | POST | PDF űrlap kitöltése |
 
@@ -368,8 +391,9 @@ A projekt továbbfejlesztéséhez javasolt eszközök és minták:
 - **Dependabot / Renovate** - Automatikus dependency frissítések (Spring Boot, npm csomagok)
 
 ### Biztonság
-- **Spring Security + OAuth2** - A jelenlegi SecurityConfig bővítése JWT token validációval
-- **Vault / AWS Secrets Manager** - MongoDB és Synology jelszavak externalizálása (a `.env` fájl helyett)
+- **JWT autentikáció** ✅ Megvalósítva: `JwtTokenProvider`, `JwtAuthenticationFilter`, `AuthController`, BCrypt jelszókezelés, access (15 perc) + refresh token (7 nap)
+- **Vault / AWS Secrets Manager** - JWT titok és MongoDB/Synology jelszavak externalizálása (jelenleg `.env` fájl)
+- **CORS szűkítés** - Jelenleg `*` (minden origin); produkcióban specifikus originekre korlátozandó
 - **OWASP ZAP** - Automatikus biztonsági szkennelés a CI pipeline-ban
 
 ### Teljesítmény
@@ -393,23 +417,25 @@ A projekt szűk keresztmetszetei GPU inference (Ollama) és I/O (MongoDB, fájl 
 
 **Konklúzió:** A batch embedding optimalizáció Java-ban 5-10x gyorsulást ad, ami nagyobb nyereség mint egy teljes nyelv csere. Java 25 Virtual Threads + ZGC versenyképes I/O workload-oknál. A java-libpst és Apache Tika Go/Rust-ban nem létezik — pótlásuk nem reális.
 
-### Autentikáció: Directus vs natív Spring Security
+### Autentikáció
 
-**Döntés: natív Spring Security** (Directus nem szükséges)
+✅ **Megvalósítva** (`claude/spring-security` ágon): natív Spring Security 7 + JWT (HS256).
 
-| Szempont | Directus | Spring Security |
-|----------|----------|----------------|
-| MongoDB támogatás | ❌ (PostgreSQL/MySQL) | ✅ natív |
-| Architektúra | +1 Node.js service + DB | meglévő stack |
-| Testreszabhatóság | korlátozott | teljes |
-| Meglévő kóddal | dupla adatforrás | könnyű integráció |
+- `JwtTokenProvider` — token generálás és validálás
+- `JwtAuthenticationFilter` — Bearer token kiolvasása minden kérésnél
+- `MongoUserDetailsService` — felhasználó betöltése MongoDB-ből
+- `UserSeeder` — alapértelmezett admin felhasználó létrehozása induláskor
+- `AuthController` — `/api/auth/login`, `/register`, `/refresh`, `/me`
+- `SecurityConfig` — stateless session, CSRF letiltva, végpont védelem
 
-A projekt már rendelkezik User/Authority/Organization entitásokkal és repository-kkal. A `spring-boot-starter-security` és `spring-boot-starter-oauth2-client` dependency-k megvannak. A hiányzó lépések:
-1. `nimbus-jose-jwt` dependency + `JwtTokenProvider` service
-2. `JwtAuthenticationFilter` + `UserDetailsService`
-3. `BCryptPasswordEncoder` + `AuthController` (`/api/auth/login`, `/register`, `/refresh`)
-4. `SecurityConfig` átírás (JWT filter, endpoint protection, CORS)
-5. `@PreAuthorize` annotációk a controllerekre
+**Védett végpontok:**
+
+| Útvonal | Hozzáférés |
+|---------|-----------|
+| `/api/auth/**` | Publikus |
+| `/api/rag/**`, `/api/progress` | Publikus |
+| `/api/**` | JWT szükséges |
+| `/find/**`, `/pst/**`, `/pdf/**` | Publikus (fejlesztési állapot) |
 
 ## Licenc
 
