@@ -59,15 +59,25 @@ import RagChat from '../components/RagChat.tsx';
     });
   }
 
-  // Restore active tab from URL hash
-  const hash = window.location.hash.replace('#', '') || 'chat';
-  if (['chat', 'search', 'manage'].includes(hash)) switchTab(hash);
+  const VALID_TABS = ['chat', 'search', 'manage'];
 
-  // Update hash on tab switch
+  function activateFromHash() {
+    const hash = window.location.hash.replace('#', '') || 'chat';
+    switchTab(VALID_TABS.includes(hash) ? hash : 'chat');
+  }
+
+  // Activate on initial load
+  activateFromHash();
+
+  // Update hash on tab click (pushState so Back/Forward works)
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.id.replace('tab-', '');
-      history.replaceState(null, '', '#' + id);
+      history.pushState(null, '', '#' + id);
     });
   });
+
+  // React to Back/Forward navigation (popstate) and direct hash changes
+  window.addEventListener('popstate', activateFromHash);
+  window.addEventListener('hashchange', activateFromHash);
 </script>
