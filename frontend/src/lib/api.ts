@@ -240,6 +240,19 @@ export interface AuthUser {
   authorities: string[];
 }
 
+export interface UserDto {
+  id: string;
+  username: string;
+  email: string;
+  authorities: string[];
+  authorityIds: string[];
+}
+
+export interface AuthorityDto {
+  id: string;
+  permission: string;
+}
+
 // --- API ---
 
 export const api = {
@@ -370,4 +383,15 @@ export const api = {
       body: JSON.stringify({ message, topK, model }),
     }),
   ragModels: () => fetchJson<string[]>('/api/rag/models'),
+
+  // User management (ROLE_ADMIN only)
+  getUsers: () => fetchJson<UserDto[]>('/api/users'),
+  getUser: (id: string) => fetchJson<UserDto>(`/api/users/${id}`),
+  createUser: (data: { username: string; password: string; email: string; authorityIds: string[] }) =>
+    fetchJson<UserDto>('/api/users', { method: 'POST', body: JSON.stringify(data) }),
+  updateUser: (id: string, data: { email?: string; password?: string; authorityIds?: string[] }) =>
+    fetchJson<UserDto>(`/api/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteUser: (id: string) =>
+    fetch(`/api/users/${id}`, { method: 'DELETE', headers: authHeaders() }),
+  getAuthorities: () => fetchJson<AuthorityDto[]>('/api/users/authorities'),
 };
