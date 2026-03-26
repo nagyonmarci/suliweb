@@ -14,18 +14,21 @@ import org.springframework.web.reactive.function.client.WebClient;
 public class RagConfig {
 
     private String ollamaBaseUrl = "http://localhost:11434";
-    private String embeddingModel = "nomic-embed-text";
-    private int embeddingDimensions = 768;
+    private String embeddingModel = "bge-m3";
+    private int embeddingDimensions = 1024;
 
-    private int chunkSize = 512;
-    private int chunkOverlap = 64;
+    // Smaller chunks = more precise retrieval for email content
+    private int chunkSize = 400;
+    private int chunkOverlap = 128;
 
-    private int searchTopK = 10;
-    private double searchMinScore = 0.5;
+    // Higher topK because hybrid search re-ranks candidates before slicing
+    private int searchTopK = 20;
+    private double searchMinScore = 0.35;
 
-    private int ingestionBatchSize = 50;
-    private int ingestionThreads = 4;
-    private int embeddingThreads = 2;
+    // Larger batch is fine: bge-m3 is fast on M4 Max GPU
+    private int ingestionBatchSize = 100;
+    private int ingestionThreads = 8;
+    private int embeddingThreads = 4;
     private int embeddingTimeoutSeconds = 120;
 
     @Bean
