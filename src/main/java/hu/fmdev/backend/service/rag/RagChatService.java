@@ -34,16 +34,16 @@ public class RagChatService {
     // Public API
     // -------------------------------------------------------------------------
 
-    public ChatResponse chat(String userMessage, int topK, String model) {
+    public ChatResponse chat(String userMessage, int topK, String model, Set<String> allowedPstFileNames) {
         int k = topK > 0 ? topK : ragConfig.getChatContextTopK();
         String resolvedModel = (model != null && !model.isBlank()) ? model : ragConfig.getChatModel();
 
-        // 1. Retrieve relevant chunks
-        List<RagSearchService.SearchResult> chunks = searchService.search(userMessage, k);
+        // 1. Retrieve relevant chunks (filtered by allowed PST files)
+        List<RagSearchService.SearchResult> chunks = searchService.search(userMessage, k, allowedPstFileNames);
         List<ChatSource> sources = buildSources(chunks);
 
         // 2. Build context text
-        String context = searchService.buildContext(userMessage, k);
+        String context = searchService.buildContext(userMessage, k, allowedPstFileNames);
 
         // 3. Build Ollama messages
         String systemPrompt = buildSystemPrompt(context);
@@ -104,7 +104,6 @@ public class RagChatService {
     }
 
     private List<ChatSource> buildSources(List<RagSearchService.SearchResult> chunks) {
-        // Deduplicate by emailId, keep highest score per email
         Map<String, ChatSource> byEmail = new LinkedHashMap<>();
         for (RagSearchService.SearchResult r : chunks) {
             byEmail.merge(r.emailId(),

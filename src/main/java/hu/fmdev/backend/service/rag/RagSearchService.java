@@ -56,21 +56,27 @@ public class RagSearchService {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Hybrid search: cosine vector similarity + MongoDB full-text search, fused via RRF.
+     * Hybrid search with optional PST file restriction.
+     * Pass null for allowedPstFileNames to search all files.
      */
-    public List<SearchResult> search(String query, int topK) {
+    public List<SearchResult> search(String query, int topK, Set<String> allowedPstFileNames) {
         int k = topK > 0 ? topK : FINAL_TOP_K;
 
-        List<SearchResult> vectorResults  = vectorSearch(query, ragConfig.getSearchTopK());
-        List<SearchResult> keywordResults = keywordSearch(query, ragConfig.getSearchTopK());
+        List<SearchResult> vectorResults  = vectorSearch(query, ragConfig.getSearchTopK(), allowedPstFileNames);
+        List<SearchResult> keywordResults = keywordSearch(query, ragConfig.getSearchTopK(), allowedPstFileNames);
 
         return reciprocalRankFusion(vectorResults, keywordResults)
                 .stream().limit(k).toList();
     }
 
+    /** Overload without restriction – used internally and by admin paths. */
+    public List<SearchResult> search(String query, int topK) {
+        return search(query, topK, null);
+    }
+
     /** Semantic search grouped by email with top chunk per email. */
-    public List<EmailSearchResult> searchEmails(String query, int topK) {
-        List<SearchResult> chunkResults = search(query, topK);
+    public List<EmailSearchResult> searchEmails(String query, int topK, Set<String> allowedPstFileNames) {
+        List<SearchResult> chunkResults = search(query, topK, allowedPstFileNames);
 
         Map<String, List<SearchResult>> grouped = chunkResults.stream()
                 .collect(Collectors.groupingBy(SearchResult::emailId));
@@ -93,9 +99,13 @@ public class RagSearchService {
         return emailResults;
     }
 
+    public List<EmailSearchResult> searchEmails(String query, int topK) {
+        return searchEmails(query, topK, null);
+    }
+
     /** Builds a human-readable context string for an LLM prompt. */
-    public String buildContext(String query, int topK) {
-        List<SearchResult> results = search(query, topK > 0 ? topK : FINAL_TOP_K);
+    public String buildContext(String query, int topK, Set<String> allowedPstFileNames) {
+        List<SearchResult> results = search(query, topK > 0 ? topK : FINAL_TOP_K, allowedPstFileNames);
         if (results.isEmpty()) return "Nem található releváns tartalom.";
 
         StringBuilder sb = new StringBuilder("A keresés alapján talált releváns részletek:\n\n");
@@ -112,12 +122,16 @@ public class RagSearchService {
         return sb.toString();
     }
 
+    public String buildContext(String query, int topK) {
+        return buildContext(query, topK, null);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Vector search (cosine similarity in JVM – works on Community MongoDB)
     // ─────────────────────────────────────────────────────────────────────────
 
     @SuppressWarnings("unchecked")
-    private List<SearchResult> vectorSearch(String query, int topK) {
+    private List<SearchResult> vectorSearch(String query, int topK, Set<String> allowedPstFileNames) {
         List<Double> qVec = embeddingService.embed(query);
         if (qVec.isEmpty()) {
             CentralLogger.logWarn("Failed to embed query for vector search");
@@ -127,10 +141,14 @@ public class RagSearchService {
         double[] q = toDoubleArray(qVec);
 
         try {
-            // Fetch embedded chunks (only the fields we need – no content yet to save memory)
+            Document filter = new Document("ingestionStatus", "embedded");
+            if (allowedPstFileNames != null) {
+                filter.append("pstFileName", new Document("$in", new ArrayList<>(allowedPstFileNames)));
+            }
+
             List<Document> candidates = mongoTemplate.getDb()
                     .getCollection("document_chunks")
-                    .find(new Document("ingestionStatus", "embedded"))
+                    .find(filter)
                     .projection(new Document("embedding", 1).append("emailId", 1)
                             .append("sourceType", 1).append("attachmentFileName", 1)
                             .append("content", 1).append("emailSubject", 1)
@@ -139,13 +157,12 @@ public class RagSearchService {
                     .limit(VECTOR_CANDIDATE_LIMIT)
                     .into(new ArrayList<>());
 
-            // Compute cosine similarity for each candidate
             List<SearchResult> scored = new ArrayList<>(candidates.size());
             for (Document doc : candidates) {
                 List<Object> rawEmb = (List<Object>) doc.get("embedding");
                 if (rawEmb == null || rawEmb.isEmpty()) continue;
                 double[] dVec = toDoubleArrayFromObjects(rawEmb);
-                if (dVec.length != q.length) continue;  // dimension mismatch guard
+                if (dVec.length != q.length) continue;
                 double sim = cosineSimilarity(q, dVec);
                 if (sim >= COSINE_PREFILTER) {
                     scored.add(toSearchResultWithScore(doc, sim));
@@ -164,11 +181,16 @@ public class RagSearchService {
     // Keyword search (MongoDB $text index)
     // ─────────────────────────────────────────────────────────────────────────
 
-    private List<SearchResult> keywordSearch(String query, int topK) {
+    private List<SearchResult> keywordSearch(String query, int topK, Set<String> allowedPstFileNames) {
         try {
+            Document filter = new Document("$text", new Document("$search", query));
+            if (allowedPstFileNames != null) {
+                filter.append("pstFileName", new Document("$in", new ArrayList<>(allowedPstFileNames)));
+            }
+
             List<Document> docs = mongoTemplate.getDb()
                     .getCollection("document_chunks")
-                    .find(new Document("$text", new Document("$search", query)))
+                    .find(filter)
                     .projection(new Document("score", new Document("$meta", "textScore"))
                             .append("emailId", 1).append("sourceType", 1)
                             .append("attachmentFileName", 1).append("content", 1)
@@ -180,9 +202,8 @@ public class RagSearchService {
 
             return docs.stream()
                     .map(doc -> {
-                        // ln(1 + textScore) gives a stable 0-based score without a fixed ceiling
                         double raw = doc.getDouble("score") != null ? doc.getDouble("score") : 0.0;
-                        double norm = Math.log1p(raw) / Math.log1p(20.0); // ln(1+20)≈3.04 as soft ceiling
+                        double norm = Math.log1p(raw) / Math.log1p(20.0);
                         return toSearchResultWithScore(doc, Math.min(norm, 1.0));
                     })
                     .toList();
@@ -198,7 +219,7 @@ public class RagSearchService {
 
     private List<SearchResult> reciprocalRankFusion(List<SearchResult> list1, List<SearchResult> list2) {
         Map<String, Double> rrfScores  = new LinkedHashMap<>();
-        Map<String, Double> rawScores  = new LinkedHashMap<>();  // best raw cosine/keyword score per chunk
+        Map<String, Double> rawScores  = new LinkedHashMap<>();
         Map<String, SearchResult> bestResult = new LinkedHashMap<>();
 
         applyRrf(list1, rrfScores, rawScores, bestResult);
@@ -206,9 +227,7 @@ public class RagSearchService {
 
         if (rrfScores.isEmpty()) return List.of();
 
-        // Normalise RRF scores to [0,1] relative to the theoretical max (two lists, rank 0 in each)
         double rrfMax = (1.0 / (RRF_K + 1)) * 2;
-
         double minScore = ragConfig.getSearchMinScore();
 
         return rrfScores.entrySet().stream()
@@ -217,13 +236,11 @@ public class RagSearchService {
                     SearchResult base = bestResult.get(e.getKey());
                     double rrfNorm  = Math.min(e.getValue() / rrfMax, 1.0);
                     double rawScore = rawScores.getOrDefault(e.getKey(), 0.0);
-                    // Blend: RRF rank tells us relative position; raw score preserves absolute signal
                     double blended = (1 - COSINE_BLEND) * rrfNorm + COSINE_BLEND * rawScore;
                     return new SearchResult(base.chunkId(), base.emailId(), base.sourceType(),
                             base.attachmentFileName(), base.content(), base.emailSubject(),
                             base.senderName(), base.senderEmailAddress(), base.pstFileName(), blended);
                 })
-                // Apply final minimum-score gate here (after blending, not before)
                 .filter(r -> r.score() >= minScore)
                 .toList();
     }
@@ -236,7 +253,6 @@ public class RagSearchService {
                     ? r.emailId() + "_" + Math.abs(r.content().hashCode())
                     : r.chunkId();
             scores.merge(key, 1.0 / (RRF_K + i + 1), Double::sum);
-            // Keep the highest raw score seen for this chunk across both lanes
             rawScores.merge(key, r.score(), Math::max);
             best.putIfAbsent(key, r);
         }
