@@ -24,7 +24,7 @@ services:
       - SYNOLOGY_BATCH_SIZE=${SYNOLOGY_BATCH_SIZE:-100}
       - JWT_SECRET=${JWT_SECRET:-dGhpc0lzQVNlY3VyZUtleUZvckpXVFRva2VuU2lnbmluZ1B1cnBvc2VzT25seQ==}
       - SPRING_DATA_MONGODB_URI=mongodb://mongo:27017/emails?directConnection=true
-    command: ["--spring.profiles.active=docker", "--spring.data.mongodb.uri=mongodb://mongo:27017/emails?directConnection=true", "--spring.mongodb.uri=mongodb://mongo:27017/emails?directConnection=true"]
+    command: ["--spring.profiles.active=docker"]
     volumes:
       - attachments:/app/attachments
       - pst_source:/data/pst_source:ro
@@ -68,19 +68,25 @@ services:
     entrypoint: >
       mongosh "mongodb://mongo:27017/emails?directConnection=true" --eval '
         db.createCollection("document_chunks");
+        // Text index for keyword search lane (hybrid RAG)
+        db.document_chunks.createIndex(
+          { content: "text", emailSubject: "text", senderName: "text" },
+          { name: "chunk_text_index", weights: { content: 10, emailSubject: 5, senderName: 1 } }
+        );
+        // Vector search index (1024 dims for bge-m3) - works on Atlas local
         db.document_chunks.createSearchIndex({
           name: "chunk_vector_index",
           type: "vectorSearch",
           definition: {
             fields: [{
               type: "vector",
-              numDimensions: 768,
+              numDimensions: 1024,
               path: "embedding",
               similarity: "cosine"
             }]
           }
         });
-        print("Vector search index created");
+        print("Indexes created");
       '
 
   ollama:
@@ -106,7 +112,7 @@ services:
         condition: service_healthy
     restart: "no"
     entrypoint: >
-      sh -c "ollama pull nomic-embed-text"
+      sh -c "ollama pull bge-m3"
     environment:
       - OLLAMA_HOST=http://ollama:11434
     profiles:
