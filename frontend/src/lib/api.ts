@@ -246,6 +246,14 @@ export interface UserDto {
   email: string;
   authorities: string[];
   authorityIds: string[];
+  allowedFileInfoIds: string[];
+}
+
+export interface FileInfoDto {
+  id: string;
+  fileName: string;
+  path: string;
+  status: string;
 }
 
 export interface AuthorityDto {
@@ -394,4 +402,7 @@ export const api = {
   deleteUser: (id: string) =>
     fetch(`/api/users/${id}`, { method: 'DELETE', headers: authHeaders() }),
   getAuthorities: () => fetchJson<AuthorityDto[]>('/api/users/authorities'),
+  updateUserFiles: (id: string, fileInfoIds: string[]) =>
+    fetchJson<UserDto>(`/api/users/${id}/files`, { method: 'PUT', body: JSON.stringify({ fileInfoIds }) }),
+  getUserFiles: (id: string) => fetchJson<FileInfoDto[]>(`/api/users/${id}/files`),
 };

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { api, type UserDto, type AuthorityDto } from '../lib/api';
+import { api, type UserDto, type AuthorityDto, type FileInfo, type FileInfoDto } from '../lib/api';
 
-type ModalMode = 'create' | 'edit' | null;
+type ModalMode = 'create' | 'edit' | 'files' | null;
 
 interface FormState {
   username: string;
@@ -15,6 +15,7 @@ const emptyForm: FormState = { username: '', email: '', password: '', authorityI
 export default function UserManagement() {
   const [users, setUsers] = useState<UserDto[]>([]);
   const [authorities, setAuthorities] = useState<AuthorityDto[]>([]);
+  const [allFiles, setAllFiles] = useState<FileInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalMode, setModalMode] = useState<ModalMode>(null);
@@ -22,6 +23,8 @@ export default function UserManagement() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<UserDto | null>(null);
+  const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
+  const [fileSearch, setFileSearch] = useState('');
 
   useEffect(() => {
     loadAll();
@@ -30,12 +33,14 @@ export default function UserManagement() {
   async function loadAll() {
     try {
       setError(null);
-      const [usersData, authoritiesData] = await Promise.all([
+      const [usersData, authoritiesData, filesData] = await Promise.all([
         api.getUsers(),
         api.getAuthorities(),
+        api.getFileInfos(),
       ]);
       setUsers(usersData);
       setAuthorities(authoritiesData);
+      setAllFiles(filesData);
     } catch (e: any) {
       setError(e.message ?? 'Betöltési hiba');
     } finally {
@@ -55,10 +60,19 @@ export default function UserManagement() {
     setModalMode('edit');
   }
 
+  function openFiles(user: UserDto) {
+    setEditingUser(user);
+    setSelectedFileIds(user.allowedFileInfoIds ?? []);
+    setFileSearch('');
+    setModalMode('files');
+  }
+
   function closeModal() {
     setModalMode(null);
     setEditingUser(null);
     setForm(emptyForm);
+    setSelectedFileIds([]);
+    setFileSearch('');
   }
 
   function toggleAuthority(id: string) {
@@ -68,6 +82,12 @@ export default function UserManagement() {
         ? f.authorityIds.filter(a => a !== id)
         : [...f.authorityIds, id],
     }));
+  }
+
+  function toggleFile(id: string) {
+    setSelectedFileIds(prev =>
+      prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
+    );
   }
 
   async function handleSave() {
@@ -95,6 +115,20 @@ export default function UserManagement() {
     }
   }
 
+  async function handleSaveFiles() {
+    if (!editingUser) return;
+    setSaving(true);
+    try {
+      await api.updateUserFiles(editingUser.id, selectedFileIds);
+      closeModal();
+      await loadAll();
+    } catch (e: any) {
+      setError(e.message ?? 'Mentési hiba');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleDelete(user: UserDto) {
     try {
       await api.deleteUser(user.id);
@@ -104,6 +138,12 @@ export default function UserManagement() {
       setError(e.message ?? 'Törlési hiba');
     }
   }
+
+  const filteredFiles = allFiles.filter(f =>
+    fileSearch === '' ||
+    f.fileName.toLowerCase().includes(fileSearch.toLowerCase()) ||
+    f.path.toLowerCase().includes(fileSearch.toLowerCase())
+  );
 
   if (loading) {
     return (
@@ -142,68 +182,78 @@ export default function UserManagement() {
               <th className="text-left px-4 py-3 font-medium text-gray-600">Felhasználónév</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">E-mail</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Jogosultságok</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600">PST hozzáférés</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {users.length === 0 ? (
               <tr>
-                <td colSpan={4} className="text-center py-8 text-gray-400">
+                <td colSpan={5} className="text-center py-8 text-gray-400">
                   Nincsenek felhasználók
                 </td>
               </tr>
-            ) : users.map(user => (
-              <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-4 py-3 font-medium text-gray-800">
-                  <div className="flex items-center gap-2">
-                    <span className="w-7 h-7 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-bold shrink-0">
-                      {user.username.charAt(0).toUpperCase()}
-                    </span>
-                    {user.username}
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-gray-500">{user.email || '—'}</td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-1">
-                    {user.authorities.map(a => (
-                      <span
-                        key={a}
-                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          a === 'ROLE_ADMIN'
-                            ? 'bg-purple-100 text-purple-700'
-                            : 'bg-gray-100 text-gray-600'
-                        }`}
-                      >
-                        {a}
+            ) : users.map(user => {
+              const fileCount = user.allowedFileInfoIds?.length ?? 0;
+              const isAllFiles = fileCount === 0;
+              return (
+                <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3 font-medium text-gray-800">
+                    <div className="flex items-center gap-2">
+                      <span className="w-7 h-7 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-bold shrink-0">
+                        {user.username.charAt(0).toUpperCase()}
                       </span>
-                    ))}
-                    {user.authorities.length === 0 && <span className="text-gray-400 text-xs">—</span>}
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex gap-2 justify-end">
+                      {user.username}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-gray-500">{user.email || '—'}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-1">
+                      {user.authorities.map(a => (
+                        <span key={a} className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                          a === 'ROLE_ADMIN' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'
+                        }`}>{a}</span>
+                      ))}
+                      {user.authorities.length === 0 && <span className="text-gray-400 text-xs">—</span>}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
                     <button
-                      onClick={() => openEdit(user)}
-                      className="text-blue-600 hover:text-blue-800 text-xs font-medium px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                      onClick={() => openFiles(user)}
+                      className={`text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                        isAllFiles
+                          ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                          : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                      }`}
                     >
-                      Szerkesztés
+                      {isAllFiles ? '✓ Összes fájl' : `${fileCount} fájl`}
                     </button>
-                    <button
-                      onClick={() => setDeleteConfirm(user)}
-                      className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1 rounded hover:bg-red-50 transition-colors"
-                    >
-                      Törlés
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-2 justify-end">
+                      <button
+                        onClick={() => openEdit(user)}
+                        className="text-blue-600 hover:text-blue-800 text-xs font-medium px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                      >
+                        Szerkesztés
+                      </button>
+                      <button
+                        onClick={() => setDeleteConfirm(user)}
+                        className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                      >
+                        Törlés
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
       {/* Create/Edit Modal */}
-      {modalMode && (
+      {(modalMode === 'create' || modalMode === 'edit') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
             <div className="px-6 py-4 border-b border-gray-200">
@@ -259,29 +309,103 @@ export default function UserManagement() {
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                        a.permission === 'ROLE_ADMIN'
-                          ? 'bg-purple-100 text-purple-700'
-                          : 'bg-gray-100 text-gray-600'
-                      }`}>
-                        {a.permission}
-                      </span>
+                        a.permission === 'ROLE_ADMIN' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'
+                      }`}>{a.permission}</span>
                     </label>
                   ))}
                 </div>
               </div>
             </div>
             <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
-              <button
-                onClick={closeModal}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
+              <button onClick={closeModal} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                 Mégse
               </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
-              >
+              <button onClick={handleSave} disabled={saving} className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50">
+                {saving ? 'Mentés...' : 'Mentés'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* File Access Modal */}
+      {modalMode === 'files' && editingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg flex flex-col max-h-[85vh]">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="font-semibold text-gray-800">PST fájl-hozzáférés — {editingUser.username}</h3>
+              <p className="text-xs text-gray-500 mt-1">
+                Ha nem jelölsz ki egyet sem, a felhasználó <strong>minden</strong> fájlhoz hozzáfér.
+              </p>
+            </div>
+
+            <div className="px-6 pt-4 pb-2">
+              <div className="flex items-center gap-2 mb-3">
+                <input
+                  type="text"
+                  value={fileSearch}
+                  onChange={e => setFileSearch(e.target.value)}
+                  placeholder="Keresés fájlnév vagy útvonal alapján..."
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <span className="text-xs text-gray-400 whitespace-nowrap">{selectedFileIds.length} kijelölve</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setSelectedFileIds(allFiles.map(f => f.id))}
+                  className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  Összes kijelölése
+                </button>
+                <span className="text-gray-300">|</span>
+                <button
+                  onClick={() => setSelectedFileIds([])}
+                  className="text-xs text-gray-500 hover:text-gray-700 hover:underline"
+                >
+                  Kijelölés törlése
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-2 space-y-1">
+              {allFiles.length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-8">Nincsenek PST fájlok az adatbázisban</p>
+              )}
+              {filteredFiles.length === 0 && allFiles.length > 0 && (
+                <p className="text-sm text-gray-400 text-center py-4">Nincs találat</p>
+              )}
+              {filteredFiles.map(f => (
+                <label key={f.id} className={`flex items-start gap-3 cursor-pointer px-3 py-2.5 rounded-lg border transition-colors ${
+                  selectedFileIds.includes(f.id)
+                    ? 'bg-blue-50 border-blue-200'
+                    : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-200'
+                }`}>
+                  <input
+                    type="checkbox"
+                    checked={selectedFileIds.includes(f.id)}
+                    onChange={() => toggleFile(f.id)}
+                    className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">{f.fileName}</p>
+                    <p className="text-xs text-gray-400 truncate">{f.path}</p>
+                    <span className={`mt-0.5 inline-block text-xs px-1.5 py-0.5 rounded ${
+                      f.status === 'Processed'
+                        ? 'bg-green-100 text-green-700'
+                        : f.status === 'New'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-gray-100 text-gray-500'
+                    }`}>{f.status}</span>
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
+              <button onClick={closeModal} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                Mégse
+              </button>
+              <button onClick={handleSaveFiles} disabled={saving} className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50">
                 {saving ? 'Mentés...' : 'Mentés'}
               </button>
             </div>
@@ -302,16 +426,10 @@ export default function UserManagement() {
               </p>
             </div>
             <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
-              <button
-                onClick={() => setDeleteConfirm(null)}
-                className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
+              <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                 Mégse
               </button>
-              <button
-                onClick={() => handleDelete(deleteConfirm)}
-                className="px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-              >
+              <button onClick={() => handleDelete(deleteConfirm)} className="px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
                 Törlés
               </button>
             </div>
