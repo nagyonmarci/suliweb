@@ -35,6 +35,11 @@ public class RagSearchService {
     private static final int VECTOR_CANDIDATE_LIMIT = 50_000;
     // Final results returned to caller (before email grouping)
     private static final int FINAL_TOP_K = 10;
+    // Hard minimum cosine similarity for vector lane – cuts clear non-matches before RRF.
+    // Intentionally low (config.searchMinScore is used as the final output gate instead).
+    private static final double COSINE_PREFILTER = 0.20;
+    // Weight of raw cosine score blended into the final RRF-based score (0 = pure RRF rank)
+    private static final double COSINE_BLEND = 0.3;
 
     public RagSearchService(EmbeddingService embeddingService,
                             MongoTemplate mongoTemplate,
@@ -140,8 +145,9 @@ public class RagSearchService {
                 List<Object> rawEmb = (List<Object>) doc.get("embedding");
                 if (rawEmb == null || rawEmb.isEmpty()) continue;
                 double[] dVec = toDoubleArrayFromObjects(rawEmb);
+                if (dVec.length != q.length) continue;  // dimension mismatch guard
                 double sim = cosineSimilarity(q, dVec);
-                if (sim >= ragConfig.getSearchMinScore()) {
+                if (sim >= COSINE_PREFILTER) {
                     scored.add(toSearchResultWithScore(doc, sim));
                 }
             }
@@ -174,10 +180,10 @@ public class RagSearchService {
 
             return docs.stream()
                     .map(doc -> {
-                        // Normalise textScore to [0,1] – textScore of 10 ≈ excellent match
+                        // ln(1 + textScore) gives a stable 0-based score without a fixed ceiling
                         double raw = doc.getDouble("score") != null ? doc.getDouble("score") : 0.0;
-                        double norm = Math.min(raw / 10.0, 1.0);
-                        return toSearchResultWithScore(doc, norm);
+                        double norm = Math.log1p(raw) / Math.log1p(20.0); // ln(1+20)≈3.04 as soft ceiling
+                        return toSearchResultWithScore(doc, Math.min(norm, 1.0));
                     })
                     .toList();
         } catch (Exception e) {
@@ -191,34 +197,47 @@ public class RagSearchService {
     // ─────────────────────────────────────────────────────────────────────────
 
     private List<SearchResult> reciprocalRankFusion(List<SearchResult> list1, List<SearchResult> list2) {
-        Map<String, Double> rrfScores = new LinkedHashMap<>();
+        Map<String, Double> rrfScores  = new LinkedHashMap<>();
+        Map<String, Double> rawScores  = new LinkedHashMap<>();  // best raw cosine/keyword score per chunk
         Map<String, SearchResult> bestResult = new LinkedHashMap<>();
 
-        applyRrf(list1, rrfScores, bestResult);
-        applyRrf(list2, rrfScores, bestResult);
+        applyRrf(list1, rrfScores, rawScores, bestResult);
+        applyRrf(list2, rrfScores, rawScores, bestResult);
 
         if (rrfScores.isEmpty()) return List.of();
 
-        double maxScore = rrfScores.values().stream().mapToDouble(Double::doubleValue).max().orElse(1.0);
+        // Normalise RRF scores to [0,1] relative to the theoretical max (two lists, rank 0 in each)
+        double rrfMax = (1.0 / (RRF_K + 1)) * 2;
+
+        double minScore = ragConfig.getSearchMinScore();
+
         return rrfScores.entrySet().stream()
                 .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
                 .map(e -> {
                     SearchResult base = bestResult.get(e.getKey());
-                    double norm = maxScore > 0 ? e.getValue() / maxScore : 0.0;
+                    double rrfNorm  = Math.min(e.getValue() / rrfMax, 1.0);
+                    double rawScore = rawScores.getOrDefault(e.getKey(), 0.0);
+                    // Blend: RRF rank tells us relative position; raw score preserves absolute signal
+                    double blended = (1 - COSINE_BLEND) * rrfNorm + COSINE_BLEND * rawScore;
                     return new SearchResult(base.chunkId(), base.emailId(), base.sourceType(),
                             base.attachmentFileName(), base.content(), base.emailSubject(),
-                            base.senderName(), base.senderEmailAddress(), base.pstFileName(), norm);
+                            base.senderName(), base.senderEmailAddress(), base.pstFileName(), blended);
                 })
+                // Apply final minimum-score gate here (after blending, not before)
+                .filter(r -> r.score() >= minScore)
                 .toList();
     }
 
-    private void applyRrf(List<SearchResult> ranked, Map<String, Double> scores, Map<String, SearchResult> best) {
+    private void applyRrf(List<SearchResult> ranked, Map<String, Double> scores,
+                          Map<String, Double> rawScores, Map<String, SearchResult> best) {
         for (int i = 0; i < ranked.size(); i++) {
             SearchResult r = ranked.get(i);
             String key = r.chunkId().isEmpty()
                     ? r.emailId() + "_" + Math.abs(r.content().hashCode())
                     : r.chunkId();
             scores.merge(key, 1.0 / (RRF_K + i + 1), Double::sum);
+            // Keep the highest raw score seen for this chunk across both lanes
+            rawScores.merge(key, r.score(), Math::max);
             best.putIfAbsent(key, r);
         }
     }
