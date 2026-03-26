@@ -18,6 +18,7 @@ public class Attachment {
     private String contentType;
     private long size;
     private String localPath;
+    private String hash;
     private String pstFileName;
     private LocalDateTime creationTime;
     

@@ -378,11 +378,17 @@ public class PstProcessorService {
     private List<String> saveAttachments(PSTMessage message, String pstFileName, Email email)
             throws Exception {
         List<String> attachmentPaths = new ArrayList<>();
-        String attachmentsDirPath = attachmentsDirectory + "/" + pstFileName + "/" + email.getUniqueEntryId();
-        Path directoryPath = Paths.get(attachmentsDirPath);
+        
+        // Central directory for deduplicated files
+        Path hashesDirPath = Paths.get(attachmentsDirectory, "hashes");
+        if (!Files.exists(hashesDirPath)) {
+            Files.createDirectories(hashesDirPath);
+        }
 
-        if (!Files.exists(directoryPath)) {
-            Files.createDirectories(directoryPath);
+        // Temp directory for streaming before we know the hash
+        Path tempDirPath = Paths.get(attachmentsDirectory, "temp", email.getUniqueEntryId());
+        if (!Files.exists(tempDirPath)) {
+            Files.createDirectories(tempDirPath);
         }
 
         int attachmentCount = message.getNumberOfAttachments();
@@ -392,28 +398,53 @@ public class PstProcessorService {
             if (filename == null || filename.isEmpty()) {
                 filename = "attachment" + i;
             }
-            Path filePath = directoryPath.resolve(filename);
-            File attachmentFile = filePath.toFile();
+            
+            Path tempFilePath = tempDirPath.resolve(filename + ".tmp");
+            File tempAttachmentFile = tempFilePath.toFile();
+            String fileHash;
 
-            try (OutputStream os = new FileOutputStream(attachmentFile);
-                    InputStream in = attachment.getFileInputStream()) {
+            try (OutputStream os = new FileOutputStream(tempAttachmentFile);
+                 InputStream in = attachment.getFileInputStream()) {
+                 
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                java.security.DigestOutputStream dos = new java.security.DigestOutputStream(os, digest);
+                
                 byte[] buffer = new byte[8192];
                 int len;
                 while ((len = in.read(buffer)) > 0) {
-                    os.write(buffer, 0, len);
+                    dos.write(buffer, 0, len);
                 }
+                dos.flush();
+                
+                byte[] hashBytes = digest.digest();
+                StringBuilder hexString = new StringBuilder();
+                for (byte b : hashBytes) {
+                    String hex = Integer.toHexString(0xff & b);
+                    if (hex.length() == 1) hexString.append('0');
+                    hexString.append(hex);
+                }
+                fileHash = hexString.toString();
             }
-            attachmentPaths.add(filePath.toString());
+            
+            Path finalFilePath = hashesDirPath.resolve(fileHash);
+            if (!Files.exists(finalFilePath)) {
+                Files.move(tempFilePath, finalFilePath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            } else {
+                Files.deleteIfExists(tempFilePath);
+            }
+            
+            attachmentPaths.add(finalFilePath.toString());
 
             // Create and save Attachment entity
             hu.fmdev.backend.domain.Attachment attachmentEntity = new hu.fmdev.backend.domain.Attachment();
             attachmentEntity.setEmailId(email.getId());
             attachmentEntity.setFilename(filename);
-            attachmentEntity.setSize(attachmentFile.length());
-            attachmentEntity.setLocalPath(filePath.toString());
+            attachmentEntity.setSize(finalFilePath.toFile().length());
+            attachmentEntity.setLocalPath(finalFilePath.toString());
+            attachmentEntity.setHash(fileHash);
             attachmentEntity.setPstFileName(pstFileName);
             attachmentEntity.setCreationTime(LocalDateTime.now());
-            attachmentEntity.setContentType(Files.probeContentType(filePath));
+            attachmentEntity.setContentType(Files.probeContentType(finalFilePath));
             
             // Context from email
             attachmentEntity.setEmailSubject(email.getSubject());
