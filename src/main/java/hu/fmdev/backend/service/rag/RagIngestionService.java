@@ -1,14 +1,15 @@
 package hu.fmdev.backend.service.rag;
 
 import hu.fmdev.backend.config.RagConfig;
+import hu.fmdev.backend.domain.Attachment;
 import hu.fmdev.backend.domain.DocumentChunk;
 import hu.fmdev.backend.domain.Email;
 import hu.fmdev.backend.logger.CentralLogger;
+import hu.fmdev.backend.repository.AttachmentRepository;
 import hu.fmdev.backend.repository.DocumentChunkRepository;
 import hu.fmdev.backend.repository.EmailRepository;
 import hu.fmdev.backend.service.ProgressTracker;
 import org.springframework.stereotype.Service;
-
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -25,6 +26,7 @@ public class RagIngestionService {
     private final EmbeddingService embeddingService;
     private final ProgressTracker progressTracker;
     private final RagConfig ragConfig;
+    private final AttachmentRepository attachmentRepository;
 
     private volatile boolean running = false;
 
@@ -34,7 +36,8 @@ public class RagIngestionService {
                                ChunkingService chunkingService,
                                EmbeddingService embeddingService,
                                ProgressTracker progressTracker,
-                               RagConfig ragConfig) {
+                               RagConfig ragConfig,
+                               AttachmentRepository attachmentRepository) {
         this.emailRepository = emailRepository;
         this.chunkRepository = chunkRepository;
         this.textExtractionService = textExtractionService;
@@ -42,6 +45,7 @@ public class RagIngestionService {
         this.embeddingService = embeddingService;
         this.progressTracker = progressTracker;
         this.ragConfig = ragConfig;
+        this.attachmentRepository = attachmentRepository;
     }
 
     public boolean isRunning() {
@@ -131,8 +135,7 @@ public class RagIngestionService {
 
     /**
      * Ingests a single email: extracts text, chunks it, stores chunks.
-     * NOTE: Attachment processing is intentionally disabled for performance.
-     *       Only email body and subject are indexed.
+     * Optionally also processes attachments if ragConfig.isIncludeAttachments() is true.
      */
     public void ingestEmail(Email email) {
         List<DocumentChunk> chunks = new ArrayList<>();
@@ -149,6 +152,26 @@ public class RagIngestionService {
         // 2. Chunk subject as a separate searchable unit
         if (email.getSubject() != null && !email.getSubject().isBlank()) {
             chunks.add(createChunk(email, "email_subject", null, null, 0, email.getSubject()));
+        }
+
+        // 3. Optionally extract and chunk attachment text (PDF, DOCX, XLSX, …)
+        if (ragConfig.isIncludeAttachments()) {
+            List<Attachment> attachments = attachmentRepository.findByEmailId(email.getId());
+            for (Attachment att : attachments) {
+                if (att.getLocalPath() == null || att.getLocalPath().isBlank()) continue;
+                try {
+                    String attText = textExtractionService.extractTextFromFile(att.getLocalPath());
+                    if (attText == null || attText.isBlank()) continue;
+                    // Cap per-attachment to avoid bloating the index with giant binaries
+                    if (attText.length() > 50_000) attText = attText.substring(0, 50_000);
+                    List<String> attChunks = chunkingService.chunkText(attText);
+                    for (int i = 0; i < attChunks.size(); i++) {
+                        chunks.add(createChunk(email, "attachment_file", att.getLocalPath(), att.getFilename(), i, attChunks.get(i)));
+                    }
+                } catch (Exception e) {
+                    CentralLogger.logWarn("Attachment text extraction failed for: " + att.getFilename() + " – " + e.getMessage());
+                }
+            }
         }
 
         if (!chunks.isEmpty()) {

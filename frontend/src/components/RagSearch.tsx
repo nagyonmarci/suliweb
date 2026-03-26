@@ -15,6 +15,7 @@ export default function RagSearch() {
   const [message, setMessage] = useState('');
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [expandedChunks, setExpandedChunks] = useState<Set<number>>(new Set());
+  const [includeAttachments, setIncludeAttachments] = useState(false);
 
   useEffect(() => {
     loadHealth();
@@ -57,7 +58,7 @@ export default function RagSearch() {
     setIngesting(true);
     setMessage('');
     try {
-      const result = await api.ragIngest();
+      const result = await api.ragIngest(includeAttachments);
       setMessage(result);
       loadHealth();
     } catch (e: any) {
@@ -150,13 +151,33 @@ export default function RagSearch() {
         </div>
         
         <div className="flex flex-wrap gap-3">
-          <button
-            onClick={handleIngest}
-            disabled={ingesting || health?.ingestionRunning}
-            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-          >
-            {health?.ingestionRunning ? 'Indexelés folyamatban...' : ingesting ? 'Indítás...' : 'Emailek indexelése'}
-          </button>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={handleIngest}
+              disabled={ingesting || health?.ingestionRunning}
+              className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {health?.ingestionRunning ? 'Indexelés folyamatban...' : ingesting ? 'Indítás...' : 'Emailek indexelése'}
+            </button>
+            {/* Attachment toggle */}
+            <label className={`flex items-center gap-2 cursor-pointer select-none ${
+              (ingesting || health?.ingestionRunning) ? 'opacity-50 pointer-events-none' : ''
+            }`}>
+              <div
+                onClick={() => setIncludeAttachments(v => !v)}
+                className={`relative inline-flex items-center w-9 h-5 rounded-full transition-colors ${
+                  includeAttachments ? 'bg-blue-600' : 'bg-gray-300'
+                }`}
+              >
+                <span className={`absolute left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                  includeAttachments ? 'translate-x-4' : 'translate-x-0'
+                }`} />
+              </div>
+              <span className="text-xs text-gray-600">
+                Csatolányok szövegkinyerese (PDF, DOCX…) – lassabb
+              </span>
+            </label>
+          </div>
           
           <button
             onClick={handleEmbed}

@@ -31,6 +31,11 @@ public class RagConfig {
     private int embeddingThreads = 4;
     private int embeddingTimeoutSeconds = 120;
 
+    // Whether to extract and index text from attachments (PDF, DOCX, etc.) during ingestion.
+    // Significantly increases indexing time but improves search coverage.
+    private boolean includeAttachments = false;
+
+
     @Bean
     public WebClient ollamaWebClient() {
         return WebClient.builder()

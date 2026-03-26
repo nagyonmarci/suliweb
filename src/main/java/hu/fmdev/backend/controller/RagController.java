@@ -1,5 +1,6 @@
 package hu.fmdev.backend.controller;
 
+import hu.fmdev.backend.config.RagConfig;
 import hu.fmdev.backend.service.rag.EmbeddingService;
 import hu.fmdev.backend.service.rag.RagIngestionService;
 import hu.fmdev.backend.service.rag.RagSearchService;
@@ -16,13 +17,16 @@ public class RagController {
     private final RagIngestionService ingestionService;
     private final RagSearchService searchService;
     private final EmbeddingService embeddingService;
+    private final RagConfig ragConfig;
 
     public RagController(RagIngestionService ingestionService,
                          RagSearchService searchService,
-                         EmbeddingService embeddingService) {
+                         EmbeddingService embeddingService,
+                         RagConfig ragConfig) {
         this.ingestionService = ingestionService;
         this.searchService = searchService;
         this.embeddingService = embeddingService;
+        this.ragConfig = ragConfig;
     }
 
     /**
@@ -30,12 +34,16 @@ public class RagController {
      * Extracts text from email bodies + attachments, chunks them, generates embeddings.
      */
     @PostMapping("/ingest")
-    public ResponseEntity<String> ingestAll() {
+    public ResponseEntity<String> ingestAll(
+            @RequestParam(defaultValue = "false") boolean includeAttachments) {
         if (ingestionService.isRunning()) {
             return ResponseEntity.badRequest().body("Indexelés már folyamatban");
         }
+        // Apply the toggle to the shared config so the ingestion thread picks it up
+        ragConfig.setIncludeAttachments(includeAttachments);
         Thread.startVirtualThread(ingestionService::ingestAllEmails);
-        return ResponseEntity.ok("RAG indexelés elindítva");
+        String msg = "RAG indexelés elindítva" + (includeAttachments ? " (csatolmányok feldolgozásával)" : "");
+        return ResponseEntity.ok(msg);
     }
 
     /**

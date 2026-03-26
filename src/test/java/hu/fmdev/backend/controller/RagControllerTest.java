@@ -1,5 +1,6 @@
 package hu.fmdev.backend.controller;
 
+import hu.fmdev.backend.config.RagConfig;
 import hu.fmdev.backend.service.rag.EmbeddingService;
 import hu.fmdev.backend.service.rag.RagIngestionService;
 import hu.fmdev.backend.service.rag.RagSearchService;
@@ -22,12 +23,13 @@ class RagControllerTest {
     @Mock private RagIngestionService ingestionService;
     @Mock private RagSearchService searchService;
     @Mock private EmbeddingService embeddingService;
+    @Mock private RagConfig ragConfig;
 
     private RagController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new RagController(ingestionService, searchService, embeddingService);
+        controller = new RagController(ingestionService, searchService, embeddingService, ragConfig);
     }
 
     // --- /api/rag/ingest ---
@@ -36,7 +38,7 @@ class RagControllerTest {
     void ingestAll_notRunning_startsIngestion() {
         when(ingestionService.isRunning()).thenReturn(false);
 
-        var response = controller.ingestAll();
+        var response = controller.ingestAll(false);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertTrue(response.getBody().contains("elindítva"));
@@ -46,7 +48,7 @@ class RagControllerTest {
     void ingestAll_alreadyRunning_returnsBadRequest() {
         when(ingestionService.isRunning()).thenReturn(true);
 
-        var response = controller.ingestAll();
+        var response = controller.ingestAll(false);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertTrue(response.getBody().contains("folyamatban"));

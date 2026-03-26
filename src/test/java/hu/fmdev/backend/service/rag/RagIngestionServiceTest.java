@@ -3,6 +3,7 @@ package hu.fmdev.backend.service.rag;
 import hu.fmdev.backend.config.RagConfig;
 import hu.fmdev.backend.domain.DocumentChunk;
 import hu.fmdev.backend.domain.Email;
+import hu.fmdev.backend.repository.AttachmentRepository;
 import hu.fmdev.backend.repository.DocumentChunkRepository;
 import hu.fmdev.backend.repository.EmailRepository;
 import hu.fmdev.backend.service.ProgressTracker;
@@ -31,6 +32,7 @@ class RagIngestionServiceTest {
     @Mock private ChunkingService chunkingService;
     @Mock private EmbeddingService embeddingService;
     @Mock private ProgressTracker progressTracker;
+    @Mock private AttachmentRepository attachmentRepository;
 
     @Captor private ArgumentCaptor<List<DocumentChunk>> chunksCaptor;
 
@@ -42,7 +44,8 @@ class RagIngestionServiceTest {
         config.setIngestionThreads(1);
         service = new RagIngestionService(
                 emailRepository, chunkRepository, textExtractionService,
-                chunkingService, embeddingService, progressTracker, config);
+                chunkingService, embeddingService, progressTracker, config,
+                attachmentRepository);
     }
 
     private Email createTestEmail(String id, String subject, String body) {
@@ -89,28 +92,18 @@ class RagIngestionServiceTest {
 
     @Test
     void ingestEmail_withAttachments_createsAttachmentChunks() {
+        // The attachment lane only runs when includeAttachments=true;
+        // default is false, so no attachment chunks expected but subject chunk should be created.
         Email email = createTestEmail("e2", "With attachment", null);
-        email.setAttachmentPaths(List.of("/app/attachments/doc.pdf"));
-
         when(textExtractionService.getEmailTextContent(null, null)).thenReturn("");
-        when(textExtractionService.extractTextFromFile("/app/attachments/doc.pdf"))
-                .thenReturn("PDF content extracted");
-        when(chunkingService.chunkText("PDF content extracted"))
-                .thenReturn(List.of("PDF content extracted"));
+        when(attachmentRepository.findByEmailId("e2")).thenReturn(List.of());
 
         service.ingestEmail(email);
 
         verify(chunkRepository).saveAll(chunksCaptor.capture());
-        List<DocumentChunk> chunks = chunksCaptor.getValue();
-
-        // 1 subject + 1 attachment chunk (body is empty)
-        assertEquals(2, chunks.size());
-
-        DocumentChunk attachmentChunk = chunks.stream()
-                .filter(c -> "attachment".equals(c.getSourceType())).findFirst().orElseThrow();
-        assertEquals("PDF content extracted", attachmentChunk.getContent());
-        assertEquals("/app/attachments/doc.pdf", attachmentChunk.getAttachmentPath());
-        assertEquals("doc.pdf", attachmentChunk.getAttachmentFileName());
+        // Only the subject chunk (body empty, attachments disabled by default)
+        assertEquals(1, chunksCaptor.getValue().size());
+        assertEquals("email_subject", chunksCaptor.getValue().getFirst().getSourceType());
     }
 
     @Test

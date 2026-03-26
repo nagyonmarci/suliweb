@@ -332,7 +332,8 @@ export const api = {
   findSynologyToDb: () => fetchText('/find/synologyToDb'),
 
   // RAG
-  ragIngest: () => fetchText('/api/rag/ingest', { method: 'POST' }),
+  ragIngest: (includeAttachments = false) =>
+    fetchText(`/api/rag/ingest?includeAttachments=${includeAttachments}`, { method: 'POST' }),
   ragReIngest: (emailId: string) => fetchText(`/api/rag/ingest/${emailId}`, { method: 'POST' }),
   ragEmbed: () => fetchText('/api/rag/embed', { method: 'POST' }),
   ragSearch: (q: string, topK = 10) =>
