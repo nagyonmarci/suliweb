@@ -34,8 +34,9 @@ public class RagChatService {
     // Public API
     // -------------------------------------------------------------------------
 
-    public ChatResponse chat(String userMessage, int topK) {
+    public ChatResponse chat(String userMessage, int topK, String model) {
         int k = topK > 0 ? topK : ragConfig.getChatContextTopK();
+        String resolvedModel = (model != null && !model.isBlank()) ? model : ragConfig.getChatModel();
 
         // 1. Retrieve relevant chunks
         List<RagSearchService.SearchResult> chunks = searchService.search(userMessage, k);
@@ -52,7 +53,7 @@ public class RagChatService {
         );
 
         // 4. Call Ollama
-        String answer = callOllama(messages);
+        String answer = callOllama(messages, resolvedModel);
         return new ChatResponse(answer, sources);
     }
 
@@ -61,9 +62,9 @@ public class RagChatService {
     // -------------------------------------------------------------------------
 
     @SuppressWarnings("unchecked")
-    private String callOllama(List<Map<String, String>> messages) {
+    private String callOllama(List<Map<String, String>> messages, String model) {
         Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("model",  ragConfig.getChatModel());
+        requestBody.put("model", model);
         requestBody.put("messages", messages);
         requestBody.put("stream", false);
 
@@ -123,7 +124,7 @@ public class RagChatService {
 
     public record ChatSource(String emailId, String subject, String sender, double score) {}
 
-    public record ChatRequest(String message, int topK) {
+    public record ChatRequest(String message, int topK, String model) {
         public ChatRequest { if (topK <= 0) topK = 8; }
     }
 }

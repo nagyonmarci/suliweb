@@ -11,6 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.List;
 import java.util.Map;
@@ -26,12 +27,13 @@ class RagControllerTest {
     @Mock private EmbeddingService embeddingService;
     @Mock private RagConfig ragConfig;
     @Mock private RagChatService chatService;
+    @Mock private WebClient ollamaWebClient;
 
     private RagController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new RagController(ingestionService, searchService, embeddingService, ragConfig, chatService);
+        controller = new RagController(ingestionService, searchService, embeddingService, ragConfig, chatService, ollamaWebClient);
     }
 
     // --- /api/rag/ingest ---

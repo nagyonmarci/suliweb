@@ -364,9 +364,10 @@ export const api = {
   ragHealth: () => fetchJson<RagHealth>('/api/rag/health'),
   ragResetFailed: () => fetchText('/api/rag/reset-failed', { method: 'POST' }),
   ragResetAll: () => fetchText('/api/rag/reset-all', { method: 'POST' }),
-  ragChat: (message: string, topK = 8) =>
+  ragChat: (message: string, topK = 8, model?: string) =>
     fetchJson<ChatResponse>('/api/rag/chat', {
       method: 'POST',
-      body: JSON.stringify({ message, topK }),
+      body: JSON.stringify({ message, topK, model }),
     }),
+  ragModels: () => fetchJson<string[]>('/api/rag/models'),
 };

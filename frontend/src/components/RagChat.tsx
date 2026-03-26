@@ -7,7 +7,23 @@ export default function RagChat() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [expandedSources, setExpandedSources] = useState<Set<number>>(new Set());
+
+  // Model selector
+  const [models, setModels] = useState<string[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>('');
+  const [modelsLoading, setModelsLoading] = useState(true);
+
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    api.ragModels()
+      .then(list => {
+        setModels(list);
+        if (list.length > 0) setSelectedModel(list[0]);
+      })
+      .catch(() => setModels([]))
+      .finally(() => setModelsLoading(false));
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -25,7 +41,7 @@ export default function RagChat() {
     setLoading(true);
 
     try {
-      const res = await api.ragChat(text);
+      const res = await api.ragChat(text, 8, selectedModel || undefined);
       const assistantMsg: ChatMessage = {
         role: 'assistant',
         content: res.answer,
@@ -49,6 +65,27 @@ export default function RagChat() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-12rem)] min-h-[500px]">
+
+      {/* Model selector bar */}
+      <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-100">
+        <span className="text-xs font-medium text-gray-500 whitespace-nowrap">Modell:</span>
+        {modelsLoading ? (
+          <span className="text-xs text-gray-400">Betöltés…</span>
+        ) : models.length === 0 ? (
+          <span className="text-xs text-red-400">Ollama nem elérhető – nincs elérhető modell</span>
+        ) : (
+          <select
+            value={selectedModel}
+            onChange={e => setSelectedModel(e.target.value)}
+            disabled={loading}
+            className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 min-w-[200px]"
+          >
+            {models.map(m => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </select>
+        )}
+      </div>
 
       {/* Empty state */}
       {messages.length === 0 && !loading && (

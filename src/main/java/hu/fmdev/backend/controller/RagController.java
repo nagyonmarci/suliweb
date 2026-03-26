@@ -7,7 +7,9 @@ import hu.fmdev.backend.service.rag.RagIngestionService;
 import hu.fmdev.backend.service.rag.RagSearchService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.reactive.function.client.WebClient;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -20,17 +22,20 @@ public class RagController {
     private final EmbeddingService embeddingService;
     private final RagConfig ragConfig;
     private final RagChatService chatService;
+    private final WebClient ollamaWebClient;
 
     public RagController(RagIngestionService ingestionService,
                          RagSearchService searchService,
                          EmbeddingService embeddingService,
                          RagConfig ragConfig,
-                         RagChatService chatService) {
+                         RagChatService chatService,
+                         WebClient ollamaWebClient) {
         this.ingestionService = ingestionService;
         this.searchService = searchService;
         this.embeddingService = embeddingService;
         this.ragConfig = ragConfig;
         this.chatService = chatService;
+        this.ollamaWebClient = ollamaWebClient;
     }
 
     /**
@@ -109,7 +114,7 @@ public class RagController {
     @PostMapping("/chat")
     public ResponseEntity<RagChatService.ChatResponse> chat(@RequestBody RagChatService.ChatRequest request) {
         try {
-            RagChatService.ChatResponse response = chatService.chat(request.message(), request.topK());
+            RagChatService.ChatResponse response = chatService.chat(request.message(), request.topK(), request.model());
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             return ResponseEntity.internalServerError().build();
@@ -150,5 +155,32 @@ public class RagController {
     public ResponseEntity<String> resetAll() {
         long count = ingestionService.resetAll();
         return ResponseEntity.ok("Törölve " + count + " chunk – indítsd el az indexelést újra");
+    }
+
+    /**
+     * Returns the list of models currently available in Ollama.
+     * Used by the frontend model selector.
+     */
+    @GetMapping("/models")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<List<String>> listModels() {
+        try {
+            Map<String, Object> response = ollamaWebClient.get()
+                    .uri("/api/tags")
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
+            if (response == null) return ResponseEntity.ok(Collections.emptyList());
+            List<Map<String, Object>> models = (List<Map<String, Object>>) response.get("models");
+            if (models == null) return ResponseEntity.ok(Collections.emptyList());
+            List<String> names = models.stream()
+                    .map(m -> (String) m.get("name"))
+                    .filter(name -> name != null && !name.isBlank())
+                    .sorted()
+                    .toList();
+            return ResponseEntity.ok(names);
+        } catch (Exception e) {
+            return ResponseEntity.ok(Collections.emptyList());
+        }
     }
 }
