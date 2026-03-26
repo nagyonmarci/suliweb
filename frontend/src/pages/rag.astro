@@ -10,17 +10,14 @@ import RagChat from '../components/RagChat.tsx';
     <div class="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit">
       <button
         id="tab-chat"
-        onclick="switchTab('chat')"
         class="tab-btn px-5 py-2 text-sm font-medium rounded-lg transition-all bg-white shadow text-blue-700"
       >💬 Chat</button>
       <button
         id="tab-search"
-        onclick="switchTab('search')"
         class="tab-btn px-5 py-2 text-sm font-medium rounded-lg transition-all text-gray-600 hover:text-gray-900"
       >🔍 Szemantikus keresés</button>
       <button
         id="tab-manage"
-        onclick="switchTab('manage')"
         class="tab-btn px-5 py-2 text-sm font-medium rounded-lg transition-all text-gray-600 hover:text-gray-900"
       >⚙️ Kezelés</button>
     </div>
@@ -69,15 +66,15 @@ import RagChat from '../components/RagChat.tsx';
   // Activate on initial load
   activateFromHash();
 
-  // Update hash on tab click (pushState so Back/Forward works)
+  // Tab button clicks: switch immediately + update URL hash
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.id.replace('tab-', '');
       history.pushState(null, '', '#' + id);
+      switchTab(id);  // pushState does NOT fire hashchange, so call directly
     });
   });
 
-  // React to Back/Forward navigation (popstate) and direct hash changes
+  // React to Back/Forward navigation (popstate fires, hashchange does not for pushState)
   window.addEventListener('popstate', activateFromHash);
-  window.addEventListener('hashchange', activateFromHash);
 </script>
