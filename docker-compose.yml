@@ -1,18 +1,46 @@
 services:
-  frontend:
-    build: ./frontend
+  traefik:
+    image: traefik:v3.0
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
     ports:
       - "80:80"
+      - "8082:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
     restart: unless-stopped
     depends_on:
       backend:
         condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.routers.frontend.priority=1"
 
   backend:
     build: .
     ports:
       - "8080:8080"
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=PathPrefix(`/api/`) || PathPrefix(`/find/`) || PathPrefix(`/pst/`) || PathPrefix(`/pdf/`)"
+      - "traefik.http.services.backend.loadbalancer.server.port=8080"
+      - "traefik.http.routers.backend.entrypoints=web"
+      - "traefik.http.routers.backend.priority=10"
+      - "traefik.http.middlewares.api-ratelimit.ratelimit.average=200"
+      - "traefik.http.middlewares.api-ratelimit.ratelimit.burst=100"
+      - "traefik.http.routers.backend.middlewares=api-ratelimit"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - SYNOLOGY_HOST=${SYNOLOGY_HOST:-}
@@ -69,24 +97,31 @@ services:
       mongosh "mongodb://mongo:27017/emails?directConnection=true" --eval '
         db.createCollection("document_chunks");
         // Text index for keyword search lane (hybrid RAG)
-        db.document_chunks.createIndex(
-          { content: "text", emailSubject: "text", senderName: "text" },
-          { name: "chunk_text_index", weights: { content: 10, emailSubject: 5, senderName: 1 } }
-        );
-        // Vector search index (1024 dims for bge-m3) - works on Atlas local
-        db.document_chunks.createSearchIndex({
-          name: "chunk_vector_index",
-          type: "vectorSearch",
-          definition: {
-            fields: [{
-              type: "vector",
-              numDimensions: 1024,
-              path: "embedding",
-              similarity: "cosine"
-            }]
-          }
-        });
-        print("Indexes created");
+        try {
+          db.document_chunks.createIndex(
+            { content: "text", emailSubject: "text", senderName: "text" },
+            { name: "chunk_text_index", weights: { content: 10, emailSubject: 5, senderName: 1 } }
+          );
+        } catch(e) { print("Text index already exists or failed: " + e); }
+        // Vector search index with filter fields for pstFileName and ingestionStatus
+        const vectorIndexDef = {
+          fields: [
+            { type: "vector", numDimensions: 1024, path: "embedding", similarity: "cosine" },
+            { type: "filter", path: "pstFileName" },
+            { type: "filter", path: "ingestionStatus" }
+          ]
+        };
+        try {
+          db.document_chunks.updateSearchIndex("chunk_vector_index", vectorIndexDef);
+          print("Vector search index updated with filter fields");
+        } catch(e) {
+          db.document_chunks.createSearchIndex({
+            name: "chunk_vector_index",
+            type: "vectorSearch",
+            definition: vectorIndexDef
+          });
+          print("Vector search index created");
+        }
       '
 
   ollama:

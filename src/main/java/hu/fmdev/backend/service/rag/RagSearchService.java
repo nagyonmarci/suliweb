@@ -31,12 +31,9 @@ public class RagSearchService {
 
     // RRF constant – higher = less sensitive to rank position
     private static final int RRF_K = 60;
-    // Maximum chunks loaded into memory for cosine ranking
-    private static final int VECTOR_CANDIDATE_LIMIT = 50_000;
     // Final results returned to caller (before email grouping)
     private static final int FINAL_TOP_K = 10;
-    // Hard minimum cosine similarity for vector lane – cuts clear non-matches before RRF.
-    // Intentionally low (config.searchMinScore is used as the final output gate instead).
+    // Minimum Atlas vectorSearchScore to include in results (0-1 range)
     private static final double COSINE_PREFILTER = 0.20;
     // Weight of raw cosine score blended into the final RRF-based score (0 = pure RRF rank)
     private static final double COSINE_BLEND = 0.3;
@@ -130,7 +127,6 @@ public class RagSearchService {
     // Vector search (cosine similarity in JVM – works on Community MongoDB)
     // ─────────────────────────────────────────────────────────────────────────
 
-    @SuppressWarnings("unchecked")
     private List<SearchResult> vectorSearch(String query, int topK, Set<String> allowedPstFileNames) {
         List<Double> qVec = embeddingService.embed(query);
         if (qVec.isEmpty()) {
@@ -138,41 +134,38 @@ public class RagSearchService {
             return List.of();
         }
 
-        double[] q = toDoubleArray(qVec);
-
         try {
-            Document filter = new Document("ingestionStatus", "embedded");
+            Document vsDoc = new Document()
+                    .append("index", "chunk_vector_index")
+                    .append("path", "embedding")
+                    .append("queryVector", qVec)
+                    .append("numCandidates", Math.max(topK * 10, 150))
+                    .append("limit", topK);
+
             if (allowedPstFileNames != null) {
-                filter.append("pstFileName", new Document("$in", new ArrayList<>(allowedPstFileNames)));
+                vsDoc.append("filter",
+                        new Document("pstFileName", new Document("$in", new ArrayList<>(allowedPstFileNames))));
             }
 
-            List<Document> candidates = mongoTemplate.getDb()
+            List<Document> pipeline = List.of(
+                    new Document("$vectorSearch", vsDoc),
+                    new Document("$project", new Document("score", new Document("$meta", "vectorSearchScore"))
+                            .append("emailId", 1).append("sourceType", 1).append("attachmentFileName", 1)
+                            .append("content", 1).append("emailSubject", 1).append("senderName", 1)
+                            .append("senderEmailAddress", 1).append("pstFileName", 1))
+            );
+
+            List<Document> docs = mongoTemplate.getDb()
                     .getCollection("document_chunks")
-                    .find(filter)
-                    .projection(new Document("embedding", 1).append("emailId", 1)
-                            .append("sourceType", 1).append("attachmentFileName", 1)
-                            .append("content", 1).append("emailSubject", 1)
-                            .append("senderName", 1).append("senderEmailAddress", 1)
-                            .append("pstFileName", 1))
-                    .limit(VECTOR_CANDIDATE_LIMIT)
+                    .aggregate(pipeline)
                     .into(new ArrayList<>());
 
-            List<SearchResult> scored = new ArrayList<>(candidates.size());
-            for (Document doc : candidates) {
-                List<Object> rawEmb = (List<Object>) doc.get("embedding");
-                if (rawEmb == null || rawEmb.isEmpty()) continue;
-                double[] dVec = toDoubleArrayFromObjects(rawEmb);
-                if (dVec.length != q.length) continue;
-                double sim = cosineSimilarity(q, dVec);
-                if (sim >= COSINE_PREFILTER) {
-                    scored.add(toSearchResultWithScore(doc, sim));
-                }
-            }
-
-            scored.sort(Comparator.comparingDouble(SearchResult::score).reversed());
-            return scored.stream().limit(topK).toList();
+            return docs.stream()
+                    .map(doc -> toSearchResultWithScore(doc, doc.getDouble("score")))
+                    .filter(r -> r.score() >= COSINE_PREFILTER)
+                    .toList();
         } catch (Exception e) {
-            CentralLogger.logError("Vector search (cosine) failed", e);
+            CentralLogger.logError("Vector search ($vectorSearch) failed", e);
             return List.of();
         }
     }
@@ -256,37 +249,6 @@ public class RagSearchService {
             rawScores.merge(key, r.score(), Math::max);
             best.putIfAbsent(key, r);
         }
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Math helpers
-    // ─────────────────────────────────────────────────────────────────────────
-
-    private double cosineSimilarity(double[] a, double[] b) {
-        if (a.length != b.length) return 0.0;
-        double dot = 0, normA = 0, normB = 0;
-        for (int i = 0; i < a.length; i++) {
-            dot   += a[i] * b[i];
-            normA += a[i] * a[i];
-            normB += b[i] * b[i];
-        }
-        double denom = Math.sqrt(normA) * Math.sqrt(normB);
-        return denom == 0.0 ? 0.0 : dot / denom;
-    }
-
-    private double[] toDoubleArray(List<Double> list) {
-        double[] arr = new double[list.size()];
-        for (int i = 0; i < list.size(); i++) arr[i] = list.get(i);
-        return arr;
-    }
-
-    private double[] toDoubleArrayFromObjects(List<Object> list) {
-        double[] arr = new double[list.size()];
-        for (int i = 0; i < list.size(); i++) {
-            Object o = list.get(i);
-            arr[i] = o instanceof Number n ? n.doubleValue() : 0.0;
-        }
-        return arr;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
