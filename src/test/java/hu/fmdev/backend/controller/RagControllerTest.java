@@ -1,6 +1,7 @@
 package hu.fmdev.backend.controller;
 
 import hu.fmdev.backend.config.RagConfig;
+import hu.fmdev.backend.service.FileAccessService;
 import hu.fmdev.backend.service.rag.EmbeddingService;
 import hu.fmdev.backend.service.rag.RagChatService;
 import hu.fmdev.backend.service.rag.RagIngestionService;
@@ -28,12 +29,13 @@ class RagControllerTest {
     @Mock private RagConfig ragConfig;
     @Mock private RagChatService chatService;
     @Mock private WebClient ollamaWebClient;
+    @Mock private FileAccessService fileAccessService;
 
     private RagController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new RagController(ingestionService, searchService, embeddingService, ragConfig, chatService, ollamaWebClient);
+        controller = new RagController(ingestionService, searchService, embeddingService, ragConfig, chatService, ollamaWebClient, fileAccessService);
     }
 
     // --- /api/rag/ingest ---
@@ -85,18 +87,18 @@ class RagControllerTest {
         var expected = List.of(new RagSearchService.SearchResult(
                 "c1", "e1", "email_body", null, "content",
                 "Subject", "Sender", "s@t.com", "f.pst", 0.9));
-        when(searchService.search("test query", 5)).thenReturn(expected);
+        when(searchService.search("test query", 5, null)).thenReturn(expected);
 
         var result = controller.search("test query", 5);
 
         assertEquals(1, result.size());
         assertEquals("c1", result.getFirst().chunkId());
-        verify(searchService).search("test query", 5);
+        verify(searchService).search("test query", 5, null);
     }
 
     @Test
     void search_emptyResults() {
-        when(searchService.search("nothing", 10)).thenReturn(List.of());
+        when(searchService.search("nothing", 10, null)).thenReturn(List.of());
 
         var result = controller.search("nothing", 10);
         assertTrue(result.isEmpty());
@@ -106,18 +108,18 @@ class RagControllerTest {
 
     @Test
     void searchEmails_delegatesToService() {
-        when(searchService.searchEmails("query", 10)).thenReturn(List.of());
+        when(searchService.searchEmails("query", 10, null)).thenReturn(List.of());
 
         var result = controller.searchEmails("query", 10);
         assertTrue(result.isEmpty());
-        verify(searchService).searchEmails("query", 10);
+        verify(searchService).searchEmails("query", 10, null);
     }
 
     // --- /api/rag/context ---
 
     @Test
     void getContext_returnsQueryAndContext() {
-        when(searchService.buildContext("query", 5)).thenReturn("RAG context text");
+        when(searchService.buildContext("query", 5, null)).thenReturn("RAG context text");
 
         Map<String, String> result = controller.getContext("query", 5);
 
