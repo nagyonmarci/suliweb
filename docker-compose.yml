@@ -57,10 +57,30 @@ services:
       - attachments:/app/attachments
       - pst_source:/data/pst_source:ro
       - logs:/app/logs
-      - /Volumes/archiv:/Volumes/archiv:ro
-      - /Volumes/data:/Volumes/data:ro
-      - /Volumes/eadat:/Volumes/eadat:ro
-      - /Users/fabianm/PSTs:/Users/fabianm/PSTs:ro
+      - type: bind
+        source: /Volumes/archiv
+        target: /Volumes/archiv
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: /Volumes/data
+        target: /Volumes/data
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: /Volumes/eadat
+        target: /Volumes/eadat
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: /Users/fabianm/PSTs
+        target: /Users/fabianm/PSTs
+        read_only: true
+        bind:
+          create_host_path: true
     depends_on:
       mongo:
         condition: service_healthy
