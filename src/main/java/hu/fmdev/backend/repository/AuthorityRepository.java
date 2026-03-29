@@ -6,4 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface AuthorityRepository extends MongoRepository<Authority, String> {
+    Authority findByPermission(String permission);
 }

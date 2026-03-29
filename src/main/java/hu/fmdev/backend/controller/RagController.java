@@ -93,6 +93,7 @@ public class RagController {
     }
 
     @PostMapping("/chat")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('RAG_CHAT')")
     public ResponseEntity<RagChatService.ChatResponse> chat(@RequestBody RagChatService.ChatRequest request) {
         try {
             Set<String> allowed = fileAccessService.getAllowedPstFileNames();

@@ -28,19 +28,13 @@ public class UserSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
+        Authority adminAuth = ensureAuthority("ROLE_ADMIN");
+        Authority userAuth  = ensureAuthority("ROLE_USER");
+        Authority ragChat   = ensureAuthority("RAG_CHAT");
+
         if (userRepository.count() == 0) {
             System.out.println("No users found. Creating default admin user...");
 
-            // Create Authorities
-            Authority adminAuth = new Authority();
-            adminAuth.setPermission("ROLE_ADMIN");
-            authorityRepository.save(adminAuth);
-
-            Authority userAuth = new Authority();
-            userAuth.setPermission("ROLE_USER");
-            authorityRepository.save(userAuth);
-
-            // Create Admin User
             User admin = new User();
             admin.setUsername("admin");
             admin.setPassword(passwordEncoder.encode("admin123"));
@@ -48,10 +42,19 @@ public class UserSeeder implements CommandLineRunner {
             Set<Authority> authorities = new HashSet<>();
             authorities.add(adminAuth);
             authorities.add(userAuth);
+            authorities.add(ragChat);
             admin.setAuthorities(authorities);
-            
+
             userRepository.save(admin);
             System.out.println("Default admin user created successfully.");
         }
+    }
+
+    private Authority ensureAuthority(String permission) {
+        Authority existing = authorityRepository.findByPermission(permission);
+        if (existing != null) return existing;
+        Authority auth = new Authority();
+        auth.setPermission(permission);
+        return authorityRepository.save(auth);
     }
 }
