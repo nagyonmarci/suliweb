@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -87,18 +88,18 @@ class RagControllerTest {
         var expected = List.of(new RagSearchService.SearchResult(
                 "c1", "e1", "email_body", null, "content",
                 "Subject", "Sender", "s@t.com", "f.pst", 0.9));
-        when(searchService.search("test query", 5, null)).thenReturn(expected);
+        when(searchService.search(eq("test query"), eq(5), any())).thenReturn(expected);
 
         var result = controller.search("test query", 5);
 
         assertEquals(1, result.size());
         assertEquals("c1", result.getFirst().chunkId());
-        verify(searchService).search("test query", 5, null);
+        verify(searchService).search(eq("test query"), eq(5), any());
     }
 
     @Test
     void search_emptyResults() {
-        when(searchService.search("nothing", 10, null)).thenReturn(List.of());
+        when(searchService.search(eq("nothing"), eq(10), any())).thenReturn(List.of());
 
         var result = controller.search("nothing", 10);
         assertTrue(result.isEmpty());
@@ -108,18 +109,18 @@ class RagControllerTest {
 
     @Test
     void searchEmails_delegatesToService() {
-        when(searchService.searchEmails("query", 10, null)).thenReturn(List.of());
+        when(searchService.searchEmails(eq("query"), eq(10), any())).thenReturn(List.of());
 
         var result = controller.searchEmails("query", 10);
         assertTrue(result.isEmpty());
-        verify(searchService).searchEmails("query", 10, null);
+        verify(searchService).searchEmails(eq("query"), eq(10), any());
     }
 
     // --- /api/rag/context ---
 
     @Test
     void getContext_returnsQueryAndContext() {
-        when(searchService.buildContext("query", 5, null)).thenReturn("RAG context text");
+        when(searchService.buildContext(eq("query"), eq(5), any())).thenReturn("RAG context text");
 
         Map<String, String> result = controller.getContext("query", 5);
 

@@ -9,6 +9,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Component
@@ -51,10 +52,11 @@ public class UserSeeder implements CommandLineRunner {
     }
 
     private Authority ensureAuthority(String permission) {
-        Authority existing = authorityRepository.findByPermission(permission);
-        if (existing != null) return existing;
+        List<Authority> existing = authorityRepository.findByPermission(permission);
+        if (existing != null && !existing.isEmpty()) return existing.get(0);
         Authority auth = new Authority();
         auth.setPermission(permission);
         return authorityRepository.save(auth);
     }
 }
+
