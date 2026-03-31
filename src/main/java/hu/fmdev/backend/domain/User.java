@@ -6,7 +6,9 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Document(collection = "users")
@@ -27,4 +29,6 @@ public class User {
 
     @DBRef(lazy = true)
     private Set<Authority> authorities = new HashSet<>();
+
+    private List<String> allowedFileInfoIds = new ArrayList<>();
 }

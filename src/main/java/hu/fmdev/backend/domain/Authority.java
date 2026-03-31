@@ -2,6 +2,7 @@ package hu.fmdev.backend.domain;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import org.springframework.data.annotation.Id;
@@ -13,6 +14,8 @@ public class Authority {
     @Id
     private String id;
 
+    @Indexed(unique = true)
     private String permission; // például "CONTRACTS_EDIT", "CONTRACTS_READ", "REQUESTS_SUBMIT", "REQUESTS_READ"
 
 }
+

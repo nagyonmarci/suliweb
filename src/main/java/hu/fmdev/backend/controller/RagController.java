@@ -1,6 +1,7 @@
 package hu.fmdev.backend.controller;
 
 import hu.fmdev.backend.config.RagConfig;
+import hu.fmdev.backend.service.FileAccessService;
 import hu.fmdev.backend.service.rag.EmbeddingService;
 import hu.fmdev.backend.service.rag.RagChatService;
 import hu.fmdev.backend.service.rag.RagIngestionService;
@@ -25,19 +26,22 @@ public class RagController {
     private final RagConfig ragConfig;
     private final RagChatService chatService;
     private final WebClient ollamaWebClient;
+    private final FileAccessService fileAccessService;
 
     public RagController(RagIngestionService ingestionService,
                          RagSearchService searchService,
                          EmbeddingService embeddingService,
                          RagConfig ragConfig,
                          RagChatService chatService,
-                         WebClient ollamaWebClient) {
+                         WebClient ollamaWebClient,
+                         FileAccessService fileAccessService) {
         this.ingestionService = ingestionService;
         this.searchService = searchService;
         this.embeddingService = embeddingService;
         this.ragConfig = ragConfig;
         this.chatService = chatService;
         this.ollamaWebClient = ollamaWebClient;
+        this.fileAccessService = fileAccessService;
     }
 
     /**
@@ -87,7 +91,8 @@ public class RagController {
             @RequestParam(required = false) String pstFile,
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate) {
-        var filters = RagSearchService.SearchFilters.of(sender, pstFile, startDate, endDate);
+        var filters = RagSearchService.SearchFilters.of(sender, pstFile, startDate, endDate,
+                fileAccessService.getAllowedPstFileNames());
         return searchService.search(q, topK, filters);
     }
 
@@ -103,7 +108,8 @@ public class RagController {
             @RequestParam(required = false) String pstFile,
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate) {
-        var filters = RagSearchService.SearchFilters.of(sender, pstFile, startDate, endDate);
+        var filters = RagSearchService.SearchFilters.of(sender, pstFile, startDate, endDate,
+                fileAccessService.getAllowedPstFileNames());
         return searchService.searchEmails(q, topK, filters);
     }
 
@@ -115,7 +121,7 @@ public class RagController {
     public Map<String, String> getContext(
             @RequestParam String q,
             @RequestParam(defaultValue = "10") int topK) {
-        String context = searchService.buildContext(q, topK);
+        String context = searchService.buildContext(q, topK, fileAccessService.getAllowedPstFileNames());
         return Map.of("query", q, "context", context);
     }
 

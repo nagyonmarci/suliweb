@@ -2,6 +2,7 @@ package hu.fmdev.backend.controller;
 
 import hu.fmdev.backend.domain.Email;
 import hu.fmdev.backend.repository.EmailRepository;
+import hu.fmdev.backend.service.FileAccessService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +19,12 @@ public class EmailController {
     @Autowired
     private EmailRepository emailRepository;
 
+    @Autowired
+    private FileAccessService fileAccessService;
+
+    @Autowired
+    private org.springframework.data.mongodb.core.MongoTemplate mongoTemplate;
+
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(EmailController.class);
 
     private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
@@ -27,13 +34,11 @@ public class EmailController {
         return Pattern.quote(input);
     }
 
-    @Autowired
-    private org.springframework.data.mongodb.core.MongoTemplate mongoTemplate;
-
     @GetMapping
     public List<Email> getAllEmails() {
         log.info("Lekérdezés: összes e-mail (limit 1000)");
         org.springframework.data.mongodb.core.query.Query query = new org.springframework.data.mongodb.core.query.Query();
+        applyPstFilter(query);
         query.limit(1000);
         query.with(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "receivedTime"));
         List<Email> emails = mongoTemplate.find(query, Email.class);
@@ -43,7 +48,9 @@ public class EmailController {
 
     @GetMapping("/count")
     public long countAllEmails() {
-        return mongoTemplate.count(new org.springframework.data.mongodb.core.query.Query(), Email.class);
+        org.springframework.data.mongodb.core.query.Query query = new org.springframework.data.mongodb.core.query.Query();
+        applyPstFilter(query);
+        return mongoTemplate.count(query, Email.class);
     }
 
     @GetMapping("/search")
@@ -80,8 +87,7 @@ public class EmailController {
         }
 
         if (subject != null && !subject.isEmpty()) {
-            andCriteria.add(
-                    org.springframework.data.mongodb.core.query.Criteria.where("subject").regex(escapeRegex(subject), "i"));
+            andCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("subject").regex(escapeRegex(subject), "i"));
         }
         if (sender != null && !sender.isEmpty()) {
             String escapedSender = escapeRegex(sender);
@@ -90,16 +96,13 @@ public class EmailController {
                     org.springframework.data.mongodb.core.query.Criteria.where("senderEmailAddress").regex(escapedSender, "i")));
         }
         if (recipient != null && !recipient.isEmpty()) {
-            andCriteria.add(
-                    org.springframework.data.mongodb.core.query.Criteria.where("recipients").regex(escapeRegex(recipient), "i"));
+            andCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("recipients").regex(escapeRegex(recipient), "i"));
         }
         if (pstFile != null && !pstFile.isEmpty()) {
-            andCriteria.add(
-                    org.springframework.data.mongodb.core.query.Criteria.where("pstFileName").regex(escapeRegex(pstFile), "i"));
+            andCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("pstFileName").regex(escapeRegex(pstFile), "i"));
         }
         if (folder != null && !folder.isEmpty()) {
-            andCriteria.add(
-                    org.springframework.data.mongodb.core.query.Criteria.where("folderPath").regex(escapeRegex(folder), "i"));
+            andCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("folderPath").regex(escapeRegex(folder), "i"));
         }
         if (importance != null) {
             andCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("importance").is(importance));
@@ -107,16 +110,17 @@ public class EmailController {
         if (isRead != null) {
             andCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("isRead").is(isRead));
         }
-        
         if (startDate != null || endDate != null) {
             org.springframework.data.mongodb.core.query.Criteria dateCriteria = org.springframework.data.mongodb.core.query.Criteria.where("receivedTime");
-            if (startDate != null) {
-                dateCriteria.gte(startDate);
-            }
-            if (endDate != null) {
-                dateCriteria.lte(endDate);
-            }
+            if (startDate != null) dateCriteria.gte(startDate);
+            if (endDate != null) dateCriteria.lte(endDate);
             andCriteria.add(dateCriteria);
+        }
+
+        // PST file access restriction
+        Set<String> allowedPstNames = fileAccessService.getAllowedPstFileNames();
+        if (allowedPstNames != null) {
+            andCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("pstFileName").in(allowedPstNames));
         }
 
         if (!andCriteria.isEmpty()) {
@@ -137,11 +141,14 @@ public class EmailController {
     @GetMapping("/{id}")
     public ResponseEntity<Email> getEmailById(@PathVariable("id") String id) {
         Email email = emailRepository.findById(id).orElse(null);
-        if (email != null) {
-            return ResponseEntity.ok(email);
-        } else {
+        if (email == null) {
             return ResponseEntity.notFound().build();
         }
+        Set<String> allowedPstNames = fileAccessService.getAllowedPstFileNames();
+        if (allowedPstNames != null && !allowedPstNames.contains(email.getPstFileName())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(email);
     }
 
     @PostMapping
@@ -167,5 +174,12 @@ public class EmailController {
         }
         emailRepository.deleteById(id);
         return ResponseEntity.noContent().build();
+    }
+
+    private void applyPstFilter(org.springframework.data.mongodb.core.query.Query query) {
+        Set<String> allowedPstNames = fileAccessService.getAllowedPstFileNames();
+        if (allowedPstNames != null) {
+            query.addCriteria(org.springframework.data.mongodb.core.query.Criteria.where("pstFileName").in(allowedPstNames));
+        }
     }
 }

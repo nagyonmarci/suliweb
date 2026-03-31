@@ -7,10 +7,10 @@ import RagChat from '../components/RagChat.tsx';
 <Layout title="RAG – Levelezési asszisztens" activePage="/rag">
   <!-- Tab nav -->
   <div class="mb-6">
-    <div class="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit">
+    <div id="tab-bar" class="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit">
       <button
         id="tab-chat"
-        class="tab-btn px-5 py-2 text-sm font-medium rounded-lg transition-all bg-white shadow text-blue-700"
+        class="tab-btn hidden px-5 py-2 text-sm font-medium rounded-lg transition-all"
       >💬 Chat</button>
       <button
         id="tab-search"
@@ -24,7 +24,7 @@ import RagChat from '../components/RagChat.tsx';
   </div>
 
   <!-- Tab panels -->
-  <div id="panel-chat">
+  <div id="panel-chat" class="hidden">
     <RagChat client:load />
   </div>
 
@@ -38,9 +38,10 @@ import RagChat from '../components/RagChat.tsx';
 </Layout>
 
 <script>
+  const VALID_TABS = ['chat', 'search', 'manage'];
+
   function switchTab(tab: string) {
-    const panels = ['chat', 'search', 'manage'];
-    panels.forEach(p => {
+    VALID_TABS.forEach(p => {
       const panel = document.getElementById('panel-' + p);
       const btn   = document.getElementById('tab-' + p);
       if (!panel || !btn) return;
@@ -56,25 +57,43 @@ import RagChat from '../components/RagChat.tsx';
     });
   }
 
-  const VALID_TABS = ['chat', 'search', 'manage'];
-
-  function activateFromHash() {
-    const hash = window.location.hash.replace('#', '') || 'chat';
-    switchTab(VALID_TABS.includes(hash) ? hash : 'chat');
+  function activateFromHash(hasChat: boolean) {
+    const hash = window.location.hash.replace('#', '');
+    const desired = VALID_TABS.includes(hash) ? hash : (hasChat ? 'chat' : 'search');
+    // Don't allow chat tab if no permission
+    switchTab(desired === 'chat' && !hasChat ? 'search' : desired);
   }
 
-  // Activate on initial load
-  activateFromHash();
+  (async () => {
+    // Check RAG_CHAT authority
+    let hasChat = false;
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        const res = await fetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
+        if (res.ok) {
+          const user = await res.json();
+          hasChat = Array.isArray(user.authorities) && user.authorities.includes('RAG_CHAT');
+        }
+      }
+    } catch { /* silently fail */ }
 
-  // Tab button clicks: switch immediately + update URL hash
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.id.replace('tab-', '');
-      history.pushState(null, '', '#' + id);
-      switchTab(id);  // pushState does NOT fire hashchange, so call directly
+    const chatBtn = document.getElementById('tab-chat');
+    if (hasChat && chatBtn) {
+      chatBtn.classList.remove('hidden');
+    }
+
+    activateFromHash(hasChat);
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.id.replace('tab-', '');
+        if (id === 'chat' && !hasChat) return;
+        history.pushState(null, '', '#' + id);
+        switchTab(id);
+      });
     });
-  });
 
-  // React to Back/Forward navigation (popstate fires, hashchange does not for pushState)
-  window.addEventListener('popstate', activateFromHash);
+    window.addEventListener('popstate', () => activateFromHash(hasChat));
+  })();
 </script>

@@ -120,8 +120,11 @@ public class RagSearchService {
     }
 
     /** Builds a human-readable context string for an LLM prompt. */
-    public String buildContext(String query, int topK) {
-        List<SearchResult> results = search(query, topK > 0 ? topK : FINAL_TOP_K);
+    public String buildContext(String query, int topK, java.util.Set<String> allowedPstFileNames) {
+        var filters = allowedPstFileNames != null
+                ? SearchFilters.of(null, null, null, null, allowedPstFileNames)
+                : SearchFilters.NONE;
+        List<SearchResult> results = search(query, topK > 0 ? topK : FINAL_TOP_K, filters);
         if (results.isEmpty()) return "Nem található releváns tartalom.";
 
         StringBuilder sb = new StringBuilder("A keresés alapján talált releváns részletek:\n\n");
@@ -136,6 +139,10 @@ public class RagSearchService {
             sb.append("\n").append("Tartalom: ").append(r.content()).append("\n\n");
         }
         return sb.toString();
+    }
+
+    public String buildContext(String query, int topK) {
+        return buildContext(query, topK, null);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -372,20 +379,34 @@ public class RagSearchService {
      * Metadata filters for post-search filtering.
      * All fields are optional – null or blank means "don't filter".
      */
-    public record SearchFilters(String sender, String pstFile, String startDate, String endDate) {
-        public static final SearchFilters NONE = new SearchFilters(null, null, null, null);
+    public record SearchFilters(String sender, String pstFile, String startDate, String endDate,
+                                java.util.Set<String> allowedPstFileNames) {
+        public static final SearchFilters NONE = new SearchFilters(null, null, null, null, null);
 
         public static SearchFilters of(String sender, String pstFile, String startDate, String endDate) {
             boolean any = (sender != null && !sender.isBlank())
                     || (pstFile != null && !pstFile.isBlank())
                     || (startDate != null && !startDate.isBlank())
                     || (endDate != null && !endDate.isBlank());
-            return any ? new SearchFilters(sender, pstFile, startDate, endDate) : NONE;
+            return any ? new SearchFilters(sender, pstFile, startDate, endDate, null) : NONE;
+        }
+
+        public static SearchFilters of(String sender, String pstFile, String startDate, String endDate,
+                                       java.util.Set<String> allowedPstFileNames) {
+            boolean any = (sender != null && !sender.isBlank())
+                    || (pstFile != null && !pstFile.isBlank())
+                    || (startDate != null && !startDate.isBlank())
+                    || (endDate != null && !endDate.isBlank())
+                    || (allowedPstFileNames != null);
+            return any ? new SearchFilters(sender, pstFile, startDate, endDate, allowedPstFileNames) : NONE;
         }
 
         public boolean hasAny() { return this != NONE; }
 
         public boolean matches(SearchResult r) {
+            if (allowedPstFileNames != null && !allowedPstFileNames.contains(r.pstFileName())) {
+                return false;
+            }
             if (sender != null && !sender.isBlank()) {
                 String s = sender.toLowerCase();
                 boolean senderMatch = (r.senderName() != null && r.senderName().toLowerCase().contains(s))
@@ -397,9 +418,6 @@ public class RagSearchService {
                     return false;
                 }
             }
-            // Date filtering would require the chunk to carry receivedTime – skipped for now
-            // as chunks don't store emailReceivedTime as a string in SearchResult.
-            // This is a known limitation; for full date filtering, use the /api/emails/search endpoint.
             return true;
         }
     }

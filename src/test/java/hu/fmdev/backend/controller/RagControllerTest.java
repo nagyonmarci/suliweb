@@ -1,6 +1,7 @@
 package hu.fmdev.backend.controller;
 
 import hu.fmdev.backend.config.RagConfig;
+import hu.fmdev.backend.service.FileAccessService;
 import hu.fmdev.backend.service.rag.EmbeddingService;
 import hu.fmdev.backend.service.rag.RagChatService;
 import hu.fmdev.backend.service.rag.RagIngestionService;
@@ -32,12 +33,13 @@ class RagControllerTest {
     @Mock private RagChatService chatService;
     @Mock private WebClient ollamaWebClient;
     @Mock private LogEntryRepository logEntryRepository;
+    @Mock private hu.fmdev.backend.service.FileAccessService fileAccessService;
 
     private RagController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new RagController(ingestionService, searchService, embeddingService, ragConfig, chatService, ollamaWebClient);
+        controller = new RagController(ingestionService, searchService, embeddingService, ragConfig, chatService, ollamaWebClient, fileAccessService);
 
         // Initialize CentralLogger for static calls during tests
         CentralLogger logger = new CentralLogger();
