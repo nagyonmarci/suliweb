@@ -25,27 +25,32 @@ import java.util.stream.Collectors;
 public class RagSearchService {
 
     private final EmbeddingService embeddingService;
+    private final QueryRewriteService queryRewriteService;
+    private final QdrantService qdrantService;
     private final MongoTemplate mongoTemplate;
     private final EmailRepository emailRepository;
     private final RagConfig ragConfig;
 
     // RRF constant – higher = less sensitive to rank position
     private static final int RRF_K = 60;
-    // Maximum chunks loaded into memory for cosine ranking
+    // Maximum chunks loaded into memory for cosine ranking (fallback when Qdrant is unavailable)
     private static final int VECTOR_CANDIDATE_LIMIT = 50_000;
     // Final results returned to caller (before email grouping)
     private static final int FINAL_TOP_K = 10;
     // Hard minimum cosine similarity for vector lane – cuts clear non-matches before RRF.
-    // Intentionally low (config.searchMinScore is used as the final output gate instead).
     private static final double COSINE_PREFILTER = 0.20;
     // Weight of raw cosine score blended into the final RRF-based score (0 = pure RRF rank)
     private static final double COSINE_BLEND = 0.3;
 
     public RagSearchService(EmbeddingService embeddingService,
+                            QueryRewriteService queryRewriteService,
+                            QdrantService qdrantService,
                             MongoTemplate mongoTemplate,
                             EmailRepository emailRepository,
                             RagConfig ragConfig) {
         this.embeddingService = embeddingService;
+        this.queryRewriteService = queryRewriteService;
+        this.qdrantService = qdrantService;
         this.mongoTemplate = mongoTemplate;
         this.emailRepository = emailRepository;
         this.ragConfig = ragConfig;
@@ -57,11 +62,18 @@ public class RagSearchService {
 
     /**
      * Hybrid search: cosine vector similarity + MongoDB full-text search, fused via RRF.
+     * Uses HyDE (Hypothetical Document Embedding) for the vector lane when enabled:
+     * instead of embedding the raw query, we embed a hypothetical answer which is
+     * semantically closer to the actual documents.
      */
     public List<SearchResult> search(String query, int topK) {
         int k = topK > 0 ? topK : FINAL_TOP_K;
 
-        List<SearchResult> vectorResults  = vectorSearch(query, ragConfig.getSearchTopK());
+        // HyDE: generate a hypothetical answer and use its embedding for vector search
+        String vectorQuery = queryRewriteService.generateHypotheticalAnswer(query);
+
+        List<SearchResult> vectorResults  = vectorSearch(vectorQuery, ragConfig.getSearchTopK());
+        // Keyword lane always uses the original query for exact term matching
         List<SearchResult> keywordResults = keywordSearch(query, ragConfig.getSearchTopK());
 
         return reciprocalRankFusion(vectorResults, keywordResults)
@@ -113,10 +125,10 @@ public class RagSearchService {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Vector search (cosine similarity in JVM – works on Community MongoDB)
+    // Vector search – delegates to Qdrant (HNSW) when available, falls back
+    // to brute-force cosine similarity in JVM for Community MongoDB setups
     // ─────────────────────────────────────────────────────────────────────────
 
-    @SuppressWarnings("unchecked")
     private List<SearchResult> vectorSearch(String query, int topK) {
         List<Double> qVec = embeddingService.embed(query);
         if (qVec.isEmpty()) {
@@ -124,10 +136,47 @@ public class RagSearchService {
             return List.of();
         }
 
+        // Prefer Qdrant ANN search when available (millisecond latency vs seconds for brute-force)
+        if (qdrantService.isAvailable()) {
+            return qdrantVectorSearch(qVec, topK);
+        }
+        return bruteForceVectorSearch(qVec, topK);
+    }
+
+    /**
+     * Fast ANN search via Qdrant HNSW index.
+     */
+    private List<SearchResult> qdrantVectorSearch(List<Double> qVec, int topK) {
+        try {
+            List<QdrantService.QdrantHit> hits = qdrantService.search(qVec, topK);
+            return hits.stream()
+                    .filter(hit -> hit.score() >= COSINE_PREFILTER)
+                    .map(hit -> new SearchResult(
+                            hit.payload().getOrDefault("chunkId", hit.pointId()),
+                            hit.payload().getOrDefault("emailId", ""),
+                            hit.payload().getOrDefault("sourceType", ""),
+                            hit.payload().get("attachmentFileName"),
+                            hit.payload().getOrDefault("content", ""),
+                            hit.payload().getOrDefault("emailSubject", ""),
+                            hit.payload().getOrDefault("senderName", ""),
+                            hit.payload().getOrDefault("senderEmailAddress", ""),
+                            hit.payload().getOrDefault("pstFileName", ""),
+                            hit.score()))
+                    .toList();
+        } catch (Exception e) {
+            CentralLogger.logError("Qdrant vector search failed, falling back to brute-force", e);
+            return bruteForceVectorSearch(qVec, topK);
+        }
+    }
+
+    /**
+     * Brute-force cosine similarity in JVM – fallback when Qdrant is not available.
+     */
+    @SuppressWarnings("unchecked")
+    private List<SearchResult> bruteForceVectorSearch(List<Double> qVec, int topK) {
         double[] q = toDoubleArray(qVec);
 
         try {
-            // Fetch embedded chunks (only the fields we need – no content yet to save memory)
             List<Document> candidates = mongoTemplate.getDb()
                     .getCollection("document_chunks")
                     .find(new Document("ingestionStatus", "embedded"))
@@ -139,13 +188,12 @@ public class RagSearchService {
                     .limit(VECTOR_CANDIDATE_LIMIT)
                     .into(new ArrayList<>());
 
-            // Compute cosine similarity for each candidate
             List<SearchResult> scored = new ArrayList<>(candidates.size());
             for (Document doc : candidates) {
                 List<Object> rawEmb = (List<Object>) doc.get("embedding");
                 if (rawEmb == null || rawEmb.isEmpty()) continue;
                 double[] dVec = toDoubleArrayFromObjects(rawEmb);
-                if (dVec.length != q.length) continue;  // dimension mismatch guard
+                if (dVec.length != q.length) continue;
                 double sim = cosineSimilarity(q, dVec);
                 if (sim >= COSINE_PREFILTER) {
                     scored.add(toSearchResultWithScore(doc, sim));
@@ -155,7 +203,7 @@ public class RagSearchService {
             scored.sort(Comparator.comparingDouble(SearchResult::score).reversed());
             return scored.stream().limit(topK).toList();
         } catch (Exception e) {
-            CentralLogger.logError("Vector search (cosine) failed", e);
+            CentralLogger.logError("Vector search (brute-force cosine) failed", e);
             return List.of();
         }
     }

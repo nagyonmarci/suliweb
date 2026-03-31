@@ -154,7 +154,12 @@ export default function RagChat() {
     setLoading(true);
 
     try {
-      const res = await api.ragChat(text, 8, activeSession.model || undefined);
+      // Send conversation history (without sources) so the LLM has context for follow-up questions
+      const historyForApi = activeSession.messages.map(m => ({
+        role: m.role,
+        content: m.content,
+      }));
+      const res = await api.ragChat(text, 8, activeSession.model || undefined, historyForApi);
       const assistantMsg: ChatMessage = {
         role: 'assistant',
         content: res.answer,

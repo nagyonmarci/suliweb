@@ -114,7 +114,8 @@ public class RagController {
     @PostMapping("/chat")
     public ResponseEntity<RagChatService.ChatResponse> chat(@RequestBody RagChatService.ChatRequest request) {
         try {
-            RagChatService.ChatResponse response = chatService.chat(request.message(), request.topK(), request.model());
+            RagChatService.ChatResponse response = chatService.chat(
+                    request.message(), request.topK(), request.model(), request.history());
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             return ResponseEntity.internalServerError().build();

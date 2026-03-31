@@ -36,8 +36,23 @@ public class RagConfig {
     private boolean includeAttachments = false;
 
     // Chat (RAG-grounded LLM) settings
-    private String chatModel = "llama3.2";
+    // Recommended models (in order of quality): qwen2.5:14b, llama3.1:8b, gemma2:9b, mistral:7b
+    // llama3.2 (3B) is too small for quality Hungarian RAG answers
+    private String chatModel = "llama3.1:8b";
     private int chatContextTopK = 8;
+
+    // Maximum number of conversation history turns sent to the LLM (user+assistant pairs)
+    private int chatMaxHistoryTurns = 6;
+
+    // HyDE (Hypothetical Document Embedding) – generates a hypothetical answer for better vector search
+    private boolean hydeEnabled = true;
+
+    // Qdrant vector database settings
+    private boolean qdrantEnabled = false;
+    private String qdrantHost = "localhost";
+    private int qdrantGrpcPort = 6334;
+    private int qdrantRestPort = 6333;
+    private String qdrantCollectionName = "document_chunks";
 
 
     @Bean

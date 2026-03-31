@@ -19,13 +19,16 @@ import java.util.stream.Collectors;
 public class RagChatService {
 
     private final RagSearchService searchService;
+    private final QueryRewriteService queryRewriteService;
     private final WebClient ollamaWebClient;
     private final RagConfig ragConfig;
 
     public RagChatService(RagSearchService searchService,
+                          QueryRewriteService queryRewriteService,
                           WebClient ollamaWebClient,
                           RagConfig ragConfig) {
         this.searchService = searchService;
+        this.queryRewriteService = queryRewriteService;
         this.ollamaWebClient = ollamaWebClient;
         this.ragConfig = ragConfig;
     }
@@ -34,27 +37,49 @@ public class RagChatService {
     // Public API
     // -------------------------------------------------------------------------
 
-    public ChatResponse chat(String userMessage, int topK, String model) {
+    public ChatResponse chat(String userMessage, int topK, String model,
+                              List<HistoryMessage> history) {
         int k = topK > 0 ? topK : ragConfig.getChatContextTopK();
         String resolvedModel = (model != null && !model.isBlank()) ? model : ragConfig.getChatModel();
 
-        // 1. Retrieve relevant chunks
-        List<RagSearchService.SearchResult> chunks = searchService.search(userMessage, k);
+        // 1. Rewrite follow-up questions into standalone queries using conversation history
+        String searchQuery = queryRewriteService.rewriteWithHistory(userMessage, history);
+
+        // 2. Retrieve relevant chunks using the (potentially rewritten) query
+        List<RagSearchService.SearchResult> chunks = searchService.search(searchQuery, k);
         List<ChatSource> sources = buildSources(chunks);
 
-        // 2. Build context text
-        String context = searchService.buildContext(userMessage, k);
+        // 3. Build context text
+        String context = searchService.buildContext(searchQuery, k);
 
-        // 3. Build Ollama messages
+        // 4. Build Ollama messages with conversation history
         String systemPrompt = buildSystemPrompt(context);
-        List<Map<String, String>> messages = List.of(
-                Map.of("role", "system", "content", systemPrompt),
-                Map.of("role", "user",   "content", userMessage)
-        );
+        List<Map<String, String>> messages = new ArrayList<>();
+        messages.add(Map.of("role", "system", "content", systemPrompt));
 
-        // 4. Call Ollama
+        // Include conversation history (limited to configured max turns)
+        if (history != null && !history.isEmpty()) {
+            int maxTurns = ragConfig.getChatMaxHistoryTurns() * 2; // each turn = user + assistant
+            List<HistoryMessage> trimmed = history.size() > maxTurns
+                    ? history.subList(history.size() - maxTurns, history.size())
+                    : history;
+            for (HistoryMessage msg : trimmed) {
+                if (msg.role() != null && msg.content() != null) {
+                    messages.add(Map.of("role", msg.role(), "content", msg.content()));
+                }
+            }
+        }
+
+        messages.add(Map.of("role", "user", "content", userMessage));
+
+        // 5. Call Ollama
         String answer = callOllama(messages, resolvedModel);
         return new ChatResponse(answer, sources);
+    }
+
+    /** Backwards-compatible overload without history. */
+    public ChatResponse chat(String userMessage, int topK, String model) {
+        return chat(userMessage, topK, model, null);
     }
 
     // -------------------------------------------------------------------------
@@ -94,10 +119,18 @@ public class RagChatService {
 
     private String buildSystemPrompt(String context) {
         return """
-                Te egy e-mail archívum asszisztense vagy. \
-                A felhasználó kérdéseire kizárólag az alábbi, a keresési rendszer által visszaadott e-mailek \
-                tartalma alapján válaszolj. Ha a kontextusban nincs elegendő információ, jelezd ezt őszintén. \
-                Válaszolj magyarul, pontosan és tömören.
+                Te egy e-mail archívum intelligens asszisztense vagy. A felhasználó egy PST e-mail archívumban \
+                keres információt, és te a keresési rendszer által visszaadott releváns e-mail részletek \
+                alapján válaszolsz.
+
+                ## Szabályok
+                1. **Kizárólag** az alábbi kontextus alapján válaszolj. NE találj ki információt.
+                2. Ha a kontextusban nincs elegendő információ, mondd el őszintén, és javasold a keresés pontosítását.
+                3. Minden állításodnál hivatkozz a forrás e-mail tárgyára vagy feladójára (pl. "A «Szerződésmódosítás» tárgyú levélben...").
+                4. Ha több, egymásnak ellentmondó információt találsz, jelezd a különbségeket.
+                5. Válaszolj magyarul, tömören és strukturáltan (használj felsorolást, ha több elemet említesz).
+                6. Ha dátumot említesz, mindig add meg pontosan, ahogy az az e-mailben szerepel.
+                7. Ez egy archívum – a benne lévő adatok nem feltétlenül aktuálisak.
 
                 === Releváns e-mail részletek ===
                 """ + context;
@@ -124,7 +157,10 @@ public class RagChatService {
 
     public record ChatSource(String emailId, String subject, String sender, double score) {}
 
-    public record ChatRequest(String message, int topK, String model) {
+    public record HistoryMessage(String role, String content) {}
+
+    public record ChatRequest(String message, int topK, String model,
+                               List<HistoryMessage> history) {
         public ChatRequest { if (topK <= 0) topK = 8; }
     }
 }
