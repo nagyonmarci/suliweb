@@ -181,6 +181,137 @@ const navItems = [
         localStorage.removeItem('refreshToken');
         window.location.href = '/login';
       });
+
+      // ---- Antigravity Easter Egg ----
+      (() => {
+        const TRIGGER = 'antigravity';
+        let keyBuffer = '';
+        let active = false;
+        let animFrame: number | null = null;
+        let bodies: {
+          el: HTMLElement;
+          origStyle: string;
+          x: number; y: number;
+          vx: number; vy: number;
+          w: number; h: number;
+          angle: number; av: number;
+        }[] = [];
+
+        const GRAVITY = 0.5;
+        const DAMPING = 0.65;
+        const FRICTION = 0.88;
+
+        function activate() {
+          if (active) return;
+          active = true;
+
+          // Banner
+          const banner = document.createElement('div');
+          banner.id = 'ag-banner';
+          Object.assign(banner.style, {
+            position: 'fixed', bottom: '16px', left: '50%',
+            transform: 'translateX(-50%)', zIndex: '9999',
+            background: 'rgba(17,24,39,0.92)', color: '#fff',
+            padding: '8px 20px', borderRadius: '999px',
+            fontSize: '13px', pointerEvents: 'none',
+            backdropFilter: 'blur(6px)',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+            transition: 'opacity 0.4s',
+          });
+          banner.textContent = '🌌 Antigravitáció aktív — nyomj ESC-et a visszaállításhoz';
+          document.body.appendChild(banner);
+
+          // Collect elements to animate
+          const selectors = [
+            'main header', 'main .p-4 > *', 'main .p-8 > *',
+            'aside nav a', 'aside .p-6', 'aside .p-4',
+            'header.lg\\:hidden',
+          ];
+          const seen = new Set<Element>();
+          const els: HTMLElement[] = [];
+          selectors.forEach(sel => {
+            document.querySelectorAll<HTMLElement>(sel).forEach(el => {
+              if (!seen.has(el) && el.offsetParent !== null) {
+                seen.add(el);
+                els.push(el);
+              }
+            });
+          });
+
+          // Snapshot positions, then go fixed
+          bodies = els.map(el => {
+            const rect = el.getBoundingClientRect();
+            const origStyle = el.getAttribute('style') || '';
+            const angle = (Math.random() - 0.5) * 0.3;
+            const vx = (Math.random() - 0.5) * 4;
+            const vy = -(Math.random() * 6 + 2);
+            Object.assign(el.style, {
+              position: 'fixed',
+              left: rect.left + 'px',
+              top: rect.top + 'px',
+              width: rect.width + 'px',
+              margin: '0',
+              zIndex: '8000',
+              transition: 'none',
+              transformOrigin: 'center center',
+            });
+            return { el, origStyle, x: rect.left, y: rect.top, vx, vy, w: rect.width, h: rect.height, angle, av: (Math.random() - 0.5) * 0.05 };
+          });
+
+          const floor = window.innerHeight;
+
+          function step() {
+            const W = window.innerWidth;
+            const H = window.innerHeight;
+            bodies.forEach(b => {
+              b.vy += GRAVITY;
+              b.x += b.vx;
+              b.y += b.vy;
+              b.angle += b.av;
+
+              // Floor bounce
+              if (b.y + b.h >= H) {
+                b.y = H - b.h;
+                b.vy *= -DAMPING;
+                b.vx *= FRICTION;
+                b.av *= FRICTION;
+                if (Math.abs(b.vy) < 1) b.vy = 0;
+              }
+              // Wall bounce
+              if (b.x < 0) { b.x = 0; b.vx *= -DAMPING; }
+              if (b.x + b.w > W) { b.x = W - b.w; b.vx *= -DAMPING; }
+
+              b.el.style.left = b.x + 'px';
+              b.el.style.top = b.y + 'px';
+              b.el.style.transform = `rotate(${b.angle}rad)`;
+            });
+            animFrame = requestAnimationFrame(step);
+          }
+
+          animFrame = requestAnimationFrame(step);
+        }
+
+        function deactivate() {
+          if (!active) return;
+          active = false;
+          if (animFrame !== null) { cancelAnimationFrame(animFrame); animFrame = null; }
+          bodies.forEach(b => {
+            b.el.setAttribute('style', b.origStyle);
+          });
+          bodies = [];
+          document.getElementById('ag-banner')?.remove();
+        }
+
+        document.addEventListener('keydown', (e: KeyboardEvent) => {
+          if (e.key === 'Escape') { deactivate(); keyBuffer = ''; return; }
+          if (e.key.length === 1) {
+            keyBuffer += e.key.toLowerCase();
+            if (keyBuffer.length > TRIGGER.length + 5) keyBuffer = keyBuffer.slice(-TRIGGER.length - 5);
+            if (keyBuffer.includes(TRIGGER)) { activate(); keyBuffer = ''; }
+          }
+        });
+      })();
+      // ---- End Antigravity ----
     </script>
   </body>
 </html>
