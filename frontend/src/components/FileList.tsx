@@ -6,6 +6,11 @@ type SortField = keyof FileInfo;
 export default function FileList() {
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
+  const [message, setMessage] = useState('');
+
+  // Selection: fileId -> saveAttachments
+  const [selected, setSelected] = useState<Map<string, boolean>>(new Map());
 
   // Filters
   const [search, setSearch] = useState('');
@@ -23,6 +28,7 @@ export default function FileList() {
     try {
       const data = await api.getFileInfos();
       setFiles(data);
+      setSelected(new Map());
     } catch (e) {
       console.error('Fájl betöltési hiba:', e);
     } finally {
@@ -39,7 +45,6 @@ export default function FileList() {
   const visible = useMemo(() => {
     let result = [...files];
 
-    // Global search
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(f =>
@@ -49,17 +54,14 @@ export default function FileList() {
       );
     }
 
-    // Status chip filter
     if (statusFilter !== 'all') {
       result = result.filter(f => f.status === statusFilter);
     }
 
-    // Column filters
     if (colFilters['fileName']) result = result.filter(f => f.fileName?.toLowerCase().includes(colFilters['fileName'].toLowerCase()));
     if (colFilters['path']) result = result.filter(f => f.path?.toLowerCase().includes(colFilters['path'].toLowerCase()));
     if (colFilters['status']) result = result.filter(f => f.status?.toLowerCase().includes(colFilters['status'].toLowerCase()));
 
-    // Sort
     result.sort((a, b) => {
       const aVal = String(a[sortField] ?? '');
       const bVal = String(b[sortField] ?? '');
@@ -78,6 +80,57 @@ export default function FileList() {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortField(field); setSortDir('asc'); }
   }
+
+  function toggleSelect(id: string) {
+    setSelected(prev => {
+      const next = new Map(prev);
+      if (next.has(id)) next.delete(id);
+      else next.set(id, true);
+      return next;
+    });
+  }
+
+  function toggleSaveAttachments(id: string) {
+    setSelected(prev => {
+      if (!prev.has(id)) return prev;
+      const next = new Map(prev);
+      next.set(id, !next.get(id));
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (visible.every(f => selected.has(f.id))) {
+      setSelected(prev => {
+        const next = new Map(prev);
+        visible.forEach(f => next.delete(f.id));
+        return next;
+      });
+    } else {
+      setSelected(prev => {
+        const next = new Map(prev);
+        visible.forEach(f => { if (!next.has(f.id)) next.set(f.id, true); });
+        return next;
+      });
+    }
+  }
+
+  async function handleProcessSelected() {
+    const requests = Array.from(selected.entries()).map(([id, saveAttachments]) => ({ id, saveAttachments }));
+    setProcessing(true);
+    setMessage('Feldolgozás indítása...');
+    try {
+      const result = await api.processSelected(requests);
+      setMessage(result);
+      await loadFiles();
+    } catch (e: any) {
+      setMessage('Hiba: ' + e.message);
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  const allVisibleSelected = visible.length > 0 && visible.every(f => selected.has(f.id));
 
   function SortIcon({ field }: { field: SortField }) {
     if (sortField !== field) return <span className="text-gray-300 ml-1">↕</span>;
@@ -113,12 +166,57 @@ export default function FileList() {
         </div>
       </div>
 
+      {/* Selection action bar */}
+      {selected.size > 0 && (
+        <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+          <span className="text-sm text-blue-700 font-medium">{selected.size} fájl kijelölve</span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSelected(new Map())}
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Kijelölés törlése
+            </button>
+            <button
+              onClick={handleProcessSelected}
+              disabled={processing}
+              className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {processing ? 'Feldolgozás...' : 'Kijelöltek feldolgozása'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Message */}
+      {message && (
+        <div className={`rounded-lg px-4 py-3 text-sm ${
+          message.startsWith('Hiba') ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'
+        }`}>
+          {message}
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[640px]">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
+                {/* Select all */}
+                <th className="px-4 py-3 w-10">
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={toggleSelectAll}
+                    className="rounded border-gray-300"
+                    title="Összes ki/be"
+                  />
+                </th>
+                {/* Csatolmány */}
+                <th className="px-2 py-3 w-24 text-center">
+                  <span className="font-semibold text-xs text-gray-600 uppercase tracking-wider">Csatolmány</span>
+                </th>
                 {/* Fájlnév */}
                 <th className="text-left px-4 py-3">
                   <button className="flex items-center font-semibold text-xs text-gray-600 uppercase tracking-wider mb-1.5" onClick={() => toggleSort('fileName')}>
@@ -138,7 +236,7 @@ export default function FileList() {
                   <button className="flex items-center justify-end font-semibold text-xs text-gray-600 uppercase tracking-wider mb-1.5 w-full" onClick={() => toggleSort('size')}>
                     Méret <SortIcon field="size" />
                   </button>
-                  <div className="h-[26px]" /> {/* spacer so headers align */}
+                  <div className="h-[26px]" />
                 </th>
                 {/* Módosítva */}
                 <th className="text-left px-4 py-3">
@@ -157,17 +255,42 @@ export default function FileList() {
               </tr>
             </thead>
             <tbody>
-              {visible.map(file => (
-                <tr key={file.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 font-medium text-gray-900">{file.fileName}</td>
-                  <td className="px-4 py-3 text-gray-500 text-xs max-w-xs truncate" title={file.path}>{file.path}</td>
-                  <td className="px-4 py-3 text-right text-gray-600 whitespace-nowrap">{formatSize(file.size)}</td>
-                  <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{formatDate(file.lastModified)}</td>
-                  <td className="px-4 py-3"><StatusBadge status={file.status} /></td>
-                </tr>
-              ))}
+              {visible.map(file => {
+                const isSelected = selected.has(file.id);
+                const saveAtts = selected.get(file.id) ?? false;
+                return (
+                  <tr key={file.id} className={`border-b border-gray-100 transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelect(file.id)}
+                        className="rounded border-gray-300"
+                      />
+                    </td>
+                    <td className="px-2 py-3 text-center">
+                      {isSelected ? (
+                        <input
+                          type="checkbox"
+                          checked={saveAtts}
+                          onChange={() => toggleSaveAttachments(file.id)}
+                          className="rounded border-gray-300"
+                          title="Csatolmányok mentése"
+                        />
+                      ) : (
+                        <AttachmentsSavedBadge saved={file.attachmentsSaved} status={file.status} />
+                      )}
+                    </td>
+                    <td className="px-4 py-3 font-medium text-gray-900">{file.fileName}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs max-w-xs truncate" title={file.path}>{file.path}</td>
+                    <td className="px-4 py-3 text-right text-gray-600 whitespace-nowrap">{formatSize(file.size)}</td>
+                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{formatDate(file.lastModified)}</td>
+                    <td className="px-4 py-3"><StatusBadge status={file.status} /></td>
+                  </tr>
+                );
+              })}
               {visible.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 italic">Nincs a szűrésnek megfelelő fájl.</td></tr>
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 italic">Nincs a szűrésnek megfelelő fájl.</td></tr>
               )}
             </tbody>
           </table>
@@ -175,6 +298,13 @@ export default function FileList() {
       </div>
     </div>
   );
+}
+
+function AttachmentsSavedBadge({ saved, status }: { saved: boolean; status: string }) {
+  if (status !== 'Processed') return null;
+  return saved
+    ? <span className="text-xs text-green-600 font-medium">✓ mentve</span>
+    : <span className="text-xs text-amber-600 font-medium">– hiányzik</span>;
 }
 
 function StatusBadge({ status }: { status: string }) {

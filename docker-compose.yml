@@ -26,7 +26,7 @@ services:
       - SPRING_DATA_MONGODB_URI=mongodb://mongo:27017/emails?directConnection=true
       - RAG_QDRANT_ENABLED=${RAG_QDRANT_ENABLED:-false}
       - RAG_QDRANT_HOST=qdrant
-      - RAG_OLLAMA_BASE_URL=http://ollama:11434
+      - RAG_OLLAMA_BASE_URL=http://host.docker.internal:11434
     command: ["--spring.profiles.active=docker"]
     volumes:
       - attachments:/app/attachments

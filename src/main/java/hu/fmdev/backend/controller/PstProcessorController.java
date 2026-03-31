@@ -1,18 +1,16 @@
 package hu.fmdev.backend.controller;
 
+import hu.fmdev.backend.dto.ProcessFileRequest;
 import hu.fmdev.backend.logger.CentralLogger;
-
 import hu.fmdev.backend.service.PstProcessorService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
@@ -65,6 +63,28 @@ public class PstProcessorController {
         var tempFile = pstProcessorService.convertMultiPartToFile(file);
         var result = pstProcessorService.processPstFile(tempFile.getAbsolutePath(), saveAttachments);
         return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/processSelected")
+    public ResponseEntity<String> processSelected(@RequestBody List<ProcessFileRequest> requests) {
+        try {
+            pstProcessorService.processPstFilesSelected(requests);
+            return ResponseEntity.ok("Selected PST files processed successfully");
+        } catch (Exception e) {
+            CentralLogger.logError("Error processing selected PST files", e);
+            return ResponseEntity.status(500).body("Error processing selected PST files: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/saveAttachmentsFromDb")
+    public ResponseEntity<String> saveAttachmentsFromDb() {
+        try {
+            pstProcessorService.saveAttachmentsFromDb();
+            return ResponseEntity.ok("Attachments saved successfully for processed PST files");
+        } catch (Exception e) {
+            CentralLogger.logError("Error saving attachments from database", e);
+            return ResponseEntity.status(500).body("Error saving attachments: " + e.getMessage());
+        }
     }
 
     @PostMapping("/pause")

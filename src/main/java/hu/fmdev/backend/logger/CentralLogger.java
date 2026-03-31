@@ -29,28 +29,36 @@ public class CentralLogger {
 
     public static void logInfo(String message) {
         logger.info(message);
-        instance.saveLogEntry("INFO", message, null);
+        if (instance != null) {
+            instance.saveLogEntry("INFO", message, null);
+        }
     }
 
     public static void logDebug(String message) {
         logger.debug(message);
-        instance.saveLogEntry("DEBUG", message, null);
+        if (instance != null) {
+            instance.saveLogEntry("DEBUG", message, null);
+        }
     }
 
     public static void logWarn(String message) {
         logger.warn(message);
-        instance.saveLogEntry("WARN", message, null);
+        if (instance != null) {
+            instance.saveLogEntry("WARN", message, null);
+        }
     }
 
     public static void logError(String message, Throwable t) {
         logger.error(message, t);
-        String stackTrace = null;
-        if (t != null) {
-            StringWriter sw = new StringWriter();
-            t.printStackTrace(new PrintWriter(sw));
-            stackTrace = sw.toString();
+        if (instance != null) {
+            String stackTrace = null;
+            if (t != null) {
+                StringWriter sw = new StringWriter();
+                t.printStackTrace(new PrintWriter(sw));
+                stackTrace = sw.toString();
+            }
+            instance.saveLogEntry("ERROR", message, stackTrace);
         }
-        instance.saveLogEntry("ERROR", message, stackTrace);
     }
 
     private void saveLogEntry(String level, String message, String stackTrace) {

@@ -5,7 +5,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.index.TextIndexDefinition;
-import org.springframework.stereotype.Configuration;
+import org.springframework.context.annotation.Configuration;
 
 /**
  * Ensures required MongoDB indexes exist at application startup.
@@ -24,7 +24,7 @@ public class MongoIndexConfig {
     public void ensureIndexes() {
         try {
             var indexOps = mongoTemplate.indexOps("document_chunks");
-            indexOps.ensureIndex(new TextIndexDefinition.TextIndexDefinitionBuilder()
+            indexOps.createIndex(new TextIndexDefinition.TextIndexDefinitionBuilder()
                     .onField("content", 3F)
                     .onField("emailSubject", 2F)
                     .onField("senderName", 1F)

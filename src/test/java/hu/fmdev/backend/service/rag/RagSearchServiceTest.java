@@ -3,12 +3,14 @@ package hu.fmdev.backend.service.rag;
 import hu.fmdev.backend.config.RagConfig;
 import hu.fmdev.backend.domain.Email;
 import hu.fmdev.backend.repository.EmailRepository;
-import org.bson.Document;
+import hu.fmdev.backend.repository.LogEntryRepository;
+import hu.fmdev.backend.logger.CentralLogger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 
@@ -19,8 +21,11 @@ import static org.mockito.Mockito.*;
 class RagSearchServiceTest {
 
     @Mock private EmbeddingService embeddingService;
+    @Mock private QueryRewriteService queryRewriteService;
+    @Mock private QdrantService qdrantService;
     @Mock private org.springframework.data.mongodb.core.MongoTemplate mongoTemplate;
     @Mock private EmailRepository emailRepository;
+    @Mock private LogEntryRepository logEntryRepository;
 
     private RagSearchService service;
     private RagConfig config;
@@ -30,7 +35,16 @@ class RagSearchServiceTest {
         config = new RagConfig();
         config.setSearchTopK(10);
         config.setSearchMinScore(0.5);
-        service = new RagSearchService(embeddingService, mongoTemplate, emailRepository, config);
+        service = new RagSearchService(embeddingService, queryRewriteService, qdrantService, mongoTemplate, emailRepository, config);
+
+        // Default: just return the original query as hypothetical answer
+        lenient().when(queryRewriteService.generateHypotheticalAnswer(anyString()))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        // Initialize CentralLogger for static calls during tests
+        CentralLogger logger = new CentralLogger();
+        ReflectionTestUtils.setField(logger, "logEntryRepository", logEntryRepository);
+        logger.init();
     }
 
     @Test

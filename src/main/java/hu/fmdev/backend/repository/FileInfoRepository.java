@@ -11,5 +11,7 @@ public interface FileInfoRepository extends MongoRepository<FileInfo, String> {
 
     List<FileInfo> findByStatusIn(List<String> statuses);
 
+    List<FileInfo> findByStatusAndAttachmentsSavedFalse(String status);
+
     long countByStatus(String status);
 }

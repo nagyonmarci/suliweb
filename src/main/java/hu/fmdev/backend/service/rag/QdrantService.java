@@ -15,7 +15,6 @@ import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
 import static io.qdrant.client.PointIdFactory.id;
 import static io.qdrant.client.ValueFactory.value;
 import static io.qdrant.client.VectorsFactory.vectors;
@@ -111,7 +110,7 @@ public class QdrantService {
             }
 
             PointStruct point = PointStruct.newBuilder()
-                    .setId(id(toUuid(chunkId)))
+                    .setId(id(UUID.fromString(toUuid(chunkId))))
                     .setVectors(vectors(floatVec))
                     .putAllPayload(payloadMap)
                     .build();
@@ -140,7 +139,7 @@ public class QdrantService {
                     }
                 }
                 qdrantPoints.add(PointStruct.newBuilder()
-                        .setId(id(toUuid(cp.chunkId())))
+                        .setId(id(UUID.fromString(toUuid(cp.chunkId()))))
                         .setVectors(vectors(floatVec))
                         .putAllPayload(payloadMap)
                         .build());
@@ -197,13 +196,10 @@ public class QdrantService {
 
         try {
             List<PointId> pointIds = chunkIds.stream()
-                    .map(cid -> id(toUuid(cid)))
+                    .map(cid -> id(UUID.fromString(toUuid(cid))))
                     .toList();
-            client.deleteAsync(ragConfig.getQdrantCollectionName(),
-                    PointsSelector.newBuilder()
-                            .setPoints(PointsIdsList.newBuilder().addAllIds(pointIds).build())
-                            .build()
-            ).get(10, TimeUnit.SECONDS);
+            client.deleteAsync(ragConfig.getQdrantCollectionName(), pointIds)
+                    .get(10, TimeUnit.SECONDS);
         } catch (Exception e) {
             CentralLogger.logWarn("Qdrant delete failed: " + e.getMessage());
         }

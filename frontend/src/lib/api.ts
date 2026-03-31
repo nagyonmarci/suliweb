@@ -145,6 +145,7 @@ export interface FileInfo {
   size: number;
   lastModified: string;
   status: string;
+  attachmentsSaved: boolean;
 }
 
 export interface Attachment {
@@ -342,6 +343,10 @@ export const api = {
   // PST Processor
   processFromDb: (saveAttachments: boolean = true) =>
     fetchText(`/pst/processFromDb?saveAttachments=${saveAttachments}`, { method: 'POST' }),
+  saveAttachmentsFromDb: () =>
+    fetchText('/pst/saveAttachmentsFromDb', { method: 'POST' }),
+  processSelected: (requests: { id: string; saveAttachments: boolean }[]) =>
+    fetchText('/pst/processSelected', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requests) }),
   pauseProcessing: () => fetchText('/pst/pause', { method: 'POST' }),
   resumeProcessing: () => fetchText('/pst/resume', { method: 'POST' }),
 

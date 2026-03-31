@@ -6,6 +6,7 @@ import com.pff.PSTFolder;
 import com.pff.PSTMessage;
 import hu.fmdev.backend.domain.Email;
 import hu.fmdev.backend.domain.FileInfo;
+import hu.fmdev.backend.dto.ProcessFileRequest;
 import hu.fmdev.backend.exceptionhandler.PstProcessingException;
 import hu.fmdev.backend.logger.CentralLogger;
 import hu.fmdev.backend.repository.AttachmentRepository;
@@ -25,6 +26,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.Map;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
@@ -121,6 +123,7 @@ public class PstProcessorService {
                         progressTracker.setStatusDetail("Feldolgozás: " + fileName);
                         processPstFile(fileInfo.getPath().trim(), saveAttachments);
                         fileInfo.setStatus("Processed");
+                        fileInfo.setAttachmentsSaved(saveAttachments);
                         fileInfoRepository.save(fileInfo);
                     } catch (Exception e) {
                         CentralLogger.logError("Error processing PST file from database: " + fileInfo.getPath(), e);
@@ -379,6 +382,148 @@ public class PstProcessorService {
     private boolean isSupportedMessageType(PSTMessage message) {
         String messageType = message.getMessageClass();
         return messageType.startsWith("IPM.Note");
+    }
+
+    public void processPstFilesSelected(List<ProcessFileRequest> requests) {
+        List<FileInfo> fileInfoList = requests.stream()
+                .map(r -> fileInfoRepository.findById(r.id()))
+                .filter(java.util.Optional::isPresent)
+                .map(java.util.Optional::get)
+                .collect(Collectors.toList());
+
+        if (fileInfoList.isEmpty()) {
+            CentralLogger.logInfo("No PST files found for selected IDs");
+            return;
+        }
+
+        progressTracker.startOperation("Kijelölt PST fájlok feldolgozása", fileInfoList.size());
+        ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+
+        Map<String, Boolean> saveAttachmentsMap = requests.stream()
+                .collect(Collectors.toMap(ProcessFileRequest::id, ProcessFileRequest::saveAttachments));
+
+        List<Callable<Void>> tasks = fileInfoList.stream()
+                .map(fileInfo -> (Callable<Void>) () -> {
+                    boolean saveAtts = saveAttachmentsMap.getOrDefault(fileInfo.getId(), false);
+                    try {
+                        String fileName = Paths.get(fileInfo.getPath()).getFileName().toString();
+                        progressTracker.setStatusDetail("Feldolgozás: " + fileName);
+                        if ("Processed".equals(fileInfo.getStatus())) {
+                            if (saveAtts && !fileInfo.isAttachmentsSaved()) {
+                                saveAttachmentsForPstFile(fileInfo.getPath().trim(), fileName);
+                                fileInfo.setAttachmentsSaved(true);
+                                fileInfoRepository.save(fileInfo);
+                            }
+                        } else {
+                            processPstFile(fileInfo.getPath().trim(), saveAtts);
+                            fileInfo.setStatus("Processed");
+                            fileInfo.setAttachmentsSaved(saveAtts);
+                            fileInfoRepository.save(fileInfo);
+                        }
+                    } catch (Exception e) {
+                        CentralLogger.logError("Error processing selected PST file: " + fileInfo.getPath(), e);
+                    } finally {
+                        progressTracker.increment();
+                    }
+                    return null;
+                })
+                .collect(Collectors.toList());
+
+        try {
+            executorService.invokeAll(tasks);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            CentralLogger.logError("Processing interrupted", e);
+        } finally {
+            progressTracker.stopOperation();
+            executorService.shutdown();
+        }
+    }
+
+    public void saveAttachmentsFromDb() {
+        List<FileInfo> fileInfoList = fileInfoRepository.findByStatusAndAttachmentsSavedFalse("Processed");
+        if (fileInfoList.isEmpty()) {
+            CentralLogger.logInfo("No processed PST files require attachment saving");
+            return;
+        }
+
+        progressTracker.startOperation("Csatolmányok mentése", fileInfoList.size());
+        ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+
+        List<Callable<Void>> tasks = fileInfoList.stream()
+                .map(fileInfo -> (Callable<Void>) () -> {
+                    try {
+                        String fileName = Paths.get(fileInfo.getPath()).getFileName().toString();
+                        progressTracker.setStatusDetail("Csatolmányok mentése: " + fileName);
+                        saveAttachmentsForPstFile(fileInfo.getPath().trim(), fileName);
+                        fileInfo.setAttachmentsSaved(true);
+                        fileInfoRepository.save(fileInfo);
+                    } catch (Exception e) {
+                        CentralLogger.logError("Error saving attachments for: " + fileInfo.getPath(), e);
+                    } finally {
+                        progressTracker.increment();
+                    }
+                    return null;
+                })
+                .collect(Collectors.toList());
+
+        try {
+            executorService.invokeAll(tasks);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            CentralLogger.logError("Processing interrupted", e);
+        } finally {
+            progressTracker.stopOperation();
+            executorService.shutdown();
+        }
+    }
+
+    private void saveAttachmentsForPstFile(String filePath, String pstFileName) throws IOException {
+        File pstFile = new File(filePath);
+        if (!pstFile.exists() || !pstFile.canRead()) {
+            throw new IOException("File does not exist or cannot be read at " + filePath);
+        }
+        PSTFile pst = null;
+        try {
+            pst = new PSTFile(pstFile.getAbsolutePath());
+            saveAttachmentsForFolder(pst.getRootFolder(), pstFileName);
+        } catch (Exception e) {
+            throw new IOException("Error processing PST file at " + filePath, e);
+        } finally {
+            if (pst != null) {
+                try { pst.close(); } catch (Exception e) {
+                    CentralLogger.logError("Error closing PST file", e);
+                }
+            }
+        }
+    }
+
+    private void saveAttachmentsForFolder(PSTFolder folder, String pstFileName) throws Exception {
+        saveAttachmentsForMessages(folder, pstFileName);
+        if (folder.hasSubfolders()) {
+            for (PSTFolder subFolder : folder.getSubFolders()) {
+                saveAttachmentsForFolder(subFolder, pstFileName);
+            }
+        }
+    }
+
+    private void saveAttachmentsForMessages(PSTFolder folder, String pstFileName) throws Exception {
+        PSTMessage message = (PSTMessage) folder.getNextChild();
+        while (message != null) {
+            checkPaused();
+            if (isSupportedMessageType(message) && message.getNumberOfAttachments() > 0) {
+                String uniqueEntryId = generateUniqueEntryId(pstFileName, message.getDescriptorNodeId());
+                java.util.Optional<Email> existingOpt = emailRepository.findByUniqueEntryId(uniqueEntryId);
+                if (existingOpt.isPresent()) {
+                    Email email = existingOpt.get();
+                    if (email.getAttachmentPaths() == null || email.getAttachmentPaths().isEmpty()) {
+                        saveEmailWithAttachments(email, message, pstFileName);
+                        emailRepository.save(email);
+                    }
+                }
+            }
+            message = (PSTMessage) folder.getNextChild();
+        }
     }
 
     private List<String> saveAttachments(PSTMessage message, String pstFileName, Email email)

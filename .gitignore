@@ -46,5 +46,8 @@ logs/
 *.tar.gz
 *.log
 
+### Secrets ###
+.env
+
 ### IDE ###
 .idea/
