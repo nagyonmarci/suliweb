@@ -1,8 +1,58 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import { api, type SearchResult, type EmailSearchResult, type RagStats, type RagHealth, type Email } from '../lib/api';
 
 type ViewMode = 'chunks' | 'emails';
 type RagMode = 'all' | 'search' | 'manage';
+
+// ---------------------------------------------------------------------------
+// Highlight helper – XSS-safe (React JSX, no dangerouslySetInnerHTML)
+// ---------------------------------------------------------------------------
+
+function escapeRegex(str: string) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function highlightTerms(text: string | null, query: string): ReactNode {
+  if (!text || !query.trim()) return text ?? '';
+  const words = query.trim().split(/\s+/).filter(w => w.length > 1).map(escapeRegex);
+  if (words.length === 0) return text;
+  const regex = new RegExp(`(${words.join('|')})`, 'gi');
+  const parts = text.split(regex);
+  return parts.map((part, i) =>
+    regex.test(part)
+      ? <mark key={i} className="bg-yellow-200 text-yellow-900 rounded px-0.5">{part}</mark>
+      : part
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Search skeleton
+// ---------------------------------------------------------------------------
+
+function SearchSkeleton() {
+  return (
+    <div className="space-y-4">
+      {[1, 2, 3].map(i => (
+        <div key={i} className="bg-white rounded-xl border border-gray-200 p-4 animate-pulse">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 space-y-2">
+              <div className="h-4 bg-gray-200 rounded w-3/4" />
+              <div className="h-3 bg-gray-100 rounded w-1/2" />
+            </div>
+            <div className="h-6 w-12 bg-gray-200 rounded-full" />
+          </div>
+          <div className="mt-3 space-y-2">
+            <div className="h-16 bg-gray-100 rounded-lg" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export default function RagSearch({ mode = 'all' }: { mode?: RagMode }) {
   const [query, setQuery] = useState('');
@@ -17,12 +67,40 @@ export default function RagSearch({ mode = 'all' }: { mode?: RagMode }) {
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [expandedChunks, setExpandedChunks] = useState<Set<number>>(new Set());
   const [includeAttachments, setIncludeAttachments] = useState(false);
+  const [searchedQuery, setSearchedQuery] = useState(''); // the query that produced current results
+
+  // Filters
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterSender, setFilterSender] = useState('');
+  const [filterPstFile, setFilterPstFile] = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadHealth();
     const interval = setInterval(loadHealth, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Esc closes modal
+      if (e.key === 'Escape' && selectedEmail) {
+        setSelectedEmail(null);
+        return;
+      }
+      // Ctrl+K / Cmd+K focuses search input
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedEmail]);
 
   async function loadHealth() {
     try {
@@ -33,26 +111,43 @@ export default function RagSearch({ mode = 'all' }: { mode?: RagMode }) {
     }
   }
 
+  const activeFilterCount = [filterSender, filterPstFile, filterDateFrom, filterDateTo].filter(Boolean).length;
+
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
     if (!query.trim()) return;
     setSearching(true);
     setMessage('');
+    setExpandedChunks(new Set());
     try {
+      const filters: Record<string, string> = {};
+      if (filterSender.trim()) filters.sender = filterSender.trim();
+      if (filterPstFile.trim()) filters.pstFile = filterPstFile.trim();
+      if (filterDateFrom) filters.startDate = filterDateFrom;
+      if (filterDateTo) filters.endDate = filterDateTo;
+
       if (viewMode === 'emails') {
-        const results = await api.ragSearchEmails(query, topK);
+        const results = await api.ragSearchEmails(query, topK, filters);
         setEmailResults(results);
         setChunkResults([]);
       } else {
-        const results = await api.ragSearch(query, topK);
+        const results = await api.ragSearch(query, topK, filters);
         setChunkResults(results);
         setEmailResults([]);
       }
+      setSearchedQuery(query);
     } catch (e: any) {
       setMessage('Keresési hiba: ' + e.message);
     } finally {
       setSearching(false);
     }
+  }
+
+  function clearFilters() {
+    setFilterSender('');
+    setFilterPstFile('');
+    setFilterDateFrom('');
+    setFilterDateTo('');
   }
 
   async function handleIngest() {
@@ -153,7 +248,7 @@ export default function RagSearch({ mode = 'all' }: { mode?: RagMode }) {
                 Indexelés törlése és újrakezdés
               </button>
             </div>
-            
+
             <div className="flex flex-wrap gap-3">
               <div className="flex flex-col gap-2">
                 <button
@@ -178,11 +273,11 @@ export default function RagSearch({ mode = 'all' }: { mode?: RagMode }) {
                     }`} />
                   </div>
                   <span className="text-xs text-gray-600">
-                    Csatolányok szövegkinyerese (PDF, DOCX…) – lassabb
+                    Csatolmányok szövegkinyerése (PDF, DOCX…) – lassabb
                   </span>
                 </label>
               </div>
-              
+
               <button
                 onClick={handleEmbed}
                 disabled={!stats?.pendingChunks || health?.ingestionRunning}
@@ -200,11 +295,16 @@ export default function RagSearch({ mode = 'all' }: { mode?: RagMode }) {
                 </button>
               ) : null}
             </div>
-            
+
             {message && (
-              <p className={`text-sm mt-3 p-2 rounded ${message.includes('hiba') || message.includes('Hiba') ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>
-                {message}
-              </p>
+              <div className={`text-sm mt-3 p-3 rounded-lg flex items-start gap-2 ${
+                message.includes('hiba') || message.includes('Hiba')
+                  ? 'bg-red-50 text-red-700 border border-red-200'
+                  : 'bg-green-50 text-green-700 border border-green-200'
+              }`}>
+                <span className="flex-1">{message}</span>
+                <button onClick={() => setMessage('')} className="text-current opacity-50 hover:opacity-100 flex-shrink-0">&times;</button>
+              </div>
             )}
           </div>
         </>
@@ -213,10 +313,14 @@ export default function RagSearch({ mode = 'all' }: { mode?: RagMode }) {
       {/* Search form – hidden in manage-only mode */}
       {mode !== 'manage' && (
         <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Szemantikus keresés</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-700">Szemantikus keresés</h3>
+            <span className="text-xs text-gray-400">Ctrl+K a gyors kereséshez</span>
+          </div>
           <form onSubmit={handleSearch} className="space-y-3">
             <div className="flex gap-3">
               <input
+                ref={searchInputRef}
                 type="text"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
@@ -231,7 +335,7 @@ export default function RagSearch({ mode = 'all' }: { mode?: RagMode }) {
                 {searching ? 'Keresés...' : 'Keresés'}
               </button>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
               <div className="flex items-center gap-2">
                 <label className="text-xs text-gray-500">Nézet:</label>
                 <select
@@ -253,7 +357,72 @@ export default function RagSearch({ mode = 'all' }: { mode?: RagMode }) {
                   {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
               </div>
+              <button
+                type="button"
+                onClick={() => setShowFilters(v => !v)}
+                className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${
+                  showFilters || activeFilterCount > 0
+                    ? 'bg-blue-50 border-blue-300 text-blue-700'
+                    : 'border-gray-300 text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                Szűrők{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+                <span className="ml-1">{showFilters ? '▴' : '▾'}</span>
+              </button>
             </div>
+
+            {/* Collapsible filters */}
+            {showFilters && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 border-t border-gray-100">
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Feladó</label>
+                  <input
+                    type="text"
+                    value={filterSender}
+                    onChange={e => setFilterSender(e.target.value)}
+                    placeholder="pl. Kovács Péter"
+                    className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">PST fájl</label>
+                  <input
+                    type="text"
+                    value={filterPstFile}
+                    onChange={e => setFilterPstFile(e.target.value)}
+                    placeholder="pl. archive.pst"
+                    className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Dátum (tól)</label>
+                  <input
+                    type="date"
+                    value={filterDateFrom}
+                    onChange={e => setFilterDateFrom(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Dátum (ig)</label>
+                  <input
+                    type="date"
+                    value={filterDateTo}
+                    onChange={e => setFilterDateTo(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                {activeFilterCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="text-xs text-red-500 hover:text-red-700 underline self-end pb-1"
+                  >
+                    Szűrők törlése
+                  </button>
+                )}
+              </div>
+            )}
           </form>
         </div>
       )}
@@ -264,7 +433,7 @@ export default function RagSearch({ mode = 'all' }: { mode?: RagMode }) {
           <div className="bg-white rounded-xl max-w-3xl w-full max-h-[80vh] overflow-auto p-6" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-start mb-4">
               <h3 className="text-lg font-semibold">{selectedEmail.subject || '(nincs tárgy)'}</h3>
-              <button onClick={() => setSelectedEmail(null)} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+              <button onClick={() => setSelectedEmail(null)} className="text-gray-400 hover:text-gray-600 text-xl" title="Bezárás (Esc)">&times;</button>
             </div>
             <div className="space-y-2 text-sm">
               <p><span className="font-medium text-gray-600">Feladó:</span> {selectedEmail.senderName} &lt;{selectedEmail.senderEmailAddress}&gt;</p>
@@ -290,8 +459,11 @@ export default function RagSearch({ mode = 'all' }: { mode?: RagMode }) {
         </div>
       )}
 
+      {/* Loading skeleton */}
+      {searching && <SearchSkeleton />}
+
       {/* Results: Email view */}
-      {viewMode === 'emails' && emailResults.length > 0 && (
+      {!searching && viewMode === 'emails' && emailResults.length > 0 && (
         <div className="space-y-4">
           <h3 className="text-sm font-semibold text-gray-600">{emailResults.length} email találat</h3>
           {emailResults.map((result, idx) => (
@@ -303,10 +475,10 @@ export default function RagSearch({ mode = 'all' }: { mode?: RagMode }) {
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <h4 className="font-medium text-gray-900 truncate">
-                      {result.email.subject || '(nincs tárgy)'}
+                      {highlightTerms(result.email.subject || '(nincs tárgy)', searchedQuery)}
                     </h4>
                     <p className="text-sm text-gray-500 mt-0.5">
-                      {result.email.senderName || result.email.senderEmailAddress}
+                      {highlightTerms(result.email.senderName || result.email.senderEmailAddress, searchedQuery)}
                       <span className="mx-2">·</span>
                       {formatDate(result.email.receivedTime)}
                     </p>
@@ -323,7 +495,7 @@ export default function RagSearch({ mode = 'all' }: { mode?: RagMode }) {
                         <SourceBadge sourceType={chunk.sourceType} fileName={chunk.attachmentFileName} />
                         <span className="text-xs text-gray-400">{(chunk.score * 100).toFixed(0)}%</span>
                       </div>
-                      <p className="text-gray-700 line-clamp-2">{chunk.content}</p>
+                      <p className="text-gray-700 line-clamp-2">{highlightTerms(chunk.content, searchedQuery)}</p>
                     </div>
                   ))}
                   {result.matchedChunks.length > 3 && (
@@ -339,7 +511,7 @@ export default function RagSearch({ mode = 'all' }: { mode?: RagMode }) {
       )}
 
       {/* Results: Chunk view */}
-      {viewMode === 'chunks' && chunkResults.length > 0 && (
+      {!searching && viewMode === 'chunks' && chunkResults.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-600">{chunkResults.length} chunk találat</h3>
           {chunkResults.map((chunk, idx) => (
@@ -347,18 +519,21 @@ export default function RagSearch({ mode = 'all' }: { mode?: RagMode }) {
               <div className="flex items-start justify-between gap-3 mb-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <SourceBadge sourceType={chunk.sourceType} fileName={chunk.attachmentFileName} />
-                  <span className="text-sm font-medium text-gray-900 truncate">{chunk.emailSubject}</span>
+                  <span className="text-sm font-medium text-gray-900 truncate">
+                    {highlightTerms(chunk.emailSubject, searchedQuery)}
+                  </span>
                 </div>
                 <ScoreBadge score={chunk.score} />
               </div>
               <p className="text-xs text-gray-500 mb-2">
-                {chunk.senderName} · {chunk.pstFileName}
+                {highlightTerms(chunk.senderName, searchedQuery)} · {chunk.pstFileName}
               </p>
               <div
                 className={`text-sm text-gray-700 bg-gray-50 rounded-lg p-3 cursor-pointer ${expandedChunks.has(idx) ? '' : 'line-clamp-3'}`}
                 onClick={() => toggleChunkExpand(idx)}
+                title="Kattints a kibontáshoz/összecsukáshoz"
               >
-                {chunk.content}
+                {highlightTerms(chunk.content, searchedQuery)}
               </div>
             </div>
           ))}
@@ -366,10 +541,23 @@ export default function RagSearch({ mode = 'all' }: { mode?: RagMode }) {
       )}
 
       {/* No results */}
-      {!searching && query && !hasResults && (
+      {!searching && searchedQuery && !hasResults && (
         <div className="text-center py-12 text-gray-400">
           <p className="text-lg">Nincs találat</p>
-          <p className="text-sm mt-1">Próbálj más keresőkifejezést vagy növeld a max találatot</p>
+          <p className="text-sm mt-1">Próbálj más keresőkifejezést, növeld a max találatot, vagy lazítsd a szűrőket</p>
+          {activeFilterCount > 0 && (
+            <button onClick={clearFilters} className="mt-3 text-sm text-blue-600 hover:text-blue-800 underline">
+              Szűrők törlése és újrapróbálás
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Search error message */}
+      {!searching && message && mode !== 'manage' && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl flex items-start gap-2">
+          <span className="flex-1">{message}</span>
+          <button onClick={() => setMessage('')} className="text-red-400 hover:text-red-600 flex-shrink-0">&times;</button>
         </div>
       )}
     </div>

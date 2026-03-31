@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { api, type ChatMessage } from '../lib/api';
+import { api, type ChatMessage, type ChatSource } from '../lib/api';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -159,17 +159,44 @@ export default function RagChat() {
         role: m.role,
         content: m.content,
       }));
-      const res = await api.ragChat(text, 8, activeSession.model || undefined, historyForApi);
-      const assistantMsg: ChatMessage = {
-        role: 'assistant',
-        content: res.answer,
-        sources: res.sources,
-      };
+
+      // Add a placeholder assistant message that will be updated progressively
+      const placeholderMsg: ChatMessage = { role: 'assistant', content: '', sources: [] };
       setSessions(prev => prev.map(s =>
         s.id === activeId
-          ? { ...s, messages: [...s.messages, assistantMsg] }
+          ? { ...s, messages: [...s.messages, placeholderMsg] }
           : s
       ));
+
+      // Stream tokens progressively
+      let accumulated = '';
+      const sources = await api.ragChatStream(
+        text, 8, activeSession.model || undefined, historyForApi,
+        (token: string) => {
+          accumulated += token;
+          const current = accumulated;
+          setSessions(prev => prev.map(s => {
+            if (s.id !== activeId) return s;
+            const msgs = [...s.messages];
+            const lastIdx = msgs.length - 1;
+            if (lastIdx >= 0 && msgs[lastIdx].role === 'assistant') {
+              msgs[lastIdx] = { ...msgs[lastIdx], content: current };
+            }
+            return { ...s, messages: msgs };
+          }));
+        }
+      );
+
+      // Final update with sources
+      setSessions(prev => prev.map(s => {
+        if (s.id !== activeId) return s;
+        const msgs = [...s.messages];
+        const lastIdx = msgs.length - 1;
+        if (lastIdx >= 0 && msgs[lastIdx].role === 'assistant') {
+          msgs[lastIdx] = { ...msgs[lastIdx], content: accumulated, sources };
+        }
+        return { ...s, messages: msgs };
+      }));
     } catch (err: any) {
       setError('Nem sikerült választ kapni: ' + err.message);
     } finally {

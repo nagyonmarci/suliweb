@@ -1,9 +1,12 @@
 package hu.fmdev.backend.service.rag;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import hu.fmdev.backend.config.RagConfig;
 import hu.fmdev.backend.logger.CentralLogger;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -80,6 +83,86 @@ public class RagChatService {
     /** Backwards-compatible overload without history. */
     public ChatResponse chat(String userMessage, int topK, String model) {
         return chat(userMessage, topK, model, null);
+    }
+
+    /**
+     * Streaming chat: returns a Flux of SSE data lines.
+     * Each line is either {"token": "..."} or {"done": true, "sources": [...]}.
+     */
+    public Flux<String> chatStream(String userMessage, int topK, String model,
+                                    List<HistoryMessage> history) {
+        int k = topK > 0 ? topK : ragConfig.getChatContextTopK();
+        String resolvedModel = (model != null && !model.isBlank()) ? model : ragConfig.getChatModel();
+
+        // 1. Rewrite + search (blocking, before streaming starts)
+        String searchQuery = queryRewriteService.rewriteWithHistory(userMessage, history);
+        List<RagSearchService.SearchResult> chunks = searchService.search(searchQuery, k);
+        List<ChatSource> sources = buildSources(chunks);
+        String context = searchService.buildContext(searchQuery, k);
+
+        // 2. Build messages
+        String systemPrompt = buildSystemPrompt(context);
+        List<Map<String, String>> messages = new ArrayList<>();
+        messages.add(Map.of("role", "system", "content", systemPrompt));
+        if (history != null && !history.isEmpty()) {
+            int maxTurns = ragConfig.getChatMaxHistoryTurns() * 2;
+            List<HistoryMessage> trimmed = history.size() > maxTurns
+                    ? history.subList(history.size() - maxTurns, history.size())
+                    : history;
+            for (HistoryMessage msg : trimmed) {
+                if (msg.role() != null && msg.content() != null) {
+                    messages.add(Map.of("role", msg.role(), "content", msg.content()));
+                }
+            }
+        }
+        messages.add(Map.of("role", "user", "content", userMessage));
+
+        // 3. Stream from Ollama
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("model", resolvedModel);
+        requestBody.put("messages", messages);
+        requestBody.put("stream", true);
+
+        ObjectMapper mapper = new ObjectMapper();
+        String sourcesJson;
+        try {
+            sourcesJson = mapper.writeValueAsString(sources);
+        } catch (JsonProcessingException e) {
+            sourcesJson = "[]";
+        }
+        final String finalSourcesJson = sourcesJson;
+
+        return ollamaWebClient.post()
+                .uri("/api/chat")
+                .bodyValue(requestBody)
+                .retrieve()
+                .bodyToFlux(Map.class)
+                .map(chunk -> {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> messageObj = (Map<String, Object>) chunk.get("message");
+                    if (messageObj != null) {
+                        String content = String.valueOf(messageObj.getOrDefault("content", ""));
+                        if (!content.isEmpty()) {
+                            return "{\"token\":" + escapeJsonString(content) + "}";
+                        }
+                    }
+                    return null;
+                })
+                .filter(Objects::nonNull)
+                .concatWith(Flux.just("{\"done\":true,\"sources\":" + finalSourcesJson + "}"))
+                .onErrorResume(e -> {
+                    CentralLogger.logError("Streaming chat failed", e);
+                    return Flux.just("{\"error\":" + escapeJsonString(e.getMessage()) + "}");
+                });
+    }
+
+    private String escapeJsonString(String s) {
+        if (s == null) return "null";
+        try {
+            return new ObjectMapper().writeValueAsString(s);
+        } catch (JsonProcessingException e) {
+            return "\"\"";
+        }
     }
 
     // -------------------------------------------------------------------------

@@ -60,13 +60,16 @@ public class RagSearchService {
     // Public API
     // ─────────────────────────────────────────────────────────────────────────
 
-    /**
-     * Hybrid search: cosine vector similarity + MongoDB full-text search, fused via RRF.
-     * Uses HyDE (Hypothetical Document Embedding) for the vector lane when enabled:
-     * instead of embedding the raw query, we embed a hypothetical answer which is
-     * semantically closer to the actual documents.
-     */
+    /** Search without filters (backwards-compatible). */
     public List<SearchResult> search(String query, int topK) {
+        return search(query, topK, SearchFilters.NONE);
+    }
+
+    /**
+     * Hybrid search with optional metadata filters.
+     * Uses HyDE (Hypothetical Document Embedding) for the vector lane when enabled.
+     */
+    public List<SearchResult> search(String query, int topK, SearchFilters filters) {
         int k = topK > 0 ? topK : FINAL_TOP_K;
 
         // HyDE: generate a hypothetical answer and use its embedding for vector search
@@ -76,13 +79,24 @@ public class RagSearchService {
         // Keyword lane always uses the original query for exact term matching
         List<SearchResult> keywordResults = keywordSearch(query, ragConfig.getSearchTopK());
 
-        return reciprocalRankFusion(vectorResults, keywordResults)
-                .stream().limit(k).toList();
+        List<SearchResult> fused = reciprocalRankFusion(vectorResults, keywordResults);
+
+        // Apply post-search metadata filters
+        if (filters.hasAny()) {
+            fused = fused.stream().filter(r -> filters.matches(r)).toList();
+        }
+
+        return fused.stream().limit(k).toList();
     }
 
-    /** Semantic search grouped by email with top chunk per email. */
+    /** Semantic search grouped by email with top chunk per email (backwards-compatible). */
     public List<EmailSearchResult> searchEmails(String query, int topK) {
-        List<SearchResult> chunkResults = search(query, topK);
+        return searchEmails(query, topK, SearchFilters.NONE);
+    }
+
+    /** Semantic search grouped by email with optional metadata filters. */
+    public List<EmailSearchResult> searchEmails(String query, int topK, SearchFilters filters) {
+        List<SearchResult> chunkResults = search(query, topK > 0 ? topK * 3 : FINAL_TOP_K * 3, filters);
 
         Map<String, List<SearchResult>> grouped = chunkResults.stream()
                 .collect(Collectors.groupingBy(SearchResult::emailId));
@@ -353,4 +367,40 @@ public class RagSearchService {
 
     public record EmailSearchResult(Email email, double bestScore,
                                     List<MatchedChunk> matchedChunks) {}
+
+    /**
+     * Metadata filters for post-search filtering.
+     * All fields are optional – null or blank means "don't filter".
+     */
+    public record SearchFilters(String sender, String pstFile, String startDate, String endDate) {
+        public static final SearchFilters NONE = new SearchFilters(null, null, null, null);
+
+        public static SearchFilters of(String sender, String pstFile, String startDate, String endDate) {
+            boolean any = (sender != null && !sender.isBlank())
+                    || (pstFile != null && !pstFile.isBlank())
+                    || (startDate != null && !startDate.isBlank())
+                    || (endDate != null && !endDate.isBlank());
+            return any ? new SearchFilters(sender, pstFile, startDate, endDate) : NONE;
+        }
+
+        public boolean hasAny() { return this != NONE; }
+
+        public boolean matches(SearchResult r) {
+            if (sender != null && !sender.isBlank()) {
+                String s = sender.toLowerCase();
+                boolean senderMatch = (r.senderName() != null && r.senderName().toLowerCase().contains(s))
+                        || (r.senderEmailAddress() != null && r.senderEmailAddress().toLowerCase().contains(s));
+                if (!senderMatch) return false;
+            }
+            if (pstFile != null && !pstFile.isBlank()) {
+                if (r.pstFileName() == null || !r.pstFileName().toLowerCase().contains(pstFile.toLowerCase())) {
+                    return false;
+                }
+            }
+            // Date filtering would require the chunk to carry receivedTime – skipped for now
+            // as chunks don't store emailReceivedTime as a string in SearchResult.
+            // This is a known limitation; for full date filtering, use the /api/emails/search endpoint.
+            return true;
+        }
+    }
 }

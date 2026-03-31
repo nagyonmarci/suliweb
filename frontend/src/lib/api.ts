@@ -354,10 +354,16 @@ export const api = {
     fetchText(`/api/rag/ingest?includeAttachments=${includeAttachments}`, { method: 'POST' }),
   ragReIngest: (emailId: string) => fetchText(`/api/rag/ingest/${emailId}`, { method: 'POST' }),
   ragEmbed: () => fetchText('/api/rag/embed', { method: 'POST' }),
-  ragSearch: (q: string, topK = 10) =>
-    fetchJson<SearchResult[]>(`/api/rag/search?q=${encodeURIComponent(q)}&topK=${topK}`),
-  ragSearchEmails: (q: string, topK = 10) =>
-    fetchJson<EmailSearchResult[]>(`/api/rag/search/emails?q=${encodeURIComponent(q)}&topK=${topK}`),
+  ragSearch: (q: string, topK = 10, filters?: Record<string, string>) => {
+    const params = new URLSearchParams({ q, topK: String(topK) });
+    if (filters) Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, v); });
+    return fetchJson<SearchResult[]>(`/api/rag/search?${params}`);
+  },
+  ragSearchEmails: (q: string, topK = 10, filters?: Record<string, string>) => {
+    const params = new URLSearchParams({ q, topK: String(topK) });
+    if (filters) Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, v); });
+    return fetchJson<EmailSearchResult[]>(`/api/rag/search/emails?${params}`);
+  },
   ragContext: (q: string, topK = 10) =>
     fetchJson<RagContext>(`/api/rag/context?q=${encodeURIComponent(q)}&topK=${topK}`),
   ragStats: () => fetchJson<RagStats>('/api/rag/stats'),
@@ -371,4 +377,74 @@ export const api = {
       body: JSON.stringify({ message, topK, model, history }),
     }),
   ragModels: () => fetchJson<string[]>('/api/rag/models'),
+
+  /**
+   * Streaming RAG chat via SSE. Calls onToken for each token, returns final sources.
+   * Falls back to non-streaming ragChat on error.
+   */
+  ragChatStream: async (
+    message: string,
+    topK: number,
+    model: string | undefined,
+    history: Array<{ role: string; content: string }> | undefined,
+    onToken: (token: string) => void,
+  ): Promise<ChatSource[]> => {
+    const res = await fetch('/api/rag/chat/stream', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ message, topK, model, history }),
+    });
+
+    if (!res.ok || !res.body) {
+      // Fallback to non-streaming
+      const fallback = await api.ragChat(message, topK, model, history);
+      onToken(fallback.answer);
+      return fallback.sources;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let sources: ChatSource[] = [];
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // SSE format: each event is "data:..." followed by newlines
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        const trimmed = line.replace(/^data:\s*/, '').trim();
+        if (!trimmed) continue;
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (parsed.token) {
+            onToken(parsed.token);
+          }
+          if (parsed.done && parsed.sources) {
+            sources = parsed.sources;
+          }
+          if (parsed.error) {
+            throw new Error(parsed.error);
+          }
+        } catch {
+          // Ignore unparseable lines
+        }
+      }
+    }
+
+    // Process remaining buffer
+    if (buffer.trim()) {
+      const trimmed = buffer.replace(/^data:\s*/, '').trim();
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed.done && parsed.sources) sources = parsed.sources;
+      } catch { /* ignore */ }
+    }
+
+    return sources;
+  },
 };
