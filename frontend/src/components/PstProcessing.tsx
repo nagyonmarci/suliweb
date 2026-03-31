@@ -7,7 +7,7 @@ export default function PstProcessing() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [saveAttachments, setSaveAttachments] = useState(true);
   const [directories, setDirectories] = useState('');
-  const intervalRef = useRef<ReturnType<typeof setInterval>>();
+  const intervalRef = useRef<ReturnType<typeof setInterval>>(undefined);
 
   useEffect(() => {
     pollProgress();
@@ -68,6 +68,19 @@ export default function PstProcessing() {
       setMessage('Feldolgozás folytatva.');
     } catch (e: any) {
       setMessage('Hiba: ' + e.message);
+    }
+  }
+
+  async function handleSaveAttachmentsFromDb() {
+    setMessage('Csatolmányok mentése indítása...');
+    setIsProcessing(true);
+    try {
+      const result = await api.saveAttachmentsFromDb();
+      setMessage(result);
+    } catch (e: any) {
+      setMessage('Hiba: ' + e.message);
+    } finally {
+      setIsProcessing(false);
     }
   }
 
@@ -147,6 +160,21 @@ export default function PstProcessing() {
             {isProcessing ? 'Feldolgozás folyamatban...' : 'Feldolgozás indítása'}
           </button>
         </div>
+      </div>
+
+      {/* Save attachments for already processed files */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="text-sm font-semibold text-gray-700 mb-4">Csatolmányok mentése (feldolgozott fájlok)</h3>
+        <p className="text-sm text-gray-500 mb-4">
+          A már "Processed" státuszú, de csatolmányokat még nem tartalmazó PST fájlok újraolvasása és csatolmányaik mentése.
+        </p>
+        <button
+          onClick={handleSaveAttachmentsFromDb}
+          disabled={isProcessing}
+          className="px-4 py-2.5 bg-amber-600 text-white text-sm rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors"
+        >
+          {isProcessing ? 'Feldolgozás folyamatban...' : 'Csatolmányok mentése'}
+        </button>
       </div>
 
       {/* Message */}

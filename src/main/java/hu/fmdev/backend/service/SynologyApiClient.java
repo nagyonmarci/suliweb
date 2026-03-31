@@ -23,7 +23,15 @@ public class SynologyApiClient {
 
     private String sid;
 
+    public boolean isConfigured() {
+        return config.getHost() != null && !config.getHost().isBlank()
+                && config.getUsername() != null && !config.getUsername().isBlank();
+    }
+
     public void login() {
+        if (!isConfigured()) {
+            throw new RuntimeException("Synology nincs konfigurálva (hiányzó host vagy felhasználónév)");
+        }
         String url = UriComponentsBuilder
                 .fromUriString(config.getHost())
                 .path("/webapi/auth.cgi")

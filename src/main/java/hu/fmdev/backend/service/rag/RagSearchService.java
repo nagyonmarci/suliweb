@@ -25,27 +25,32 @@ import java.util.stream.Collectors;
 public class RagSearchService {
 
     private final EmbeddingService embeddingService;
+    private final QueryRewriteService queryRewriteService;
+    private final QdrantService qdrantService;
     private final MongoTemplate mongoTemplate;
     private final EmailRepository emailRepository;
     private final RagConfig ragConfig;
 
     // RRF constant – higher = less sensitive to rank position
     private static final int RRF_K = 60;
-    // Maximum chunks loaded into memory for cosine ranking
+    // Maximum chunks loaded into memory for cosine ranking (fallback when Qdrant is unavailable)
     private static final int VECTOR_CANDIDATE_LIMIT = 50_000;
     // Final results returned to caller (before email grouping)
     private static final int FINAL_TOP_K = 10;
     // Hard minimum cosine similarity for vector lane – cuts clear non-matches before RRF.
-    // Intentionally low (config.searchMinScore is used as the final output gate instead).
     private static final double COSINE_PREFILTER = 0.20;
     // Weight of raw cosine score blended into the final RRF-based score (0 = pure RRF rank)
     private static final double COSINE_BLEND = 0.3;
 
     public RagSearchService(EmbeddingService embeddingService,
+                            QueryRewriteService queryRewriteService,
+                            QdrantService qdrantService,
                             MongoTemplate mongoTemplate,
                             EmailRepository emailRepository,
                             RagConfig ragConfig) {
         this.embeddingService = embeddingService;
+        this.queryRewriteService = queryRewriteService;
+        this.qdrantService = qdrantService;
         this.mongoTemplate = mongoTemplate;
         this.emailRepository = emailRepository;
         this.ragConfig = ragConfig;
@@ -55,22 +60,43 @@ public class RagSearchService {
     // Public API
     // ─────────────────────────────────────────────────────────────────────────
 
-    /**
-     * Hybrid search: cosine vector similarity + MongoDB full-text search, fused via RRF.
-     */
+    /** Search without filters (backwards-compatible). */
     public List<SearchResult> search(String query, int topK) {
-        int k = topK > 0 ? topK : FINAL_TOP_K;
-
-        List<SearchResult> vectorResults  = vectorSearch(query, ragConfig.getSearchTopK());
-        List<SearchResult> keywordResults = keywordSearch(query, ragConfig.getSearchTopK());
-
-        return reciprocalRankFusion(vectorResults, keywordResults)
-                .stream().limit(k).toList();
+        return search(query, topK, SearchFilters.NONE);
     }
 
-    /** Semantic search grouped by email with top chunk per email. */
+    /**
+     * Hybrid search with optional metadata filters.
+     * Uses HyDE (Hypothetical Document Embedding) for the vector lane when enabled.
+     */
+    public List<SearchResult> search(String query, int topK, SearchFilters filters) {
+        int k = topK > 0 ? topK : FINAL_TOP_K;
+
+        // HyDE: generate a hypothetical answer and use its embedding for vector search
+        String vectorQuery = queryRewriteService.generateHypotheticalAnswer(query);
+
+        List<SearchResult> vectorResults  = vectorSearch(vectorQuery, ragConfig.getSearchTopK());
+        // Keyword lane always uses the original query for exact term matching
+        List<SearchResult> keywordResults = keywordSearch(query, ragConfig.getSearchTopK());
+
+        List<SearchResult> fused = reciprocalRankFusion(vectorResults, keywordResults);
+
+        // Apply post-search metadata filters
+        if (filters.hasAny()) {
+            fused = fused.stream().filter(r -> filters.matches(r)).toList();
+        }
+
+        return fused.stream().limit(k).toList();
+    }
+
+    /** Semantic search grouped by email with top chunk per email (backwards-compatible). */
     public List<EmailSearchResult> searchEmails(String query, int topK) {
-        List<SearchResult> chunkResults = search(query, topK);
+        return searchEmails(query, topK, SearchFilters.NONE);
+    }
+
+    /** Semantic search grouped by email with optional metadata filters. */
+    public List<EmailSearchResult> searchEmails(String query, int topK, SearchFilters filters) {
+        List<SearchResult> chunkResults = search(query, topK > 0 ? topK * 3 : FINAL_TOP_K * 3, filters);
 
         Map<String, List<SearchResult>> grouped = chunkResults.stream()
                 .collect(Collectors.groupingBy(SearchResult::emailId));
@@ -113,10 +139,10 @@ public class RagSearchService {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Vector search (cosine similarity in JVM – works on Community MongoDB)
+    // Vector search – delegates to Qdrant (HNSW) when available, falls back
+    // to brute-force cosine similarity in JVM for Community MongoDB setups
     // ─────────────────────────────────────────────────────────────────────────
 
-    @SuppressWarnings("unchecked")
     private List<SearchResult> vectorSearch(String query, int topK) {
         List<Double> qVec = embeddingService.embed(query);
         if (qVec.isEmpty()) {
@@ -124,10 +150,47 @@ public class RagSearchService {
             return List.of();
         }
 
+        // Prefer Qdrant ANN search when available (millisecond latency vs seconds for brute-force)
+        if (qdrantService.isAvailable()) {
+            return qdrantVectorSearch(qVec, topK);
+        }
+        return bruteForceVectorSearch(qVec, topK);
+    }
+
+    /**
+     * Fast ANN search via Qdrant HNSW index.
+     */
+    private List<SearchResult> qdrantVectorSearch(List<Double> qVec, int topK) {
+        try {
+            List<QdrantService.QdrantHit> hits = qdrantService.search(qVec, topK);
+            return hits.stream()
+                    .filter(hit -> hit.score() >= COSINE_PREFILTER)
+                    .map(hit -> new SearchResult(
+                            hit.payload().getOrDefault("chunkId", hit.pointId()),
+                            hit.payload().getOrDefault("emailId", ""),
+                            hit.payload().getOrDefault("sourceType", ""),
+                            hit.payload().get("attachmentFileName"),
+                            hit.payload().getOrDefault("content", ""),
+                            hit.payload().getOrDefault("emailSubject", ""),
+                            hit.payload().getOrDefault("senderName", ""),
+                            hit.payload().getOrDefault("senderEmailAddress", ""),
+                            hit.payload().getOrDefault("pstFileName", ""),
+                            hit.score()))
+                    .toList();
+        } catch (Exception e) {
+            CentralLogger.logError("Qdrant vector search failed, falling back to brute-force", e);
+            return bruteForceVectorSearch(qVec, topK);
+        }
+    }
+
+    /**
+     * Brute-force cosine similarity in JVM – fallback when Qdrant is not available.
+     */
+    @SuppressWarnings("unchecked")
+    private List<SearchResult> bruteForceVectorSearch(List<Double> qVec, int topK) {
         double[] q = toDoubleArray(qVec);
 
         try {
-            // Fetch embedded chunks (only the fields we need – no content yet to save memory)
             List<Document> candidates = mongoTemplate.getDb()
                     .getCollection("document_chunks")
                     .find(new Document("ingestionStatus", "embedded"))
@@ -139,13 +202,12 @@ public class RagSearchService {
                     .limit(VECTOR_CANDIDATE_LIMIT)
                     .into(new ArrayList<>());
 
-            // Compute cosine similarity for each candidate
             List<SearchResult> scored = new ArrayList<>(candidates.size());
             for (Document doc : candidates) {
                 List<Object> rawEmb = (List<Object>) doc.get("embedding");
                 if (rawEmb == null || rawEmb.isEmpty()) continue;
                 double[] dVec = toDoubleArrayFromObjects(rawEmb);
-                if (dVec.length != q.length) continue;  // dimension mismatch guard
+                if (dVec.length != q.length) continue;
                 double sim = cosineSimilarity(q, dVec);
                 if (sim >= COSINE_PREFILTER) {
                     scored.add(toSearchResultWithScore(doc, sim));
@@ -155,7 +217,7 @@ public class RagSearchService {
             scored.sort(Comparator.comparingDouble(SearchResult::score).reversed());
             return scored.stream().limit(topK).toList();
         } catch (Exception e) {
-            CentralLogger.logError("Vector search (cosine) failed", e);
+            CentralLogger.logError("Vector search (brute-force cosine) failed", e);
             return List.of();
         }
     }
@@ -305,4 +367,40 @@ public class RagSearchService {
 
     public record EmailSearchResult(Email email, double bestScore,
                                     List<MatchedChunk> matchedChunks) {}
+
+    /**
+     * Metadata filters for post-search filtering.
+     * All fields are optional – null or blank means "don't filter".
+     */
+    public record SearchFilters(String sender, String pstFile, String startDate, String endDate) {
+        public static final SearchFilters NONE = new SearchFilters(null, null, null, null);
+
+        public static SearchFilters of(String sender, String pstFile, String startDate, String endDate) {
+            boolean any = (sender != null && !sender.isBlank())
+                    || (pstFile != null && !pstFile.isBlank())
+                    || (startDate != null && !startDate.isBlank())
+                    || (endDate != null && !endDate.isBlank());
+            return any ? new SearchFilters(sender, pstFile, startDate, endDate) : NONE;
+        }
+
+        public boolean hasAny() { return this != NONE; }
+
+        public boolean matches(SearchResult r) {
+            if (sender != null && !sender.isBlank()) {
+                String s = sender.toLowerCase();
+                boolean senderMatch = (r.senderName() != null && r.senderName().toLowerCase().contains(s))
+                        || (r.senderEmailAddress() != null && r.senderEmailAddress().toLowerCase().contains(s));
+                if (!senderMatch) return false;
+            }
+            if (pstFile != null && !pstFile.isBlank()) {
+                if (r.pstFileName() == null || !r.pstFileName().toLowerCase().contains(pstFile.toLowerCase())) {
+                    return false;
+                }
+            }
+            // Date filtering would require the chunk to carry receivedTime – skipped for now
+            // as chunks don't store emailReceivedTime as a string in SearchResult.
+            // This is a known limitation; for full date filtering, use the /api/emails/search endpoint.
+            return true;
+        }
+    }
 }

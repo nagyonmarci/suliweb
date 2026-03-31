@@ -24,6 +24,9 @@ services:
       - SYNOLOGY_BATCH_SIZE=${SYNOLOGY_BATCH_SIZE:-100}
       - JWT_SECRET=${JWT_SECRET:-dGhpc0lzQVNlY3VyZUtleUZvckpXVFRva2VuU2lnbmluZ1B1cnBvc2VzT25seQ==}
       - SPRING_DATA_MONGODB_URI=mongodb://mongo:27017/emails?directConnection=true
+      - RAG_QDRANT_ENABLED=${RAG_QDRANT_ENABLED:-false}
+      - RAG_QDRANT_HOST=qdrant
+      - RAG_OLLAMA_BASE_URL=http://host.docker.internal:11434
     command: ["--spring.profiles.active=docker"]
     volumes:
       - attachments:/app/attachments
@@ -89,6 +92,23 @@ services:
         print("Indexes created");
       '
 
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:6333/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    profiles:
+      - rag
+
   ollama:
     image: ollama/ollama:latest
     ports:
@@ -124,4 +144,5 @@ volumes:
   attachments:
   pst_source:
   ollama_data:
+  qdrant_data:
   logs:

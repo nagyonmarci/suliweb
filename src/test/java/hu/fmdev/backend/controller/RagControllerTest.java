@@ -5,6 +5,8 @@ import hu.fmdev.backend.service.rag.EmbeddingService;
 import hu.fmdev.backend.service.rag.RagChatService;
 import hu.fmdev.backend.service.rag.RagIngestionService;
 import hu.fmdev.backend.service.rag.RagSearchService;
+import hu.fmdev.backend.repository.LogEntryRepository;
+import hu.fmdev.backend.logger.CentralLogger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,6 +14,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -28,12 +31,18 @@ class RagControllerTest {
     @Mock private RagConfig ragConfig;
     @Mock private RagChatService chatService;
     @Mock private WebClient ollamaWebClient;
+    @Mock private LogEntryRepository logEntryRepository;
 
     private RagController controller;
 
     @BeforeEach
     void setUp() {
         controller = new RagController(ingestionService, searchService, embeddingService, ragConfig, chatService, ollamaWebClient);
+
+        // Initialize CentralLogger for static calls during tests
+        CentralLogger logger = new CentralLogger();
+        ReflectionTestUtils.setField(logger, "logEntryRepository", logEntryRepository);
+        logger.init();
     }
 
     // --- /api/rag/ingest ---
@@ -85,20 +94,20 @@ class RagControllerTest {
         var expected = List.of(new RagSearchService.SearchResult(
                 "c1", "e1", "email_body", null, "content",
                 "Subject", "Sender", "s@t.com", "f.pst", 0.9));
-        when(searchService.search("test query", 5)).thenReturn(expected);
+        when(searchService.search(eq("test query"), eq(5), any())).thenReturn(expected);
 
-        var result = controller.search("test query", 5);
+        var result = controller.search("test query", 5, null, null, null, null);
 
         assertEquals(1, result.size());
         assertEquals("c1", result.getFirst().chunkId());
-        verify(searchService).search("test query", 5);
+        verify(searchService).search(eq("test query"), eq(5), any());
     }
 
     @Test
     void search_emptyResults() {
-        when(searchService.search("nothing", 10)).thenReturn(List.of());
+        when(searchService.search(eq("nothing"), eq(10), any())).thenReturn(List.of());
 
-        var result = controller.search("nothing", 10);
+        var result = controller.search("nothing", 10, null, null, null, null);
         assertTrue(result.isEmpty());
     }
 
@@ -106,11 +115,11 @@ class RagControllerTest {
 
     @Test
     void searchEmails_delegatesToService() {
-        when(searchService.searchEmails("query", 10)).thenReturn(List.of());
+        when(searchService.searchEmails(eq("query"), eq(10), any())).thenReturn(List.of());
 
-        var result = controller.searchEmails("query", 10);
+        var result = controller.searchEmails("query", 10, null, null, null, null);
         assertTrue(result.isEmpty());
-        verify(searchService).searchEmails("query", 10);
+        verify(searchService).searchEmails(eq("query"), eq(10), any());
     }
 
     // --- /api/rag/context ---

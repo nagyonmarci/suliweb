@@ -14,6 +14,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import hu.fmdev.backend.repository.LogEntryRepository;
+import hu.fmdev.backend.logger.CentralLogger;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -33,6 +36,8 @@ class RagIngestionServiceTest {
     @Mock private EmbeddingService embeddingService;
     @Mock private ProgressTracker progressTracker;
     @Mock private AttachmentRepository attachmentRepository;
+    @Mock private QdrantService qdrantService;
+    @Mock private LogEntryRepository logEntryRepository;
 
     @Captor private ArgumentCaptor<List<DocumentChunk>> chunksCaptor;
 
@@ -44,8 +49,13 @@ class RagIngestionServiceTest {
         config.setIngestionThreads(1);
         service = new RagIngestionService(
                 emailRepository, chunkRepository, textExtractionService,
-                chunkingService, embeddingService, progressTracker, config,
+                chunkingService, embeddingService, qdrantService, progressTracker, config,
                 attachmentRepository);
+
+        // Initialize CentralLogger for static calls during tests
+        CentralLogger logger = new CentralLogger();
+        ReflectionTestUtils.setField(logger, "logEntryRepository", logEntryRepository);
+        logger.init();
     }
 
     private Email createTestEmail(String id, String subject, String body) {
@@ -96,7 +106,6 @@ class RagIngestionServiceTest {
         // default is false, so no attachment chunks expected but subject chunk should be created.
         Email email = createTestEmail("e2", "With attachment", null);
         when(textExtractionService.getEmailTextContent(null, null)).thenReturn("");
-        when(attachmentRepository.findByEmailId("e2")).thenReturn(List.of());
 
         service.ingestEmail(email);
 
@@ -268,7 +277,7 @@ class RagIngestionServiceTest {
         service.reIngestEmail("e7");
 
         verify(chunkRepository).deleteByEmailId("e7");
-        verify(chunkRepository).saveAll(chunksCaptor.capture()); // ingestEmail saveAll
+        verify(chunkRepository, times(2)).saveAll(chunksCaptor.capture());
         verify(embeddingService).embedBatch(List.of("new body", "Reindex"));
     }
 

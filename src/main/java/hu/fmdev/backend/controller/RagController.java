@@ -5,8 +5,10 @@ import hu.fmdev.backend.service.rag.EmbeddingService;
 import hu.fmdev.backend.service.rag.RagChatService;
 import hu.fmdev.backend.service.rag.RagIngestionService;
 import hu.fmdev.backend.service.rag.RagSearchService;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.Collections;
@@ -80,8 +82,13 @@ public class RagController {
     @GetMapping("/search")
     public List<RagSearchService.SearchResult> search(
             @RequestParam String q,
-            @RequestParam(defaultValue = "10") int topK) {
-        return searchService.search(q, topK);
+            @RequestParam(defaultValue = "10") int topK,
+            @RequestParam(required = false) String sender,
+            @RequestParam(required = false) String pstFile,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        var filters = RagSearchService.SearchFilters.of(sender, pstFile, startDate, endDate);
+        return searchService.search(q, topK, filters);
     }
 
     /**
@@ -91,8 +98,13 @@ public class RagController {
     @GetMapping("/search/emails")
     public List<RagSearchService.EmailSearchResult> searchEmails(
             @RequestParam String q,
-            @RequestParam(defaultValue = "10") int topK) {
-        return searchService.searchEmails(q, topK);
+            @RequestParam(defaultValue = "10") int topK,
+            @RequestParam(required = false) String sender,
+            @RequestParam(required = false) String pstFile,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        var filters = RagSearchService.SearchFilters.of(sender, pstFile, startDate, endDate);
+        return searchService.searchEmails(q, topK, filters);
     }
 
     /**
@@ -114,11 +126,22 @@ public class RagController {
     @PostMapping("/chat")
     public ResponseEntity<RagChatService.ChatResponse> chat(@RequestBody RagChatService.ChatRequest request) {
         try {
-            RagChatService.ChatResponse response = chatService.chat(request.message(), request.topK(), request.model());
+            RagChatService.ChatResponse response = chatService.chat(
+                    request.message(), request.topK(), request.model(), request.history());
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             return ResponseEntity.internalServerError().build();
         }
+    }
+
+    /**
+     * Streaming RAG chat: returns Server-Sent Events with incremental tokens.
+     * Each event is a JSON line: {"token": "..."} or {"done": true, "sources": [...]}.
+     */
+    @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<String> chatStream(@RequestBody RagChatService.ChatRequest request) {
+        return chatService.chatStream(
+                request.message(), request.topK(), request.model(), request.history());
     }
 
     /**

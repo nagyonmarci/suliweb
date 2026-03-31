@@ -12,8 +12,7 @@ import hu.fmdev.backend.service.ProgressTracker;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.*;
 
 @Service
@@ -24,6 +23,7 @@ public class RagIngestionService {
     private final TextExtractionService textExtractionService;
     private final ChunkingService chunkingService;
     private final EmbeddingService embeddingService;
+    private final QdrantService qdrantService;
     private final ProgressTracker progressTracker;
     private final RagConfig ragConfig;
     private final AttachmentRepository attachmentRepository;
@@ -35,6 +35,7 @@ public class RagIngestionService {
                                TextExtractionService textExtractionService,
                                ChunkingService chunkingService,
                                EmbeddingService embeddingService,
+                               QdrantService qdrantService,
                                ProgressTracker progressTracker,
                                RagConfig ragConfig,
                                AttachmentRepository attachmentRepository) {
@@ -43,6 +44,7 @@ public class RagIngestionService {
         this.textExtractionService = textExtractionService;
         this.chunkingService = chunkingService;
         this.embeddingService = embeddingService;
+        this.qdrantService = qdrantService;
         this.progressTracker = progressTracker;
         this.ragConfig = ragConfig;
         this.attachmentRepository = attachmentRepository;
@@ -217,6 +219,7 @@ public class RagIngestionService {
 
     /**
      * Embeds a batch of chunks using a single Ollama API call.
+     * Also upserts into Qdrant when available for fast ANN search.
      */
     private void embedBatch(List<DocumentChunk> batch) {
         List<String> texts = batch.stream().map(DocumentChunk::getContent).toList();
@@ -224,18 +227,32 @@ public class RagIngestionService {
         try {
             List<List<Double>> embeddings = embeddingService.embedBatch(texts);
 
+            List<QdrantService.ChunkPoint> qdrantPoints = new ArrayList<>();
+
             for (int i = 0; i < batch.size(); i++) {
                 DocumentChunk chunk = batch.get(i);
                 if (i < embeddings.size() && !embeddings.get(i).isEmpty()) {
                     chunk.setEmbedding(embeddings.get(i));
                     chunk.setIngestionStatus("embedded");
                     chunk.setEmbeddedAt(LocalDateTime.now());
+
+                    // Prepare Qdrant upsert payload
+                    if (qdrantService.isAvailable() && chunk.getId() != null) {
+                        Map<String, String> payload = buildQdrantPayload(chunk);
+                        qdrantPoints.add(new QdrantService.ChunkPoint(
+                                chunk.getId(), embeddings.get(i), payload));
+                    }
                 } else {
                     chunk.setIngestionStatus("failed");
                 }
                 progressTracker.increment();
             }
             chunkRepository.saveAll(batch);
+
+            // Batch upsert to Qdrant
+            if (!qdrantPoints.isEmpty()) {
+                qdrantService.upsertBatch(qdrantPoints);
+            }
         } catch (Exception e) {
             CentralLogger.logError("Batch embedding failed for " + batch.size() + " chunks", e);
             for (DocumentChunk chunk : batch) {
@@ -244,6 +261,20 @@ public class RagIngestionService {
             }
             chunkRepository.saveAll(batch);
         }
+    }
+
+    private Map<String, String> buildQdrantPayload(DocumentChunk chunk) {
+        Map<String, String> payload = new HashMap<>();
+        payload.put("chunkId", chunk.getId());
+        payload.put("emailId", chunk.getEmailId());
+        payload.put("sourceType", chunk.getSourceType());
+        payload.put("attachmentFileName", chunk.getAttachmentFileName());
+        payload.put("content", chunk.getContent());
+        payload.put("emailSubject", chunk.getEmailSubject());
+        payload.put("senderName", chunk.getSenderName());
+        payload.put("senderEmailAddress", chunk.getSenderEmailAddress());
+        payload.put("pstFileName", chunk.getPstFileName());
+        return payload;
     }
 
     private <T> List<List<T>> partitionList(List<T> list, int size) {
@@ -259,6 +290,15 @@ public class RagIngestionService {
      * Uses batch embedding for the new chunks.
      */
     public void reIngestEmail(String emailId) {
+        // Delete old chunks from Qdrant too
+        List<DocumentChunk> oldChunks = chunkRepository.findByEmailId(emailId);
+        if (qdrantService.isAvailable() && !oldChunks.isEmpty()) {
+            List<String> chunkIds = oldChunks.stream()
+                    .map(DocumentChunk::getId)
+                    .filter(id -> id != null)
+                    .toList();
+            qdrantService.deleteByChunkIds(chunkIds);
+        }
         chunkRepository.deleteByEmailId(emailId);
         Email email = emailRepository.findById(emailId).orElse(null);
         if (email != null) {
@@ -325,6 +365,10 @@ public class RagIngestionService {
     public long resetAll() {
         long count = chunkRepository.count();
         chunkRepository.deleteAll();
+        // Also reset Qdrant collection if available
+        if (qdrantService.isAvailable()) {
+            qdrantService.resetCollection();
+        }
         CentralLogger.logInfo("Deleted all " + count + " chunks for fresh ingestion");
         return count;
     }
