@@ -14,12 +14,16 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.beans.factory.annotation.Value;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 @RestController
 @RequestMapping("/api/attachments")
@@ -28,6 +32,16 @@ public class AttachmentController {
 
     private final AttachmentRepository attachmentRepository;
     private final org.springframework.data.mongodb.core.MongoTemplate mongoTemplate;
+
+    @Value("${attachments.directory:/app/attachments}")
+    private String attachmentsDirectory;
+
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+            "creationTime", "filename", "size", "emailSubject", "senderName", "pstFileName");
+
+    private static String escapeRegex(String input) {
+        return Pattern.quote(input);
+    }
 
     @GetMapping("/search")
     public List<Attachment> searchAttachments(
@@ -49,21 +63,22 @@ public class AttachmentController {
         java.util.List<org.springframework.data.mongodb.core.query.Criteria> andCriteria = new java.util.ArrayList<>();
 
         if (q != null && !q.trim().isEmpty()) {
+            String escapedQ = escapeRegex(q.trim());
             org.springframework.data.mongodb.core.query.Criteria[] criteriaList = {
-                org.springframework.data.mongodb.core.query.Criteria.where("filename").regex(q, "i"),
-                org.springframework.data.mongodb.core.query.Criteria.where("emailSubject").regex(q, "i"),
-                org.springframework.data.mongodb.core.query.Criteria.where("senderName").regex(q, "i"),
-                org.springframework.data.mongodb.core.query.Criteria.where("pstFileName").regex(q, "i")
+                org.springframework.data.mongodb.core.query.Criteria.where("filename").regex(escapedQ, "i"),
+                org.springframework.data.mongodb.core.query.Criteria.where("emailSubject").regex(escapedQ, "i"),
+                org.springframework.data.mongodb.core.query.Criteria.where("senderName").regex(escapedQ, "i"),
+                org.springframework.data.mongodb.core.query.Criteria.where("pstFileName").regex(escapedQ, "i")
             };
             andCriteria.add(new org.springframework.data.mongodb.core.query.Criteria().orOperator(criteriaList));
         }
 
         if (filename != null && !filename.isEmpty()) {
-            andCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("filename").regex(filename, "i"));
+            andCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("filename").regex(escapeRegex(filename), "i"));
         }
         if (extension != null && !extension.isEmpty()) {
-            // matches end of filename .ext
-            andCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("filename").regex("\\." + extension + "$", "i"));
+            // matches end of filename .ext - escape only the extension part
+            andCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("filename").regex("\\." + Pattern.quote(extension) + "$", "i"));
         }
         if (minSize != null || maxSize != null) {
             org.springframework.data.mongodb.core.query.Criteria sizeCriteria = org.springframework.data.mongodb.core.query.Criteria.where("size");
@@ -72,13 +87,13 @@ public class AttachmentController {
             andCriteria.add(sizeCriteria);
         }
         if (emailSubject != null && !emailSubject.isEmpty()) {
-            andCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("emailSubject").regex(emailSubject, "i"));
+            andCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("emailSubject").regex(escapeRegex(emailSubject), "i"));
         }
         if (sender != null && !sender.isEmpty()) {
-            andCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("senderName").regex(sender, "i"));
+            andCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("senderName").regex(escapeRegex(sender), "i"));
         }
         if (pstFile != null && !pstFile.isEmpty()) {
-            andCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("pstFileName").regex(pstFile, "i"));
+            andCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("pstFileName").regex(escapeRegex(pstFile), "i"));
         }
         if (startDate != null || endDate != null) {
             org.springframework.data.mongodb.core.query.Criteria dateCriteria = org.springframework.data.mongodb.core.query.Criteria.where("receivedTime");
@@ -95,7 +110,8 @@ public class AttachmentController {
                 ? org.springframework.data.domain.Sort.Direction.ASC
                 : org.springframework.data.domain.Sort.Direction.DESC;
 
-        query.with(org.springframework.data.domain.Sort.by(dir, sortBy));
+        String validatedSortBy = ALLOWED_SORT_FIELDS.contains(sortBy) ? sortBy : "creationTime";
+        query.with(org.springframework.data.domain.Sort.by(dir, validatedSortBy));
         query.limit(limit);
 
         return mongoTemplate.find(query, Attachment.class);
@@ -125,6 +141,16 @@ public class AttachmentController {
 
         Attachment attachment = attachmentOpt.get();
         Path path = Paths.get(attachment.getLocalPath());
+
+        try {
+            Path baseDir = Paths.get(attachmentsDirectory).toRealPath();
+            Path realPath = path.toRealPath();
+            if (!realPath.startsWith(baseDir)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.GONE).build();
+        }
 
         if (!Files.exists(path)) {
             return ResponseEntity.status(HttpStatus.GONE).build();

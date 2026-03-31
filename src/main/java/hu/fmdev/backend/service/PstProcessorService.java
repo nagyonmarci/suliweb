@@ -187,7 +187,13 @@ public class PstProcessorService {
 
     public File convertMultiPartToFile(MultipartFile multipartFile) throws IOException {
         String tempDir = System.getProperty("java.io.tmpdir");
-        File file = new File(Paths.get(tempDir, multipartFile.getOriginalFilename()).toString());
+        String originalFilename = multipartFile.getOriginalFilename();
+        if (originalFilename == null || originalFilename.isBlank()) {
+            originalFilename = "upload.pst";
+        }
+        // Strip path separators to prevent directory traversal via filename
+        String safeFilename = Paths.get(originalFilename).getFileName().toString();
+        File file = new File(Paths.get(tempDir, safeFilename).toString());
         try (InputStream in = multipartFile.getInputStream(); OutputStream out = new FileOutputStream(file)) {
             byte[] buffer = new byte[1024];
             int length;

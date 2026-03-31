@@ -8,6 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 @RestController
 @RequestMapping("/api/emails")
@@ -17,6 +19,13 @@ public class EmailController {
     private EmailRepository emailRepository;
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(EmailController.class);
+
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+            "receivedTime", "subject", "senderName", "senderEmailAddress", "folderPath", "pstFileName");
+
+    private static String escapeRegex(String input) {
+        return Pattern.quote(input);
+    }
 
     @Autowired
     private org.springframework.data.mongodb.core.MongoTemplate mongoTemplate;
@@ -57,38 +66,40 @@ public class EmailController {
         java.util.List<org.springframework.data.mongodb.core.query.Criteria> andCriteria = new java.util.ArrayList<>();
 
         if (q != null && !q.trim().isEmpty()) {
+            String escapedQ = escapeRegex(q.trim());
             org.springframework.data.mongodb.core.query.Criteria[] criteriaList = {
-                org.springframework.data.mongodb.core.query.Criteria.where("subject").regex(q, "i"),
-                org.springframework.data.mongodb.core.query.Criteria.where("senderName").regex(q, "i"),
-                org.springframework.data.mongodb.core.query.Criteria.where("senderEmailAddress").regex(q, "i"),
-                org.springframework.data.mongodb.core.query.Criteria.where("body").regex(q, "i"),
-                org.springframework.data.mongodb.core.query.Criteria.where("htmlContent").regex(q, "i"),
-                org.springframework.data.mongodb.core.query.Criteria.where("folderPath").regex(q, "i"),
-                org.springframework.data.mongodb.core.query.Criteria.where("attachmentPaths").regex(q, "i")
+                org.springframework.data.mongodb.core.query.Criteria.where("subject").regex(escapedQ, "i"),
+                org.springframework.data.mongodb.core.query.Criteria.where("senderName").regex(escapedQ, "i"),
+                org.springframework.data.mongodb.core.query.Criteria.where("senderEmailAddress").regex(escapedQ, "i"),
+                org.springframework.data.mongodb.core.query.Criteria.where("body").regex(escapedQ, "i"),
+                org.springframework.data.mongodb.core.query.Criteria.where("htmlContent").regex(escapedQ, "i"),
+                org.springframework.data.mongodb.core.query.Criteria.where("folderPath").regex(escapedQ, "i"),
+                org.springframework.data.mongodb.core.query.Criteria.where("attachmentPaths").regex(escapedQ, "i")
             };
             andCriteria.add(new org.springframework.data.mongodb.core.query.Criteria().orOperator(criteriaList));
         }
 
         if (subject != null && !subject.isEmpty()) {
             andCriteria.add(
-                    org.springframework.data.mongodb.core.query.Criteria.where("subject").regex(subject, "i"));
+                    org.springframework.data.mongodb.core.query.Criteria.where("subject").regex(escapeRegex(subject), "i"));
         }
         if (sender != null && !sender.isEmpty()) {
+            String escapedSender = escapeRegex(sender);
             andCriteria.add(new org.springframework.data.mongodb.core.query.Criteria().orOperator(
-                    org.springframework.data.mongodb.core.query.Criteria.where("senderName").regex(sender, "i"),
-                    org.springframework.data.mongodb.core.query.Criteria.where("senderEmailAddress").regex(sender, "i")));
+                    org.springframework.data.mongodb.core.query.Criteria.where("senderName").regex(escapedSender, "i"),
+                    org.springframework.data.mongodb.core.query.Criteria.where("senderEmailAddress").regex(escapedSender, "i")));
         }
         if (recipient != null && !recipient.isEmpty()) {
             andCriteria.add(
-                    org.springframework.data.mongodb.core.query.Criteria.where("recipients").regex(recipient, "i"));
+                    org.springframework.data.mongodb.core.query.Criteria.where("recipients").regex(escapeRegex(recipient), "i"));
         }
         if (pstFile != null && !pstFile.isEmpty()) {
             andCriteria.add(
-                    org.springframework.data.mongodb.core.query.Criteria.where("pstFileName").regex(pstFile, "i"));
+                    org.springframework.data.mongodb.core.query.Criteria.where("pstFileName").regex(escapeRegex(pstFile), "i"));
         }
         if (folder != null && !folder.isEmpty()) {
             andCriteria.add(
-                    org.springframework.data.mongodb.core.query.Criteria.where("folderPath").regex(folder, "i"));
+                    org.springframework.data.mongodb.core.query.Criteria.where("folderPath").regex(escapeRegex(folder), "i"));
         }
         if (importance != null) {
             andCriteria.add(org.springframework.data.mongodb.core.query.Criteria.where("importance").is(importance));
@@ -116,7 +127,8 @@ public class EmailController {
                 ? org.springframework.data.domain.Sort.Direction.ASC
                 : org.springframework.data.domain.Sort.Direction.DESC;
 
-        query.with(org.springframework.data.domain.Sort.by(dir, sortBy));
+        String validatedSortBy = ALLOWED_SORT_FIELDS.contains(sortBy) ? sortBy : "receivedTime";
+        query.with(org.springframework.data.domain.Sort.by(dir, validatedSortBy));
         query.limit(limit);
 
         return mongoTemplate.find(query, Email.class);
