@@ -15,6 +15,7 @@ const navItems = [
   { href: '/attachments', label: 'Csatolmányok', icon: 'paperclip' },
   { href: '/processing', label: 'Feldolgozás', icon: 'cpu' },
   { href: '/synology', label: 'Synology', icon: 'server' },
+  { href: '/users', label: 'Felhasználók', icon: 'users' },
 ];
 ---
 
@@ -73,6 +74,7 @@ const navItems = [
                 {item.icon === 'paperclip' && '📎'}
                 {item.icon === 'cpu' && '⚙'}
                 {item.icon === 'server' && '🖥'}
+                {item.icon === 'users' && '👥'}
               </span>
               {item.label}
             </a>

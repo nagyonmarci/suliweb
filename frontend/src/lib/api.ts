@@ -241,6 +241,27 @@ export interface AuthUser {
   authorities: string[];
 }
 
+export interface UserDto {
+  id: string;
+  username: string;
+  email: string;
+  authorities: string[];
+  authorityIds: string[];
+  allowedFileInfoIds: string[];
+}
+
+export interface AuthorityDto {
+  id: string;
+  permission: string;
+}
+
+export interface FileInfoDto {
+  id: string;
+  fileName: string;
+  path: string;
+  status: string;
+}
+
 export interface SynologySettingsResponse {
   host: string | null;
   username: string | null;
@@ -396,4 +417,15 @@ export const api = {
       body: JSON.stringify({ message, topK, model }),
     }),
   ragModels: () => fetchJson<string[]>('/api/rag/models'),
+
+  // Users
+  getUsers: () => fetchJson<UserDto[]>('/api/users'),
+  getAuthorities: () => fetchJson<AuthorityDto[]>('/api/users/authorities'),
+  createUser: (body: { username: string; password: string; email: string; authorityIds: string[] }) =>
+    fetchJson<UserDto>('/api/users', { method: 'POST', body: JSON.stringify(body) }),
+  updateUser: (id: string, body: { email?: string; password?: string; authorityIds?: string[] }) =>
+    fetchJson<UserDto>(`/api/users/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteUser: (id: string) => fetchText(`/api/users/${id}`, { method: 'DELETE' }),
+  updateUserFiles: (id: string, fileInfoIds: string[]) =>
+    fetchJson<UserDto>(`/api/users/${id}/files`, { method: 'PUT', body: JSON.stringify({ fileInfoIds }) }),
 };

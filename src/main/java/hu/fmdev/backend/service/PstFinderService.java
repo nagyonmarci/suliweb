@@ -130,6 +130,13 @@ public class PstFinderService {
                 CentralLogger.logInfo("File updated: " + existingFileInfo.getPath());
             }
         } else {
+            if (fileInfo.getContentHash() != null) {
+                Optional<FileInfo> hashMatch = fileInfoRepository.findFirstByContentHash(fileInfo.getContentHash());
+                if (hashMatch.isPresent()) {
+                    CentralLogger.logInfo("Duplikátum kihagyva (azonos tartalom): " + fileInfo.getPath() + " == " + hashMatch.get().getPath());
+                    return;
+                }
+            }
             fileInfoRepository.save(fileInfo);
             CentralLogger.logInfo("New file saved: " + fileInfo.getPath());
         }

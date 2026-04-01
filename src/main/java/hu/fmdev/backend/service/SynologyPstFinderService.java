@@ -4,9 +4,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import hu.fmdev.backend.domain.FileInfo;
 import hu.fmdev.backend.logger.CentralLogger;
 import hu.fmdev.backend.repository.FileInfoRepository;
+import hu.fmdev.backend.util.HashUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -79,7 +82,16 @@ public class SynologyPstFinderService {
                     ? LocalDateTime.ofInstant(Instant.ofEpochSecond(lastModifiedEpoch), ZoneId.systemDefault())
                     : LocalDateTime.now();
 
-            return new FileInfo(localPath, fileName, size, lastModified, "New");
+            FileInfo fi = new FileInfo(localPath, fileName, size, lastModified, "New");
+            try {
+                var path = Paths.get(localPath);
+                if (Files.exists(path)) {
+                    fi.setContentHash(HashUtil.calculatePartialHash(path, 1_048_576));
+                }
+            } catch (Exception e) {
+                CentralLogger.logError("Hash számítás sikertelen (Synology): " + localPath, e);
+            }
+            return fi;
         } catch (Exception e) {
             CentralLogger.logError("Hiba a Synology találat feldolgozásakor", e);
             return null;

@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { api, type FileInfo, type SynologySettingsResponse } from '../lib/api';
 
 type SortField = 'fileName' | 'path' | 'size' | 'lastModified';
-type ActiveTab = 'actions' | 'settings';
+type ActiveTab = 'actions' | 'duplicates' | 'settings';
 
 export default function SynologyPanel() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('actions');
@@ -57,7 +57,8 @@ export default function SynologyPanel() {
     try {
       const data = await api.findSynology();
       setFiles(data); setSearched(true);
-      setMessage(`${data.length} PST/OST fájl található a Synology NAS-on.`);
+      const dupCount = getDuplicateGroups(data).length;
+      setMessage(`${data.length} PST/OST fájl található a Synology NAS-on.${dupCount > 0 ? ` (${dupCount} duplikált csoport)` : ''}`);
     } catch (e: any) { setMessage('Hiba: ' + e.message); }
     finally { setLoading(false); }
   }
@@ -94,6 +95,8 @@ export default function SynologyPanel() {
       setSettingsSaving(false);
     }
   }
+
+  const duplicateGroups = useMemo(() => getDuplicateGroups(files), [files]);
 
   const totalSizeGB = useMemo(() => {
     const bytes = files.reduce((sum, f) => sum + (Number(f.size) || 0), 0);
@@ -154,7 +157,7 @@ export default function SynologyPanel() {
       {/* Tab strip */}
       <div className="border-b border-gray-200">
         <nav className="flex gap-1">
-          {([['actions', 'Műveletek'], ['settings', 'Beállítások']] as [ActiveTab, string][]).map(([tab, label]) => (
+          {([['actions', 'Műveletek'], ['duplicates', `Duplikációk${duplicateGroups.length > 0 ? ` (${duplicateGroups.length})` : ''}`], ['settings', 'Beállítások']] as [ActiveTab, string][]).map(([tab, label]) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -282,6 +285,67 @@ export default function SynologyPanel() {
             </div>
           )}
         </>
+      )}
+
+      {/* === Duplikációk tab === */}
+      {activeTab === 'duplicates' && (
+        <div className="space-y-4">
+          {!searched ? (
+            <div className="bg-white rounded-xl border border-gray-200 px-4 py-10 text-center text-gray-400 italic">
+              Először futtasd a PST fájlok keresését a Műveletek tabon.
+            </div>
+          ) : duplicateGroups.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 px-4 py-10 text-center text-gray-400 italic">
+              Nem található duplikált PST fájl a keresési eredmények között.
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white rounded-xl border border-amber-100 p-4">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Duplikált csoport</p>
+                  <p className="text-2xl font-bold text-amber-600">{duplicateGroups.length} db</p>
+                </div>
+                <div className="bg-white rounded-xl border border-red-100 p-4">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Fölösleges tárhely</p>
+                  <p className="text-2xl font-bold text-red-600">
+                    {(duplicateGroups.reduce((s, g) => s + g[0].size * (g.length - 1), 0) / 1024 ** 3).toFixed(2)} GB
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 px-1">
+                A mentés automatikusan kihagyja a duplikátumokat — csak az első példány kerül az adatbázisba.
+              </p>
+              {duplicateGroups.map((group, gi) => (
+                <div key={gi} className="bg-white rounded-xl border border-amber-200 overflow-hidden">
+                  <div className="bg-amber-50 px-4 py-2.5 flex items-center justify-between border-b border-amber-200">
+                    <span className="text-sm font-semibold text-amber-800">
+                      {group.length} azonos fájl — {formatSize(group[0].size)}
+                    </span>
+                    {group[0].contentHash && (
+                      <span className="text-xs text-amber-600 font-mono" title="Tartalom-hash (első 1 MB)">
+                        {group[0].contentHash.slice(0, 12)}…
+                      </span>
+                    )}
+                  </div>
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {group.map((file, fi) => (
+                        <tr key={fi} className={`border-b border-gray-100 ${fi === 0 ? 'bg-green-50' : 'hover:bg-gray-50'}`}>
+                          <td className="px-4 py-2.5 font-medium text-gray-900 whitespace-nowrap">
+                            {fi === 0 && <span className="mr-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">mentésre kerül</span>}
+                            {fi > 0 && <span className="mr-2 text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">kihagyva</span>}
+                            {file.fileName}
+                          </td>
+                          <td className="px-4 py-2.5 text-gray-500 text-xs font-mono max-w-xs truncate" title={file.path}>{file.path}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
       )}
 
       {/* === Beállítások tab === */}
@@ -430,6 +494,16 @@ export default function SynologyPanel() {
       )}
     </div>
   );
+}
+
+function getDuplicateGroups(files: FileInfo[]): FileInfo[][] {
+  const groups = new Map<string, FileInfo[]>();
+  for (const f of files) {
+    const key = f.contentHash ? `hash:${f.contentHash}` : `name-size:${f.fileName}:${f.size}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(f);
+  }
+  return Array.from(groups.values()).filter(g => g.length > 1);
 }
 
 function formatSize(bytes: number): string {

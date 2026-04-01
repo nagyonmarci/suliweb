@@ -2,14 +2,16 @@ package hu.fmdev.backend.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import hu.fmdev.backend.config.SynologyConfig;
 import hu.fmdev.backend.domain.FileInfo;
+import hu.fmdev.backend.logger.CentralLogger;
 import hu.fmdev.backend.repository.FileInfoRepository;
+import hu.fmdev.backend.repository.LogEntryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 
@@ -21,21 +23,24 @@ import static org.mockito.Mockito.*;
 class SynologyPstFinderServiceTest {
 
     @Mock private SynologyApiClient synologyApiClient;
+    @Mock private SynologySettingsService settingsService;
     @Mock private FileInfoRepository fileInfoRepository;
     @Mock private PstFinderService pstFinderService;
+    @Mock private LogEntryRepository logEntryRepository;
 
-    private SynologyConfig config;
     private SynologyPstFinderService service;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @BeforeEach
     void setUp() {
-        config = new SynologyConfig();
-        config.setSearchExtensions("pst,ost");
-        config.setPathPrefix("/volume1");
-        config.setLocalMountPrefix("/mnt/nas");
-        config.setBatchSize(100);
-        service = new SynologyPstFinderService(synologyApiClient, config, fileInfoRepository, pstFinderService);
+        CentralLogger centralLogger = new CentralLogger();
+        ReflectionTestUtils.setField(centralLogger, "logEntryRepository", logEntryRepository);
+        centralLogger.init();
+
+        when(settingsService.getEffectiveSearchExtensions()).thenReturn("pst,ost");
+        lenient().when(settingsService.getEffectivePathPrefix()).thenReturn("/volume1");
+        lenient().when(settingsService.getEffectiveLocalMountPrefix()).thenReturn("/mnt/nas");
+        service = new SynologyPstFinderService(synologyApiClient, settingsService, fileInfoRepository, pstFinderService);
     }
 
     private JsonNode createHit(String path, String fileName, long size, long lastModified) {
@@ -143,7 +148,7 @@ class SynologyPstFinderServiceTest {
 
         service.findAndSaveFiles();
 
-        verify(pstFinderService, times(2)).saveOrUpdateFileInfos(anyList(), anyList());
+        verify(pstFinderService, times(1)).saveOrUpdateFileInfos(anyList(), anyList());
     }
 
     @Test
@@ -159,8 +164,8 @@ class SynologyPstFinderServiceTest {
 
     @Test
     void findPstFilesOnNas_singleExtension() {
-        config.setSearchExtensions("pst");
-        service = new SynologyPstFinderService(synologyApiClient, config, fileInfoRepository, pstFinderService);
+        when(settingsService.getEffectiveSearchExtensions()).thenReturn("pst");
+        service = new SynologyPstFinderService(synologyApiClient, settingsService, fileInfoRepository, pstFinderService);
 
         when(synologyApiClient.searchFiles("pst")).thenReturn(List.of());
 

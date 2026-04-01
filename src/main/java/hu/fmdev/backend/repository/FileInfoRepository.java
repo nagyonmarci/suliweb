@@ -12,4 +12,6 @@ public interface FileInfoRepository extends MongoRepository<FileInfo, String> {
     List<FileInfo> findByStatusIn(List<String> statuses);
 
     long countByStatus(String status);
+
+    Optional<FileInfo> findFirstByContentHash(String contentHash);
 }
