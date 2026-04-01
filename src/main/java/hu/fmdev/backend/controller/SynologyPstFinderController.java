@@ -35,8 +35,13 @@ public class SynologyPstFinderController {
     @GetMapping("/synologyToDb")
     public ResponseEntity<String> searchAndSavePstFromSynology() {
         try {
-            synologyPstFinderService.findAndSaveFiles();
-            return ResponseEntity.ok("Synology PST fájlok sikeresen feldolgozva és mentve az adatbázisba.");
+            SynologyPstFinderService.SaveResult result = synologyPstFinderService.findAndSaveFiles();
+            String msg = result.found() + " fájl találva — " + result.saved() + " mentve";
+            if (result.duplicates() > 0) {
+                msg += ", " + result.duplicates() + " duplikátum kihagyva";
+            }
+            msg += ".";
+            return ResponseEntity.ok(msg);
         } catch (Exception e) {
             log.error("Hiba a Synology PST keresés és mentés során: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

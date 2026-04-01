@@ -15,6 +15,8 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -54,12 +56,35 @@ public class SynologyPstFinderService {
         return allFiles;
     }
 
-    public void findAndSaveFiles() {
+    public record SaveResult(int found, int saved, int duplicates) {}
+
+    public SaveResult findAndSaveFiles() {
         List<FileInfo> files = findPstFilesOnNas();
-        if (!files.isEmpty()) {
-            pstFinderService.saveOrUpdateFileInfos(files, List.of(settingsService.getEffectiveLocalMountPrefix()));
+        if (files.isEmpty()) {
+            return new SaveResult(0, 0, 0);
         }
-        CentralLogger.logInfo("Synology fájlok feldolgozva: " + files.size() + " db.");
+
+        // Duplikátumok a találatok között (azonos hash → csak az első egyedi)
+        Set<String> seenHashes = new java.util.HashSet<>();
+        Set<String> existingPaths = fileInfoRepository.findAll().stream()
+                .map(FileInfo::getPath).collect(Collectors.toSet());
+        Set<String> existingHashes = fileInfoRepository.findAll().stream()
+                .map(FileInfo::getContentHash).filter(h -> h != null).collect(Collectors.toSet());
+
+        long duplicates = files.stream()
+                .filter(f -> !existingPaths.contains(f.getPath())) // csak valóban új path-ok
+                .filter(f -> {
+                    if (f.getContentHash() == null) return false;
+                    if (existingHashes.contains(f.getContentHash())) return true; // DB-ben már van
+                    return !seenHashes.add(f.getContentHash()); // batch-en belüli dupli
+                })
+                .count();
+
+        pstFinderService.saveOrUpdateFileInfos(files, List.of(settingsService.getEffectiveLocalMountPrefix()));
+
+        int saved = (int) (files.stream().filter(f -> !existingPaths.contains(f.getPath())).count() - duplicates);
+        CentralLogger.logInfo("Synology mentés kész: " + saved + " mentve, " + duplicates + " duplikátum kihagyva.");
+        return new SaveResult(files.size(), saved, (int) duplicates);
     }
 
     private FileInfo mapHitToFileInfo(JsonNode hit) {

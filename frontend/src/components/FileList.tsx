@@ -56,6 +56,20 @@ export default function FileList() {
     }
   }
 
+  async function handleDeduplicate() {
+    setDupLoading(true); setDupMessage('');
+    try {
+      const msg = await api.deduplicate();
+      setDupMessage(msg);
+      await loadDuplicates();
+      await loadFiles();
+    } catch (e: any) {
+      setDupMessage('Hiba: ' + e.message);
+    } finally {
+      setDupLoading(false);
+    }
+  }
+
   async function handleComputeHashes() {
     setDupLoading(true); setDupMessage('');
     try {
@@ -64,6 +78,7 @@ export default function FileList() {
       await loadDuplicates();
     } catch (e: any) {
       setDupMessage('Hiba: ' + e.message);
+    } finally {
       setDupLoading(false);
     }
   }
@@ -342,6 +357,9 @@ export default function FileList() {
           <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-wrap items-center gap-4">
             <button onClick={handleComputeHashes} disabled={dupLoading} className="px-4 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors">
               {dupLoading ? 'Feldolgozás...' : 'Hash kiszámítása + duplikációk keresése'}
+            </button>
+            <button onClick={handleDeduplicate} disabled={dupLoading} className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors">
+              Duplikátumok törlése az adatbázisból
             </button>
             <button onClick={loadDuplicates} disabled={dupLoading} className="px-4 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors">
               Frissítés

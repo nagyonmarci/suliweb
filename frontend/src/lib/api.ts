@@ -364,6 +364,7 @@ export const api = {
   getFileInfoCounts: () => fetchJson<{ total: number; pending: number; processed: number }>('/api/file-infos/counts'),
   getDuplicates: () => fetchJson<FileInfo[][]>('/api/file-infos/duplicates'),
   computeHashes: () => fetchText('/api/file-infos/compute-hashes', { method: 'POST' }),
+  deduplicate: () => fetchText('/api/file-infos/deduplicate', { method: 'POST' }),
 
   // Progress
   getProgress: () => fetchJson<ProgressState>('/api/progress'),

@@ -87,4 +87,31 @@ public class FileInfoController {
 
         return ResponseEntity.ok("Hash kiszámítva: " + updated + " fájl, kihagyva: " + skipped + ".");
     }
+
+    @PostMapping("/deduplicate")
+    public ResponseEntity<String> deduplicate() {
+        List<FileInfo> all = fileInfoRepository.findAll();
+
+        Map<String, List<FileInfo>> groups = all.stream()
+                .filter(f -> f.getContentHash() != null)
+                .collect(Collectors.groupingBy(f -> f.getContentHash() + ":" + f.getSize()));
+
+        int deleted = 0;
+        for (List<FileInfo> group : groups.values()) {
+            if (group.size() <= 1) continue;
+            // Megtartjuk a Processed státuszút, különben az elsőt
+            group.sort((a, b) -> {
+                if ("Processed".equals(a.getStatus())) return -1;
+                if ("Processed".equals(b.getStatus())) return 1;
+                return 0;
+            });
+            for (int i = 1; i < group.size(); i++) {
+                fileInfoRepository.deleteById(group.get(i).getId());
+                CentralLogger.logInfo("Duplikátum törölve az adatbázisból: " + group.get(i).getPath());
+                deleted++;
+            }
+        }
+
+        return ResponseEntity.ok(deleted + " duplikált rekord törölve az adatbázisból.");
+    }
 }
