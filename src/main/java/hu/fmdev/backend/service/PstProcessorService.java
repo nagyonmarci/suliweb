@@ -154,6 +154,7 @@ public class PstProcessorService {
                         fileInfoRepository.save(fileInfo);
                     } catch (Exception e) {
                         CentralLogger.logError("Error processing PST file from database: " + fileInfo.getPath(), e);
+                        updateStatusOnError(fileInfo, e);
                     } finally {
                         progressTracker.increment();
                     }
@@ -449,6 +450,7 @@ public class PstProcessorService {
                         }
                     } catch (Exception e) {
                         CentralLogger.logError("Error processing selected PST file: " + fileInfo.getPath(), e);
+                        updateStatusOnError(fileInfo, e);
                     } finally {
                         progressTracker.increment();
                     }
@@ -464,6 +466,21 @@ public class PstProcessorService {
         } finally {
             progressTracker.stopOperation();
             executorService.shutdown();
+        }
+    }
+
+    private void updateStatusOnError(FileInfo fileInfo, Exception e) {
+        String msg = e.getMessage() != null ? e.getMessage() : "";
+        boolean missingFile = msg.contains("does not exist") || msg.contains("cannot be read");
+        boolean invalidPst = e.getCause() instanceof com.pff.PSTException
+                || (e.getCause() != null && e.getCause().getMessage() != null
+                    && e.getCause().getMessage().contains("Invalid"));
+        if (missingFile) {
+            fileInfo.setStatus("Missing");
+            fileInfoRepository.save(fileInfo);
+        } else if (invalidPst) {
+            fileInfo.setStatus("Invalid");
+            fileInfoRepository.save(fileInfo);
         }
     }
 
