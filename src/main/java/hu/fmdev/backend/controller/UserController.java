@@ -154,9 +154,11 @@ public class UserController {
     private UserDto toDto(User user) {
         List<String> permissions = user.getAuthorities().stream()
                 .map(Authority::getPermission)
+                .distinct()
                 .collect(Collectors.toList());
         List<String> authorityIds = user.getAuthorities().stream()
                 .map(Authority::getId)
+                .distinct()
                 .collect(Collectors.toList());
         List<String> allowedFileInfoIds = user.getAllowedFileInfoIds() != null
                 ? user.getAllowedFileInfoIds()

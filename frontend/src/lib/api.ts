@@ -148,6 +148,27 @@ export interface FileInfo {
   attachmentsSaved: boolean;
 }
 
+export interface UserDto {
+  id: string;
+  username: string;
+  email: string;
+  authorities: string[];
+  authorityIds: string[];
+  allowedFileInfoIds: string[];
+}
+
+export interface AuthorityDto {
+  id: string;
+  permission: string;
+}
+
+export interface FileInfoDto {
+  id: string;
+  fileName: string;
+  path: string;
+  status: string;
+}
+
 export interface Attachment {
   id: string;
   emailId: string;
@@ -382,6 +403,19 @@ export const api = {
       body: JSON.stringify({ message, topK, model, history }),
     }),
   ragModels: () => fetchJson<string[]>('/api/rag/models'),
+
+  // Users
+  getUsers: () => fetchJson<UserDto[]>('/api/users'),
+  getUser: (id: string) => fetchJson<UserDto>(`/api/users/${id}`),
+  createUser: (data: { username: string; password: string; email?: string; authorityIds?: string[] }) =>
+    fetchJson<UserDto>('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
+  updateUser: (id: string, data: { email?: string; password?: string; authorityIds?: string[] }) =>
+    fetchJson<UserDto>(`/api/users/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
+  deleteUser: (id: string) => fetchText(`/api/users/${id}`, { method: 'DELETE' }),
+  getAuthorities: () => fetchJson<AuthorityDto[]>('/api/users/authorities'),
+  getUserFiles: (id: string) => fetchJson<FileInfoDto[]>(`/api/users/${id}/files`),
+  updateUserFiles: (id: string, fileInfoIds: string[]) =>
+    fetchJson<UserDto>(`/api/users/${id}/files`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fileInfoIds }) }),
 
   /**
    * Streaming RAG chat via SSE. Calls onToken for each token, returns final sources.
