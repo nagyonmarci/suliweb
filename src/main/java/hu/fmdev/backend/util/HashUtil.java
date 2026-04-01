@@ -22,4 +22,23 @@ public class HashUtil {
         }
         return sb.toString();
     }
+
+    public static String calculatePartialHash(Path path, long maxBytes) throws IOException, NoSuchAlgorithmException {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        try (FileInputStream fis = new FileInputStream(path.toFile())) {
+            byte[] buffer = new byte[8192];
+            long remaining = maxBytes;
+            int bytesRead;
+            while (remaining > 0 && (bytesRead = fis.read(buffer, 0, (int) Math.min(buffer.length, remaining))) != -1) {
+                digest.update(buffer, 0, bytesRead);
+                remaining -= bytesRead;
+            }
+        }
+        byte[] hashBytes = digest.digest();
+        StringBuilder sb = new StringBuilder();
+        for (byte b : hashBytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
+    }
 }

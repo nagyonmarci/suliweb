@@ -19,6 +19,7 @@ public class FileInfo {
     private LocalDateTime lastModified;
     private String status;
     private boolean attachmentsSaved = false;
+    private String contentHash;
 
     public FileInfo(String path, String fileName, long size, LocalDateTime lastModified, String status) {
         this.path = path;

@@ -110,12 +110,39 @@ public class PstProcessorService {
             return;
         }
 
+        // Duplikátum-szűrés: ugyanaz a contentHash már feldolgozott fájlban
+        Set<String> processedHashes = fileInfoRepository.findByStatusIn(List.of("Processed")).stream()
+                .map(FileInfo::getContentHash)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        List<FileInfo> duplicates = fileInfoList.stream()
+                .filter(f -> f.getContentHash() != null && processedHashes.contains(f.getContentHash()))
+                .collect(Collectors.toList());
+
+        if (!duplicates.isEmpty()) {
+            duplicates.forEach(f -> {
+                f.setStatus("Processed");
+                fileInfoRepository.save(f);
+                CentralLogger.logInfo("Duplikált PST kihagyva (már feldolgozott tartalom): " + f.getPath());
+            });
+        }
+
+        List<FileInfo> toProcess = fileInfoList.stream()
+                .filter(f -> f.getContentHash() == null || !processedHashes.contains(f.getContentHash()))
+                .collect(Collectors.toList());
+
+        if (toProcess.isEmpty()) {
+            CentralLogger.logInfo("Minden fájl duplikátum, nincs új feldolgoznivaló.");
+            return;
+        }
+
         // Start tracking PST files processing
-        progressTracker.startOperation("PST Fájlok feldolgozása az adatbázisból", fileInfoList.size());
+        progressTracker.startOperation("PST Fájlok feldolgozása az adatbázisból", toProcess.size());
 
         ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
 
-        List<Callable<Void>> tasks = fileInfoList.stream()
+        List<Callable<Void>> tasks = toProcess.stream()
                 .map(fileInfo -> (Callable<Void>) () -> {
                     try {
                         String fileName = Paths.get(fileInfo.getPath()).getFileName().toString();

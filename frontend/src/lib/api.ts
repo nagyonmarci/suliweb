@@ -146,6 +146,7 @@ export interface FileInfo {
   lastModified: string;
   status: string;
   attachmentsSaved: boolean;
+  contentHash: string | null;
 }
 
 export interface UserDto {
@@ -262,6 +263,47 @@ export interface AuthUser {
   authorities: string[];
 }
 
+export interface UserDto {
+  id: string;
+  username: string;
+  email: string;
+  authorities: string[];
+  authorityIds: string[];
+  allowedFileInfoIds: string[];
+}
+
+export interface AuthorityDto {
+  id: string;
+  permission: string;
+}
+
+export interface FileInfoDto {
+  id: string;
+  fileName: string;
+  path: string;
+  status: string;
+}
+
+export interface SynologySettingsResponse {
+  host: string | null;
+  username: string | null;
+  passwordConfigured: boolean;
+  pathPrefix: string | null;
+  localMountPrefix: string | null;
+  searchExtensions: string | null;
+  batchSize: number | null;
+}
+
+export interface SynologySettingsRequest {
+  host?: string;
+  username?: string;
+  password?: string;
+  pathPrefix?: string;
+  localMountPrefix?: string;
+  searchExtensions?: string;
+  batchSize?: number;
+}
+
 // --- API ---
 
 export const api = {
@@ -320,6 +362,8 @@ export const api = {
   // FileInfo
   getFileInfos: () => fetchJson<FileInfo[]>('/api/file-infos'),
   getFileInfoCounts: () => fetchJson<{ total: number; pending: number; processed: number }>('/api/file-infos/counts'),
+  getDuplicates: () => fetchJson<FileInfo[][]>('/api/file-infos/duplicates'),
+  computeHashes: () => fetchText('/api/file-infos/compute-hashes', { method: 'POST' }),
 
   // Progress
   getProgress: () => fetchJson<ProgressState>('/api/progress'),
@@ -374,6 +418,9 @@ export const api = {
   // Synology
   findSynology: () => fetchJson<FileInfo[]>('/find/synology'),
   findSynologyToDb: () => fetchText('/find/synologyToDb'),
+  getSynologySettings: () => fetchJson<SynologySettingsResponse>('/api/synology/settings'),
+  saveSynologySettings: (s: SynologySettingsRequest) =>
+    fetchJson<SynologySettingsResponse>('/api/synology/settings', { method: 'PUT', body: JSON.stringify(s) }),
 
   // RAG
   ragIngest: (includeAttachments = false) =>
@@ -417,10 +464,6 @@ export const api = {
   updateUserFiles: (id: string, fileInfoIds: string[]) =>
     fetchJson<UserDto>(`/api/users/${id}/files`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fileInfoIds }) }),
 
-  /**
-   * Streaming RAG chat via SSE. Calls onToken for each token, returns final sources.
-   * Falls back to non-streaming ragChat on error.
-   */
   ragChatStream: async (
     message: string,
     topK: number,
@@ -435,7 +478,6 @@ export const api = {
     });
 
     if (!res.ok || !res.body) {
-      // Fallback to non-streaming
       const fallback = await api.ragChat(message, topK, model, history);
       onToken(fallback.answer);
       return fallback.sources;
@@ -450,36 +492,23 @@ export const api = {
       const { done, value } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
-
-      // SSE format: each event is "data:..." followed by newlines
       const lines = buffer.split('\n');
       buffer = lines.pop() ?? '';
-
       for (const line of lines) {
         const trimmed = line.replace(/^data:\s*/, '').trim();
         if (!trimmed) continue;
         try {
           const parsed = JSON.parse(trimmed);
-          if (parsed.token) {
-            onToken(parsed.token);
-          }
-          if (parsed.done && parsed.sources) {
-            sources = parsed.sources;
-          }
-          if (parsed.error) {
-            throw new Error(parsed.error);
-          }
-        } catch {
-          // Ignore unparseable lines
-        }
+          if (parsed.token) onToken(parsed.token);
+          if (parsed.done && parsed.sources) sources = parsed.sources;
+          if (parsed.error) throw new Error(parsed.error);
+        } catch { /* ignore */ }
       }
     }
 
-    // Process remaining buffer
     if (buffer.trim()) {
-      const trimmed = buffer.replace(/^data:\s*/, '').trim();
       try {
-        const parsed = JSON.parse(trimmed);
+        const parsed = JSON.parse(buffer.replace(/^data:\s*/, '').trim());
         if (parsed.done && parsed.sources) sources = parsed.sources;
       } catch { /* ignore */ }
     }

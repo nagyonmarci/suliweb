@@ -3,6 +3,7 @@ package hu.fmdev.backend.service;
 import hu.fmdev.backend.domain.FileInfo;
 import hu.fmdev.backend.logger.CentralLogger;
 import hu.fmdev.backend.repository.FileInfoRepository;
+import hu.fmdev.backend.util.HashUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -78,13 +79,19 @@ public class PstFinderService {
 
     private FileInfo createFileInfo(Path file) {
         try {
-            return new FileInfo(
+            FileInfo fi = new FileInfo(
                     file.toString(),
                     file.getFileName().toString(),
                     Files.size(file),
                     LocalDateTime.ofInstant(Instant.ofEpochMilli(Files.getLastModifiedTime(file).toMillis()), ZoneId.systemDefault()),
                     "New"
             );
+            try {
+                fi.setContentHash(HashUtil.calculatePartialHash(file, 1_048_576));
+            } catch (Exception e) {
+                CentralLogger.logError("Hash számítás sikertelen: " + file, e);
+            }
+            return fi;
         } catch (IOException e) {
             CentralLogger.logError("Hiba történt a fájl olvasása közben: " + file, e);
             return null;
@@ -117,11 +124,19 @@ public class PstFinderService {
                     || "Deleted".equals(existingFileInfo.getStatus())) {
                 existingFileInfo.setLastModified(fileInfo.getLastModified());
                 existingFileInfo.setSize(fileInfo.getSize());
+                existingFileInfo.setContentHash(fileInfo.getContentHash());
                 existingFileInfo.setStatus("Modified");
                 fileInfoRepository.save(existingFileInfo);
                 CentralLogger.logInfo("File updated: " + existingFileInfo.getPath());
             }
         } else {
+            if (fileInfo.getContentHash() != null) {
+                Optional<FileInfo> hashMatch = fileInfoRepository.findFirstByContentHash(fileInfo.getContentHash());
+                if (hashMatch.isPresent()) {
+                    CentralLogger.logInfo("Duplikátum kihagyva (azonos tartalom): " + fileInfo.getPath() + " == " + hashMatch.get().getPath());
+                    return;
+                }
+            }
             fileInfoRepository.save(fileInfo);
             CentralLogger.logInfo("New file saved: " + fileInfo.getPath());
         }

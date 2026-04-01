@@ -2,7 +2,6 @@ package hu.fmdev.backend.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import hu.fmdev.backend.config.SynologyConfig;
 import hu.fmdev.backend.logger.CentralLogger;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -17,15 +16,15 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SynologyApiClient {
 
-    private final SynologyConfig config;
+    private final SynologySettingsService settingsService;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RestTemplate restTemplate = new RestTemplate();
 
     private String sid;
 
     public boolean isConfigured() {
-        return config.getHost() != null && !config.getHost().isBlank()
-                && config.getUsername() != null && !config.getUsername().isBlank();
+        return settingsService.getEffectiveHost() != null && !settingsService.getEffectiveHost().isBlank()
+                && settingsService.getEffectiveUsername() != null && !settingsService.getEffectiveUsername().isBlank();
     }
 
     public void login() {
@@ -33,13 +32,13 @@ public class SynologyApiClient {
             throw new RuntimeException("Synology nincs konfigurálva (hiányzó host vagy felhasználónév)");
         }
         String url = UriComponentsBuilder
-                .fromUriString(config.getHost())
+                .fromUriString(settingsService.getEffectiveHost())
                 .path("/webapi/auth.cgi")
                 .queryParam("api", "SYNO.API.Auth")
                 .queryParam("version", "6")
                 .queryParam("method", "login")
-                .queryParam("account", config.getUsername())
-                .queryParam("passwd", config.getPassword())
+                .queryParam("account", settingsService.getEffectiveUsername())
+                .queryParam("passwd", settingsService.getEffectivePassword())
                 .queryParam("session", "FileStation")
                 .queryParam("format", "cookie")
                 .toUriString();
@@ -65,7 +64,7 @@ public class SynologyApiClient {
         if (sid == null) return;
 
         String url = UriComponentsBuilder
-                .fromUriString(config.getHost())
+                .fromUriString(settingsService.getEffectiveHost())
                 .path("/webapi/auth.cgi")
                 .queryParam("api", "SYNO.API.Auth")
                 .queryParam("version", "6")
@@ -87,7 +86,7 @@ public class SynologyApiClient {
     public int getTotalCount(String extension) {
         try {
             String url = UriComponentsBuilder
-                    .fromUriString(config.getHost())
+                    .fromUriString(settingsService.getEffectiveHost())
                     .path("/webapi/entry.cgi")
                     .toUriString();
 
@@ -133,12 +132,12 @@ public class SynologyApiClient {
         CentralLogger.logInfo("Összesen " + total + " db " + extension + " fájl található.");
 
         int offset = 0;
-        int batchSize = config.getBatchSize();
+        int batchSize = settingsService.getEffectiveBatchSize();
 
         while (offset < total) {
             try {
                 String url = UriComponentsBuilder
-                        .fromUriString(config.getHost())
+                        .fromUriString(settingsService.getEffectiveHost())
                         .path("/webapi/entry.cgi")
                         .toUriString();
 
@@ -180,8 +179,6 @@ public class SynologyApiClient {
 
         return allHits;
     }
-
-    // A buildSearchUrl már nincs használatban, mivel POST kéréseket használunk LinkedMultiValueMap-pel
 
     @PreDestroy
     public void cleanup() {
