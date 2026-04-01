@@ -38,6 +38,11 @@ export default function SynologyPanel() {
     finally { setLoading(false); }
   }
 
+  const totalSizeGB = useMemo(() => {
+    const bytes = files.reduce((sum, f) => sum + (Number(f.size) || 0), 0);
+    return (bytes / (1024 ** 3)).toFixed(2);
+  }, [files]);
+
   const visible = useMemo(() => {
     let result = [...files];
 
@@ -62,6 +67,11 @@ export default function SynologyPanel() {
 
     return result;
   }, [files, search, colFilters, sortField, sortDir]);
+
+  const visibleSizeGB = useMemo(() => {
+    const bytes = visible.reduce((sum, f) => sum + (Number(f.size) || 0), 0);
+    return (bytes / (1024 ** 3)).toFixed(2);
+  }, [visible]);
 
   function toggleSort(field: SortField) {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -107,6 +117,22 @@ export default function SynologyPanel() {
       {/* Search + results */}
       {searched && (
         <div className="space-y-3">
+          {/* Összesítő */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Összes fájl</p>
+              <p className="text-2xl font-bold text-gray-900">{files.length} db</p>
+            </div>
+            <div className="bg-white rounded-xl border border-blue-100 p-4">
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Összes méret</p>
+              <p className="text-2xl font-bold text-blue-600">{totalSizeGB} GB</p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Szűrt méret</p>
+              <p className="text-2xl font-bold text-gray-700">{visibleSizeGB} GB</p>
+            </div>
+          </div>
+
           {/* Search bar */}
           <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-200">
             <div className="relative flex-1">
