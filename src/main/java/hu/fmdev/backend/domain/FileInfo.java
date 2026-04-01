@@ -18,6 +18,7 @@ public class FileInfo {
     private long size;
     private LocalDateTime lastModified;
     private String status;
+    private String contentHash;
 
     public FileInfo(String path, String fileName, long size, LocalDateTime lastModified, String status) {
         this.path = path;
