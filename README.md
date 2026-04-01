@@ -2,8 +2,6 @@
 
 Spring Boot 4.0 alkalmazás Microsoft Outlook PST fájlok feldolgozásához. PST fájlokat keres, emaileket és csatolmányokat kinyeri belőlük, majd MongoDB-ben tárolja az adatokat. Synology NAS integrációval, JWT-alapú autentikációval, RAG szemantikus kereséssel és Astro 6 + React 19 frontend dashboarddal rendelkezik.
 
-> **Aktív ág:** `claude/spring-security`
-
 ## Funkciók
 
 - **PST fájlkeresés** - Helyi könyvtárakban vagy Synology NAS-on keres PST fájlokat
