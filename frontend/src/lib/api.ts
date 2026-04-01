@@ -240,6 +240,26 @@ export interface AuthUser {
   authorities: string[];
 }
 
+export interface SynologySettingsResponse {
+  host: string | null;
+  username: string | null;
+  passwordConfigured: boolean;
+  pathPrefix: string | null;
+  localMountPrefix: string | null;
+  searchExtensions: string | null;
+  batchSize: number | null;
+}
+
+export interface SynologySettingsRequest {
+  host?: string;
+  username?: string;
+  password?: string;
+  pathPrefix?: string;
+  localMountPrefix?: string;
+  searchExtensions?: string;
+  batchSize?: number;
+}
+
 // --- API ---
 
 export const api = {
@@ -348,6 +368,9 @@ export const api = {
   // Synology
   findSynology: () => fetchJson<FileInfo[]>('/find/synology'),
   findSynologyToDb: () => fetchText('/find/synologyToDb'),
+  getSynologySettings: () => fetchJson<SynologySettingsResponse>('/api/synology/settings'),
+  saveSynologySettings: (s: SynologySettingsRequest) =>
+    fetchJson<SynologySettingsResponse>('/api/synology/settings', { method: 'PUT', body: JSON.stringify(s) }),
 
   // RAG
   ragIngest: (includeAttachments = false) =>

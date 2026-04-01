@@ -1,7 +1,6 @@
 package hu.fmdev.backend.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import hu.fmdev.backend.config.SynologyConfig;
 import hu.fmdev.backend.domain.FileInfo;
 import hu.fmdev.backend.logger.CentralLogger;
 import hu.fmdev.backend.repository.FileInfoRepository;
@@ -19,13 +18,13 @@ import java.util.List;
 public class SynologyPstFinderService {
 
     private final SynologyApiClient synologyApiClient;
-    private final SynologyConfig synologyConfig;
+    private final SynologySettingsService settingsService;
     private final FileInfoRepository fileInfoRepository;
     private final PstFinderService pstFinderService;
 
     public List<FileInfo> findPstFilesOnNas() {
         List<FileInfo> allFiles = new ArrayList<>();
-        String[] extensions = synologyConfig.getSearchExtensions().split(",");
+        String[] extensions = settingsService.getEffectiveSearchExtensions().split(",");
 
         synologyApiClient.login();
         try {
@@ -55,7 +54,7 @@ public class SynologyPstFinderService {
     public void findAndSaveFiles() {
         List<FileInfo> files = findPstFilesOnNas();
         if (!files.isEmpty()) {
-            pstFinderService.saveOrUpdateFileInfos(files, List.of(synologyConfig.getLocalMountPrefix()));
+            pstFinderService.saveOrUpdateFileInfos(files, List.of(settingsService.getEffectiveLocalMountPrefix()));
         }
         CentralLogger.logInfo("Synology fájlok feldolgozva: " + files.size() + " db.");
     }
@@ -88,8 +87,8 @@ public class SynologyPstFinderService {
     }
 
     private String mapToLocalPath(String synologyPath) {
-        String pathPrefix = synologyConfig.getPathPrefix();
-        String localMountPrefix = synologyConfig.getLocalMountPrefix();
+        String pathPrefix = settingsService.getEffectivePathPrefix();
+        String localMountPrefix = settingsService.getEffectiveLocalMountPrefix();
 
         if (synologyPath.startsWith(pathPrefix)) {
             return localMountPrefix + synologyPath.substring(pathPrefix.length());

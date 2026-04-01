@@ -2,7 +2,6 @@ package hu.fmdev.backend.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import hu.fmdev.backend.config.SynologyConfig;
 import hu.fmdev.backend.logger.CentralLogger;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -17,7 +16,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SynologyApiClient {
 
-    private final SynologyConfig config;
+    private final SynologySettingsService settingsService;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -25,13 +24,13 @@ public class SynologyApiClient {
 
     public void login() {
         String url = UriComponentsBuilder
-                .fromUriString(config.getHost())
+                .fromUriString(settingsService.getEffectiveHost())
                 .path("/webapi/auth.cgi")
                 .queryParam("api", "SYNO.API.Auth")
                 .queryParam("version", "6")
                 .queryParam("method", "login")
-                .queryParam("account", config.getUsername())
-                .queryParam("passwd", config.getPassword())
+                .queryParam("account", settingsService.getEffectiveUsername())
+                .queryParam("passwd", settingsService.getEffectivePassword())
                 .queryParam("session", "FileStation")
                 .queryParam("format", "cookie")
                 .toUriString();
@@ -57,7 +56,7 @@ public class SynologyApiClient {
         if (sid == null) return;
 
         String url = UriComponentsBuilder
-                .fromUriString(config.getHost())
+                .fromUriString(settingsService.getEffectiveHost())
                 .path("/webapi/auth.cgi")
                 .queryParam("api", "SYNO.API.Auth")
                 .queryParam("version", "6")
@@ -79,7 +78,7 @@ public class SynologyApiClient {
     public int getTotalCount(String extension) {
         try {
             String url = UriComponentsBuilder
-                    .fromUriString(config.getHost())
+                    .fromUriString(settingsService.getEffectiveHost())
                     .path("/webapi/entry.cgi")
                     .toUriString();
 
@@ -125,12 +124,12 @@ public class SynologyApiClient {
         CentralLogger.logInfo("Összesen " + total + " db " + extension + " fájl található.");
 
         int offset = 0;
-        int batchSize = config.getBatchSize();
+        int batchSize = settingsService.getEffectiveBatchSize();
 
         while (offset < total) {
             try {
                 String url = UriComponentsBuilder
-                        .fromUriString(config.getHost())
+                        .fromUriString(settingsService.getEffectiveHost())
                         .path("/webapi/entry.cgi")
                         .toUriString();
 
@@ -172,8 +171,6 @@ public class SynologyApiClient {
 
         return allHits;
     }
-
-    // A buildSearchUrl már nincs használatban, mivel POST kéréseket használunk LinkedMultiValueMap-pel
 
     @PreDestroy
     public void cleanup() {
