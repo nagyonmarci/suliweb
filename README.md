@@ -8,17 +8,19 @@ Spring Boot 4.0 alkalmazás Microsoft Outlook PST fájlok feldolgozásához. PST
 
 - **PST fájlkeresés** - Helyi könyvtárakban vagy Synology NAS-on keres PST fájlokat
 - **Email kinyerés** - PST fájlokból emaileket és csatolmányokat nyer ki párhuzamos feldolgozással (10 szál)
-- **Duplikátum-szűrés** - SHA-256 hash alapú egyedi azonosítás
+- **PST fájl státuszok** - `New`, `Processed`, `Modified`, `Invalid` (érvénytelen PST formátum), `Missing` (fájl nem elérhető)
+- **PST duplikátum-szűrés** - SHA-256 hash alapú deduplikáció: azonos tartalmú fájlok csak egyszer kerülnek feldolgozásra; az adatbázisban külön gomb törli a duplikált rekordokat
+- **Csatolmány deduplikáció** - Hash alapú fájltárolás: azonos tartalmú csatolmány csak egyszer foglal helyet lemezen, de minden e-mailből hivatkozható; a duplikált DB rekordok törölhetők
 - **Szüneteltetés/folytatás** - Hosszú feldolgozási műveletek vezérlése
-- **Csatolmány mentés** - Konfigurálható könyvtárba ment
+- **Csatolmány mentés** - Konfigurálható könyvtárba ment (`/app/attachments/hashes/{sha256}`)
 - **Keresés** - Tárgy, feladó, címzett, mappa, fontosság szerinti szűrés
 - **RAG szemantikus keresés** - Ollama embedding + MongoDB Atlas Vector Search email tartalmak és csatolmányok között
-- **Synology integráció** - NAS Universal Search API-n keresztül keres PST fájlokat
+- **Synology integráció** - NAS Universal Search API-n keresztül keres PST fájlokat; duplikátum-szűréssel menti az adatbázisba
 - **PDF űrlap kitöltés** - iText alapú PDF form filler
-- **JWT autentikáció** - Spring Security 7 alapú, access token (15 perc) + refresh token (7 nap), BCrypt jelszókezelés
+- **JWT autentikáció** - Spring Security 7 alapú, access token (8 óra) + refresh token (7 nap), BCrypt jelszókezelés
 - **Titkosított ZIP feltöltés** - zip4j alapú titkosított archívum feltöltés/letöltés
 - **Strukturált naplózás** - Központi MongoDB alapú naplózás (CentralLogger)
-- **Modern dashboard** - Astro 6 + React 19 + Tailwind CSS 4 reszponzív frontend
+- **Modern dashboard** - Astro 6 + React 19 + Tailwind CSS 4 reszponzív frontend; Files és Attachments oldalon duplikátum-kezelő tab
 - **Docker támogatás** - Teljes stack konténerizáció (frontend + backend + MongoDB + Ollama)
 
 ## Architektúra
@@ -79,9 +81,20 @@ Az alkalmazás elérhető: `http://localhost` (frontend + API proxy), `http://lo
 
 **Volumes:**
 - `mongodb_data` - MongoDB adatok
-- `attachments` - Kinyert email csatolmányok
+- `attachments` - Kinyert email csatolmányok (`hashes/` almappa: hash-alapú deduplikált tárolás)
 - `pst_source` - PST forrásfájlok (read-only mount)
 - `ollama_data` - Ollama modellek cache
+
+**Bind mountok (helyi NAS / hálózati meghajtók):**
+
+A `docker-compose.yml`-ben a bind mountok `target` értékét a MongoDB-ben tárolt fájl path-oknak megfelelően kell beállítani:
+```yaml
+- type: bind
+  source: /Volumes/archiv   # gazdagépen lévő tényleges elérési út
+  target: /Volumes/archiv   # ugyanaz mint az adatbázisban tárolt path
+  read_only: true
+```
+Ha a Synology keresés által mentett path-ok (pl. `/mnt/nas/archiv/...`) eltérnek a gazdagépen lévő mount pontoktól (pl. `/Volumes/archiv/...`), a PST feldolgozás `Missing` státusszal jelöli a fájlokat.
 
 ### Lokálisan
 
@@ -235,9 +248,11 @@ suliweb/
 ### Csatolmányok
 | Végpont | Metódus | Leírás |
 |---------|---------|--------|
-| `/api/attachments` | GET | Csatolmányok listája |
+| `/api/attachments` | GET | Csatolmányok listája (max 1000, creationTime DESC) |
 | `/api/attachments/search` | GET | Keresés (filename, extension, size, sender, dátum) |
 | `/api/attachments/count` | GET | Csatolmányok száma |
+| `/api/attachments/duplicate-stats` | GET | Duplikátum statisztika (összes, egyedi, megosztott, törlendő) |
+| `/api/attachments/deduplicate` | POST | Ugyanazon e-mailhez kétszer mentett azonos fájl (emailId+hash) törlése |
 | `/api/attachments/email/{emailId}` | GET | Email csatolmányai |
 | `/api/attachments/{id}/download` | GET | Csatolmány letöltése |
 
@@ -247,6 +262,10 @@ suliweb/
 | `/api/progress` | GET | Feldolgozás állapota |
 | `/api/file-infos` | GET | Fájl információk |
 | `/api/file-infos/counts` | GET | PST számlálók (total/pending/processed) |
+| `/api/file-infos/duplicates` | GET | Azonos tartalmú PST fájlok csoportjai |
+| `/api/file-infos/compute-hashes` | POST | SHA-256 hash kiszámítása az adatbázisban lévő fájlokhoz |
+| `/api/file-infos/deduplicate` | POST | Duplikált PST rekordok törlése (hash+méret egyezés alapján) |
+| `/pst/processSelected` | POST | Kijelölt PST fájlok feldolgozása (saveAttachments flag-gel) |
 | `/api/files/upload` | POST | Fájl feltöltés (ZIP titkosítással) |
 | `/pdf/fill` | POST | PDF űrlap kitöltése |
 
@@ -391,7 +410,7 @@ A projekt továbbfejlesztéséhez javasolt eszközök és minták:
 - **Dependabot / Renovate** - Automatikus dependency frissítések (Spring Boot, npm csomagok)
 
 ### Biztonság
-- **JWT autentikáció** ✅ Megvalósítva: `JwtTokenProvider`, `JwtAuthenticationFilter`, `AuthController`, BCrypt jelszókezelés, access (15 perc) + refresh token (7 nap)
+- **JWT autentikáció** ✅ Megvalósítva: `JwtTokenProvider`, `JwtAuthenticationFilter`, `AuthController`, BCrypt jelszókezelés, access (8 óra) + refresh token (7 nap)
 - **Vault / AWS Secrets Manager** - JWT titok és MongoDB/Synology jelszavak externalizálása (jelenleg `.env` fájl)
 - **CORS szűkítés** - Jelenleg `*` (minden origin); produkcióban specifikus originekre korlátozandó
 - **OWASP ZAP** - Automatikus biztonsági szkennelés a CI pipeline-ban
