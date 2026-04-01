@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api, type Attachment } from '../lib/api';
 
+type ActiveTab = 'list' | 'duplicates';
+
 const AVAILABLE_COLUMNS: { key: keyof Attachment; label: string }[] = [
   { key: 'filename', label: 'Fájlnév' },
   { key: 'size', label: 'Méret' },
@@ -14,6 +16,16 @@ const AVAILABLE_COLUMNS: { key: keyof Attachment; label: string }[] = [
 const DEFAULT_COLUMNS = ['filename', 'size', 'contentType', 'emailSubject', 'senderName', 'receivedTime', 'pstFileName'];
 
 export default function AttachmentList() {
+  const [activeTab, setActiveTab] = useState<ActiveTab>('list');
+
+  // Duplikátumok tab állapot
+  const [dupStats, setDupStats] = useState<{
+    totalRecords: number; uniqueFiles: number;
+    sameEmailDuplicates: number; crossEmailShared: number;
+  } | null>(null);
+  const [dupLoading, setDupLoading] = useState(false);
+  const [dupMessage, setDupMessage] = useState('');
+
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -136,6 +148,31 @@ export default function AttachmentList() {
     setColumnFilters(prev => ({ ...prev, [key]: value }));
   }
 
+  async function loadDupStats() {
+    setDupLoading(true); setDupMessage('');
+    try {
+      const data = await api.getAttachmentDuplicateStats();
+      setDupStats(data);
+    } catch (e: any) {
+      setDupMessage('Hiba: ' + e.message);
+    } finally {
+      setDupLoading(false);
+    }
+  }
+
+  async function handleDeduplicate() {
+    setDupLoading(true); setDupMessage('');
+    try {
+      const msg = await api.deduplicateAttachments();
+      setDupMessage(msg);
+      await loadDupStats();
+    } catch (e: any) {
+      setDupMessage('Hiba: ' + e.message);
+    } finally {
+      setDupLoading(false);
+    }
+  }
+
   function formatBytes(bytes: number, decimals = 2) {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -159,6 +196,70 @@ export default function AttachmentList() {
 
   return (
     <div className="space-y-4 relative">
+      {/* Tab strip */}
+      <div className="border-b border-gray-200">
+        <nav className="flex gap-1">
+          {([['list', 'Csatolmányok'], ['duplicates', 'Duplikátumok']] as [ActiveTab, string][]).map(([tab, label]) => (
+            <button
+              key={tab}
+              onClick={() => { setActiveTab(tab); if (tab === 'duplicates' && dupStats === null) loadDupStats(); }}
+              className={`px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors ${
+                activeTab === tab
+                  ? 'bg-white border border-b-white border-gray-200 text-blue-600 -mb-px'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >{label}</button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Duplikátumok tab */}
+      {activeTab === 'duplicates' && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-wrap items-center gap-4">
+            <button onClick={loadDupStats} disabled={dupLoading} className="px-4 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors">
+              {dupLoading ? 'Betöltés...' : 'Frissítés'}
+            </button>
+            {dupStats && dupStats.sameEmailDuplicates > 0 && (
+              <button onClick={handleDeduplicate} disabled={dupLoading} className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors">
+                Duplikátumok törlése az adatbázisból
+              </button>
+            )}
+            {dupMessage && <span className={`text-sm ${dupMessage.startsWith('Hiba') ? 'text-red-600' : 'text-gray-600'}`}>{dupMessage}</span>}
+          </div>
+
+          {dupStats && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Összes rekord</p>
+                <p className="text-2xl font-bold text-gray-800">{dupStats.totalRecords}</p>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Egyedi fájl (hash)</p>
+                <p className="text-2xl font-bold text-blue-600">{dupStats.uniqueFiles}</p>
+              </div>
+              <div className="bg-white rounded-xl border border-amber-100 p-4">
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Megosztott fájl</p>
+                <p className="text-2xl font-bold text-amber-600">{dupStats.crossEmailShared}</p>
+                <p className="text-xs text-gray-400 mt-1">azonos fájl, több e-mail</p>
+              </div>
+              <div className="bg-white rounded-xl border border-red-100 p-4">
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Törlendő rekord</p>
+                <p className="text-2xl font-bold text-red-600">{dupStats.sameEmailDuplicates}</p>
+                <p className="text-xs text-gray-400 mt-1">azonos fájl, azonos e-mail</p>
+              </div>
+            </div>
+          )}
+
+          {dupStats && dupStats.sameEmailDuplicates === 0 && !dupMessage && (
+            <div className="bg-white rounded-xl border border-gray-200 px-4 py-10 text-center text-gray-400 italic">
+              Nincs duplikált csatolmány rekord.
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'list' && <>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
         <div className="w-full md:w-96">
           <div className="relative">
@@ -359,6 +460,7 @@ export default function AttachmentList() {
           </div>
         </div>
       </div>
+      </>}
     </div>
   );
 }

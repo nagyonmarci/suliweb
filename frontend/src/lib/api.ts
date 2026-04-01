@@ -382,6 +382,11 @@ export const api = {
     return fetchJson<Attachment[]>(`/api/attachments/search?${query.toString()}`);
   },
   getAttachmentCount: () => fetchJson<number>('/api/attachments/count'),
+  getAttachmentDuplicateStats: () => fetchJson<{
+    totalRecords: number; uniqueFiles: number;
+    sameEmailDuplicates: number; crossEmailShared: number;
+  }>('/api/attachments/duplicate-stats'),
+  deduplicateAttachments: () => fetchText('/api/attachments/deduplicate', { method: 'POST' }),
   downloadAttachment: async (id: string, filename: string) => {
     const res = await fetch(`/api/attachments/${id}/download`, {
       headers: authHeaders(),

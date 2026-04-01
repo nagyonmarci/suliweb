@@ -21,8 +21,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.regex.Pattern;
 
 @RestController
@@ -125,6 +127,64 @@ public class AttachmentController {
     @GetMapping("/count")
     public long getAttachmentCount() {
         return attachmentRepository.count();
+    }
+
+    @GetMapping("/duplicate-stats")
+    public Map<String, Object> getDuplicateStats() {
+        List<hu.fmdev.backend.domain.Attachment> all = attachmentRepository.findAll();
+
+        // Egyedi fájlok száma hash alapján
+        long uniqueFiles = all.stream()
+                .map(hu.fmdev.backend.domain.Attachment::getHash)
+                .filter(h -> h != null)
+                .distinct()
+                .count();
+
+        // Ugyanahhoz az e-mailhez kétszer mentett azonos fájl (emailId + hash duplikátum)
+        Map<String, List<hu.fmdev.backend.domain.Attachment>> byEmailHash = all.stream()
+                .filter(a -> a.getHash() != null && a.getEmailId() != null)
+                .collect(Collectors.groupingBy(a -> a.getEmailId() + "|" + a.getHash()));
+
+        long sameEmailDuplicates = byEmailHash.values().stream()
+                .filter(g -> g.size() > 1)
+                .mapToLong(g -> g.size() - 1)
+                .sum();
+
+        // Különböző e-mailekhez tartozó, azonos tartalmú fájlok (megosztott fájlok)
+        long crossEmailShared = all.stream()
+                .filter(a -> a.getHash() != null)
+                .collect(Collectors.groupingBy(hu.fmdev.backend.domain.Attachment::getHash))
+                .values().stream()
+                .filter(g -> g.stream().map(hu.fmdev.backend.domain.Attachment::getEmailId).distinct().count() > 1)
+                .count();
+
+        return Map.of(
+                "totalRecords", all.size(),
+                "uniqueFiles", uniqueFiles,
+                "sameEmailDuplicates", sameEmailDuplicates,
+                "crossEmailShared", crossEmailShared
+        );
+    }
+
+    @org.springframework.web.bind.annotation.PostMapping("/deduplicate")
+    public ResponseEntity<String> deduplicateAttachments() {
+        List<hu.fmdev.backend.domain.Attachment> all = attachmentRepository.findAll();
+
+        Map<String, List<hu.fmdev.backend.domain.Attachment>> byEmailHash = all.stream()
+                .filter(a -> a.getHash() != null && a.getEmailId() != null)
+                .collect(Collectors.groupingBy(a -> a.getEmailId() + "|" + a.getHash()));
+
+        int deleted = 0;
+        for (List<hu.fmdev.backend.domain.Attachment> group : byEmailHash.values()) {
+            if (group.size() <= 1) continue;
+            // Az első rekordot megtartjuk, a többit töröljük
+            for (int i = 1; i < group.size(); i++) {
+                attachmentRepository.deleteById(group.get(i).getId());
+                deleted++;
+            }
+        }
+
+        return ResponseEntity.ok(deleted + " duplikált csatolmány rekord eltávolítva.");
     }
 
     @GetMapping("/email/{emailId}")
