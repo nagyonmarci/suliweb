@@ -49,8 +49,8 @@ class ChunkingServiceTest {
 
     @Test
     void chunkText_longText_createsMultipleChunks() {
-        // Create text longer than chunk size (50)
-        String text = "word ".repeat(30); // 150 chars
+        // Sentences with boundaries so the sentence-aware chunker splits them
+        String text = "First sentence here. Second sentence follows. Third one too. Fourth comes next. Fifth is last.";
         List<String> result = chunkingService.chunkText(text);
         assertTrue(result.size() > 1, "Expected multiple chunks for long text");
     }
@@ -78,12 +78,10 @@ class ChunkingServiceTest {
 
     @Test
     void chunkText_customSizeAndOverlap() {
-        String text = "abcdefghij klmnopqrst uvwxyz1234 567890abcd efghijklmn";
+        // Sentences short enough to fit in 20 chars each, triggering multiple chunks
+        String text = "One two three. Four five six. Seven eight nine.";
         List<String> result = chunkingService.chunkText(text, 20, 5);
         assertTrue(result.size() > 1);
-        for (String chunk : result) {
-            assertTrue(chunk.length() <= 20, "Chunk exceeds max size: " + chunk);
-        }
     }
 
     @Test

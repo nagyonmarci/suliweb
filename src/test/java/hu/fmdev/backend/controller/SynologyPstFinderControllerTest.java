@@ -80,12 +80,12 @@ class SynologyPstFinderControllerTest {
 
     @Test
     void searchAndSavePstFromSynology_success_returnsOk() {
-        doNothing().when(synologyPstFinderService).findAndSaveFiles();
+        when(synologyPstFinderService.findAndSaveFiles()).thenReturn(new SynologyPstFinderService.SaveResult(1, 1, 0));
 
         ResponseEntity<String> response = controller.searchAndSavePstFromSynology();
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertTrue(response.getBody().contains("sikeresen"));
+        assertTrue(response.getBody().contains("találva"));
         verify(synologyPstFinderService).findAndSaveFiles();
     }
 

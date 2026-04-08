@@ -128,7 +128,7 @@ class RagControllerTest {
 
     @Test
     void getContext_returnsQueryAndContext() {
-        when(searchService.buildContext("query", 5)).thenReturn("RAG context text");
+        when(searchService.buildContext(eq("query"), eq(5), any())).thenReturn("RAG context text");
 
         Map<String, String> result = controller.getContext("query", 5);
 

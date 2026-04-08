@@ -1,6 +1,7 @@
 package hu.fmdev.backend.service;
 
 import hu.fmdev.backend.domain.FileInfo;
+import hu.fmdev.backend.domain.ProgressState;
 import hu.fmdev.backend.repository.AttachmentRepository;
 import hu.fmdev.backend.repository.EmailRepository;
 import hu.fmdev.backend.repository.FileInfoRepository;
@@ -35,6 +36,9 @@ class PstProcessorServiceTest {
 
     @BeforeEach
     void setUp() {
+        ProgressState idleState = new ProgressState();
+        idleState.setActive(false);
+        lenient().when(progressTracker.getProgress()).thenReturn(idleState);
         service = new PstProcessorService(emailRepository, fileInfoRepository, attachmentRepository, progressTracker);
     }
 

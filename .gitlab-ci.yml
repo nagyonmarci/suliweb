@@ -1,0 +1,144 @@
+stages:
+  - test
+  - sast
+  - sca
+  - scan
+  - build
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end"
+  REGISTRY: ghcr.io
+  IMAGE_NAME: $CI_PROJECT_PATH
+
+default:
+  image: maven:3.9-eclipse-temurin-25
+  cache:
+    key: "$CI_COMMIT_REF_SLUG-maven"
+    paths:
+      - .m2/repository/
+
+# ── Backend Tests + Coverage ──────────────────────────────────────────────────
+backend-test:
+  stage: test
+  script:
+    - mvn $MAVEN_CLI_OPTS test jacoco:report
+  variables:
+    JWT_SECRET: ci-test-secret-not-real-placeholder-for-testing-only
+  artifacts:
+    reports:
+      junit: target/surefire-reports/TEST-*.xml
+    paths:
+      - target/site/jacoco/
+    expire_in: 30 days
+    when: always
+
+# ── Frontend Lint + Build ──────────────────────────────────────────────────────
+frontend-lint-build:
+  stage: test
+  image: node:22-alpine
+  cache:
+    key: "$CI_COMMIT_REF_SLUG-npm"
+    paths:
+      - frontend/node_modules/
+  before_script:
+    - cd frontend
+    - npm ci
+  script:
+    - npm run lint
+    - npm run build
+  artifacts:
+    paths:
+      - frontend/dist/
+    expire_in: 7 days
+
+# ── SpotBugs SAST ──────────────────────────────────────────────────────────────
+sast-spotbugs:
+  stage: sast
+  needs: [backend-test]
+  allow_failure: true
+  script:
+    - mvn $MAVEN_CLI_OPTS spotbugs:spotbugs -DskipTests
+  variables:
+    JWT_SECRET: ci-test-secret-not-real-placeholder-for-testing-only
+  artifacts:
+    paths:
+      - target/spotbugs/
+    expire_in: 30 days
+    when: always
+
+# ── GitLab Security Templates ─────────────────────────────────────────────────
+include:
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml
+  - template: Security/Dependency-Scanning.gitlab-ci.yml
+  - template: Security/Container-Scanning.gitlab-ci.yml
+
+# ── OWASP Dependency-Check ─────────────────────────────────────────────────────
+sca-owasp:
+  stage: sca
+  needs: [backend-test]
+  allow_failure: true
+  cache:
+    key: owasp-nvd
+    paths:
+      - .m2/repository/org/owasp/dependency-check-data/
+  script:
+    - mvn $MAVEN_CLI_OPTS dependency-check:check -DskipTests
+  variables:
+    JWT_SECRET: ci-test-secret-not-real-placeholder-for-testing-only
+    NVD_API_KEY: $NVD_API_KEY
+  artifacts:
+    paths:
+      - target/dependency-check-report/
+    expire_in: 30 days
+    when: always
+
+# ── Trivy Container Scan ───────────────────────────────────────────────────────
+trivy-scan:
+  stage: scan
+  image: docker:27
+  services:
+    - docker:27-dind
+  needs: [backend-test]
+  allow_failure: true
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    - apk add --no-cache curl
+    - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+  script:
+    - docker build . -t suliweb-backend:scan
+    - trivy image --exit-code 0 --format sarif --output trivy-backend.sarif suliweb-backend:scan
+    - docker build ./frontend -t suliweb-frontend:scan
+    - trivy image --exit-code 0 --format sarif --output trivy-frontend.sarif suliweb-frontend:scan
+  artifacts:
+    paths:
+      - trivy-backend.sarif
+      - trivy-frontend.sarif
+    expire_in: 30 days
+    when: always
+
+# ── Docker Build + Push to GHCR (master only) ─────────────────────────────────
+build-push:
+  stage: build
+  image: docker:27
+  services:
+    - docker:27-dind
+  needs:
+    - backend-test
+    - frontend-lint-build
+  only:
+    - master
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    - echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+  script:
+    - SHORT_SHA=$(echo $CI_COMMIT_SHA | cut -c1-7)
+    - docker build . -t ghcr.io/${IMAGE_NAME}-backend:sha-${SHORT_SHA} -t ghcr.io/${IMAGE_NAME}-backend:latest
+    - docker push ghcr.io/${IMAGE_NAME}-backend:sha-${SHORT_SHA}
+    - docker push ghcr.io/${IMAGE_NAME}-backend:latest
+    - docker build ./frontend -t ghcr.io/${IMAGE_NAME}-frontend:sha-${SHORT_SHA} -t ghcr.io/${IMAGE_NAME}-frontend:latest
+    - docker push ghcr.io/${IMAGE_NAME}-frontend:sha-${SHORT_SHA}
+    - docker push ghcr.io/${IMAGE_NAME}-frontend:latest

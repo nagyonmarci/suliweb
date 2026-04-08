@@ -1,0 +1,15 @@
+failure-threshold: warning
+ignore:
+  - DL3008  # apt-get pin versions - too noisy for base images
+  - DL3018  # apk pin versions
+  - SC2086   # double quote variables
+trustedRegistries:
+  - docker.io
+  - ghcr.io
+  - eclipse-temurin
+  - maven
+  - nginx
+  - node
+  - mongodb
+  - qdrant
+  - ollama
