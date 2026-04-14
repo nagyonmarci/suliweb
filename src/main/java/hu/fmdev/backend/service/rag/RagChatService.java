@@ -137,7 +137,7 @@ public class RagChatService {
                 .bodyValue(requestBody)
                 .retrieve()
                 .bodyToFlux(Map.class)
-                .map(chunk -> {
+                .mapNotNull(chunk -> {
                     @SuppressWarnings("unchecked")
                     Map<String, Object> messageObj = (Map<String, Object>) chunk.get("message");
                     if (messageObj != null) {
@@ -148,7 +148,6 @@ public class RagChatService {
                     }
                     return null;
                 })
-                .filter(Objects::nonNull)
                 .concatWith(Flux.just("{\"done\":true,\"sources\":" + finalSourcesJson + "}"))
                 .onErrorResume(e -> {
                     CentralLogger.logError("Streaming chat failed", e);

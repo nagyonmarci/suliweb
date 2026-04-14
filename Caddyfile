@@ -12,10 +12,6 @@ suliweb.test {
     handle /pdf/* {
         reverse_proxy backend:8080
     }
-    handle /rag/* {
-        reverse_proxy backend:8080
-    }
-
     # Frontend catch-all
     handle {
         reverse_proxy frontend:80

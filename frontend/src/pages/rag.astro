@@ -38,6 +38,8 @@ import RagChat from '../components/RagChat.tsx';
 </Layout>
 
 <script>
+  import { api } from '../lib/api';
+
   const VALID_TABS = ['chat', 'search', 'manage'];
 
   function switchTab(tab: string) {
@@ -60,23 +62,17 @@ import RagChat from '../components/RagChat.tsx';
   function activateFromHash(hasChat: boolean) {
     const hash = window.location.hash.replace('#', '');
     const desired = VALID_TABS.includes(hash) ? hash : (hasChat ? 'chat' : 'search');
-    // Don't allow chat tab if no permission
     switchTab(desired === 'chat' && !hasChat ? 'search' : desired);
   }
 
   (async () => {
-    // Check RAG_CHAT authority
     let hasChat = false;
     try {
-      const token = localStorage.getItem('accessToken');
-      if (token) {
-        const res = await fetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
-        if (res.ok) {
-          const user = await res.json();
-          hasChat = Array.isArray(user.authorities) && user.authorities.includes('RAG_CHAT');
-        }
+      if (api.isLoggedIn()) {
+        const user = await api.getMe();
+        hasChat = Array.isArray(user.authorities) && user.authorities.includes('RAG_CHAT');
       }
-    } catch { /* silently fail */ }
+    } catch { /* silently fail – getMe redirects to /login on 401 */ }
 
     const chatBtn = document.getElementById('tab-chat');
     if (hasChat && chatBtn) {
