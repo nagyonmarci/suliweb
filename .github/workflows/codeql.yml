@@ -39,9 +39,9 @@ jobs:
           languages: ${{ matrix.language }}
           queries: security-extended,security-and-quality
 
-      - name: Autobuild (Java)
+      - name: Build Java (for CodeQL)
         if: matrix.language == 'java-kotlin'
-        uses: github/codeql-action/autobuild@v3
+        run: mvn -B compile -DskipTests
         env:
           JWT_SECRET: codeql-dummy-secret-not-for-production
 
