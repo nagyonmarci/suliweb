@@ -30,7 +30,7 @@ public class PstFinderService {
         Instant start = Instant.now();
         List<FileInfo> foundFiles = Collections.synchronizedList(new ArrayList<>());
 
-        ExecutorService executorService = Executors.newFixedThreadPool(10);
+        ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
 
         List<Future<List<FileInfo>>> futures = directories.stream()
                 .map(directory -> executorService.submit(() -> searchDirectory(directory, excludedDirectories)))

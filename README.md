@@ -12,8 +12,8 @@ Spring Boot 4.0 alkalmazás Microsoft Outlook PST fájlok feldolgozásához. PST
 - **Szüneteltetés/folytatás** - Hosszú feldolgozási műveletek vezérlése
 - **Csatolmány mentés** - Konfigurálható könyvtárba ment (`/app/attachments/hashes/{sha256}`)
 - **Keresés** - Tárgy, feladó, címzett, mappa, fontosság szerinti szűrés
-- **RAG szemantikus keresés** - Ollama embedding + MongoDB Atlas Vector Search email tartalmak és csatolmányok között
-- **Synology integráció** - NAS Universal Search API-n keresztül keres PST fájlokat; duplikátum-szűréssel menti az adatbázisba
+- **RAG szemantikus keresés** - Ollama embedding + MongoDB Atlas Vector Search; reply chain levágás (RFC 3676 + Outlook-minták), csatolmány chunk-deduplikáció (path-alapú), természetes nyelvű feladó/dátum szűrő-kinyerés LLM-mel
+- **Synology integráció** - NAS Universal Search API-n keresztül keres PST fájlokat párhuzamosan (Virtual Threads, kiterjesztésenként); duplikátum-szűréssel menti az adatbázisba
 - **PDF űrlap kitöltés** - iText alapú PDF form filler
 - **JWT autentikáció** - Spring Security 7 alapú, access token (8 óra) + refresh token (7 nap), BCrypt jelszókezelés
 - **Titkosított ZIP feltöltés** - zip4j alapú titkosított archívum feltöltés/letöltés
@@ -143,10 +143,12 @@ suliweb/
 │   │   ├── ProgressTracker.java         # Folyamat állapot követés
 │   │   └── rag/
 │   │       ├── ChunkingService.java     # Szöveg darabolás (overlap)
-│   │       ├── TextExtractionService.java # Apache Tika szövegkinyerés
-│   │       ├── EmbeddingService.java    # Ollama embedding generálás
-│   │       ├── RagIngestionService.java # Email+csatolmány indexelés
-│   │       └── RagSearchService.java    # Szemantikus keresés (vector search)
+│   │       ├── TextExtractionService.java # Apache Tika szövegkinyerés + reply chain levágás
+│   │       ├── EmbeddingService.java    # Ollama embedding generálás (batch)
+│   │       ├── RagIngestionService.java # Email+csatolmány indexelés (chunk-dedup)
+│   │       ├── RagSearchService.java    # Szemantikus keresés (vector search)
+│   │       ├── QueryRewriteService.java # HyDE, history rewrite, szűrő-kinyerés
+│   │       └── RagChatService.java      # RAG chat (streaming + non-streaming)
 │   ├── domain/
 │   │   ├── Email.java                   # Email MongoDB dokumentum
 │   │   ├── DocumentChunk.java           # RAG chunk + embedding vektor
@@ -416,7 +418,8 @@ A projekt továbbfejlesztéséhez javasolt eszközök és minták:
 ### Teljesítmény
 - **Spring Cache (`@Cacheable`)** - Email lekérdezések és RAG keresési eredmények cache-elése
 - **MongoDB indexek** - Compound indexek a gyakori keresési mintákhoz (`sender + receivedTime`, `subject text index`)
-- **~~Ollama batch embedding~~** - ✅ Megvalósítva: `EmbeddingService.embedBatch()` + párhuzamos feldolgozás (`rag.embedding-threads`, `rag.ingestion-batch-size`)
+- **~~Ollama batch embedding~~** - ✅ Megvalósítva: `EmbeddingService.embedBatch()` + párhuzamos feldolgozás (`rag.ingestion-batch-size`)
+- **~~Java Virtual Threads (I/O-kötött műveletek)~~** - ✅ Megvalósítva: `Executors.newVirtualThreadPerTaskExecutor()` a NAS kiterjesztés-kereséshez (`SynologyPstFinderService`), könyvtárbejáráshoz (`PstFinderService`) és Ollama embedding batch hívásokhoz (`RagIngestionService`)
 
 ### Go/Rust átállás elemzése
 

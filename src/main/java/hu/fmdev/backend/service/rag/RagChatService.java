@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 
+import hu.fmdev.backend.service.rag.RagSearchService.SearchFilters;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -48,11 +50,14 @@ public class RagChatService {
         // 1. Rewrite follow-up questions into standalone queries using conversation history
         String searchQuery = queryRewriteService.rewriteWithHistory(userMessage, history);
 
-        // 2. Retrieve relevant chunks using the (potentially rewritten) query
-        List<RagSearchService.SearchResult> chunks = searchService.search(searchQuery, k);
+        // 2. Extract sender/date filters from natural language
+        SearchFilters filters = queryRewriteService.extractFilters(searchQuery, SearchFilters.NONE);
+
+        // 3. Retrieve relevant chunks using the (potentially rewritten) query and extracted filters
+        List<RagSearchService.SearchResult> chunks = searchService.search(searchQuery, k, filters);
         List<ChatSource> sources = buildSources(chunks);
 
-        // 3. Build context text
+        // 4. Build context text
         String context = searchService.buildContext(searchQuery, k);
 
         // 4. Build Ollama messages with conversation history
@@ -94,9 +99,10 @@ public class RagChatService {
         int k = topK > 0 ? topK : ragConfig.getChatContextTopK();
         String resolvedModel = (model != null && !model.isBlank()) ? model : ragConfig.getChatModel();
 
-        // 1. Rewrite + search (blocking, before streaming starts)
+        // 1. Rewrite + extract filters + search (blocking, before streaming starts)
         String searchQuery = queryRewriteService.rewriteWithHistory(userMessage, history);
-        List<RagSearchService.SearchResult> chunks = searchService.search(searchQuery, k);
+        SearchFilters filters = queryRewriteService.extractFilters(searchQuery, SearchFilters.NONE);
+        List<RagSearchService.SearchResult> chunks = searchService.search(searchQuery, k, filters);
         List<ChatSource> sources = buildSources(chunks);
         String context = searchService.buildContext(searchQuery, k);
 

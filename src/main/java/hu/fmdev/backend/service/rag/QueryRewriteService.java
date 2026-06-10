@@ -5,6 +5,9 @@ import hu.fmdev.backend.logger.CentralLogger;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import hu.fmdev.backend.service.rag.RagSearchService.SearchFilters;
+
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -100,6 +103,60 @@ public class QueryRewriteService {
         }
 
         return query;
+    }
+
+    /**
+     * Extracts sender and date range from a natural language query using the LLM.
+     * If the existing filters already contain sender/dates (set manually), they are preserved.
+     * Returns the original filters unchanged on any parse or network failure.
+     */
+    public SearchFilters extractFilters(String query, SearchFilters existing) {
+        boolean alreadyHasSender = existing != null && existing.sender() != null && !existing.sender().isBlank();
+        boolean alreadyHasDates  = existing != null && (existing.startDate() != null || existing.endDate() != null);
+        if (alreadyHasSender && alreadyHasDates) return existing;
+
+        String prompt = """
+                Extract metadata from this email search query.
+                Reply ONLY with a single JSON object — no explanation, no markdown.
+                Format: {"sender":"<name or email or null>","startDate":"<yyyy-MM-dd or null>","endDate":"<yyyy-MM-dd or null>"}
+                Use null for any field not mentioned in the query.
+                Query: """ + query;
+
+        try {
+            String raw = callOllamaGenerate(prompt);
+            if (raw == null || raw.isBlank()) return existing;
+
+            // Strip potential markdown code fences
+            raw = raw.replaceAll("(?s)```[a-z]*\\n?|```", "").trim();
+            int start = raw.indexOf('{');
+            int end   = raw.lastIndexOf('}');
+            if (start < 0 || end <= start) return existing;
+            raw = raw.substring(start, end + 1);
+
+            @SuppressWarnings("unchecked")
+            Map<String, Object> parsed = new ObjectMapper().readValue(raw, Map.class);
+
+            String sender    = alreadyHasSender ? existing.sender()    : nullIfAbsent(parsed, "sender");
+            String startDate = alreadyHasDates  ? existing.startDate() : nullIfAbsent(parsed, "startDate");
+            String endDate   = alreadyHasDates  ? existing.endDate()   : nullIfAbsent(parsed, "endDate");
+            String pstFile   = existing != null ? existing.pstFile()   : null;
+
+            SearchFilters enriched = SearchFilters.of(sender, pstFile, startDate, endDate);
+            if (enriched != SearchFilters.NONE) {
+                CentralLogger.logInfo("Query filters extracted — sender: " + sender
+                        + ", start: " + startDate + ", end: " + endDate);
+            }
+            return enriched;
+        } catch (Exception e) {
+            CentralLogger.logWarn("Filter extraction failed, using original filters: " + e.getMessage());
+            return existing != null ? existing : SearchFilters.NONE;
+        }
+    }
+
+    private String nullIfAbsent(Map<String, Object> map, String key) {
+        Object v = map.get(key);
+        if (v == null || "null".equals(v) || String.valueOf(v).isBlank()) return null;
+        return String.valueOf(v);
     }
 
     @SuppressWarnings("unchecked")

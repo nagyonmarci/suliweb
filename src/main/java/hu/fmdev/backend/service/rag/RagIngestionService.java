@@ -161,6 +161,10 @@ public class RagIngestionService {
             List<Attachment> attachments = attachmentRepository.findByEmailId(email.getId());
             for (Attachment att : attachments) {
                 if (att.getLocalPath() == null || att.getLocalPath().isBlank()) continue;
+                if (chunkRepository.existsByAttachmentPathAndChunkIndex(att.getLocalPath(), 0)) {
+                    CentralLogger.logInfo("Csatolmány dedup kihagyva: " + att.getFilename());
+                    continue;
+                }
                 try {
                     String attText = textExtractionService.extractTextFromFile(att.getLocalPath());
                     if (attText == null || attText.isBlank()) continue;
@@ -199,7 +203,7 @@ public class RagIngestionService {
                 + batches.size() + " batches (batch size: " + batchSize + ")");
         progressTracker.startOperation("Embedding generálás", pending.size());
 
-        ExecutorService executor = Executors.newFixedThreadPool(ragConfig.getEmbeddingThreads());
+        ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
         try {
             List<Callable<Void>> tasks = batches.stream()
                     .map(batch -> (Callable<Void>) () -> {

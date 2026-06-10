@@ -8,14 +8,25 @@ import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class TextExtractionService {
 
     private final Tika tika = new Tika();
 
-    // Max characters sent to the chunker per email to prevent OOM under parallel load
     private static final int MAX_BODY_CHARS = 50_000;
+
+    // Detects the start of a reply chain or forwarded block (cut everything from here)
+    private static final Pattern REPLY_CHAIN_PATTERN = Pattern.compile(
+            "(?mi)^[ \\t]*(-{3,}[ \\t]*(?:original message|eredeti üzenet|forwarded message|továbbított üzenet)[^\\n]*$" +
+            "|On .{5,120}?wrote:\\s*$" +
+            "|Van:[ \\t]*.+@.+" +
+            "|Feladó:[ \\t]*.+" +
+            "|From:[ \\t]*.+@.+)" +
+            "|(?m)^--[ \\t]*$"
+    );
 
     /**
      * Extracts plain text from any supported file using Apache Tika.
@@ -65,15 +76,34 @@ public class TextExtractionService {
     /**
      * Gets the best available text content from an email.
      * Prefers plain text body, falls back to HTML extraction.
+     * Reply chains and RFC 3676 signatures are stripped before returning.
      */
     public String getEmailTextContent(String body, String htmlContent) {
         if (body != null && !body.isBlank()) {
             String trimmed = body.trim();
-            return trimmed.length() > MAX_BODY_CHARS ? trimmed.substring(0, MAX_BODY_CHARS) : trimmed;
+            String stripped = stripReplyChains(trimmed);
+            return stripped.length() > MAX_BODY_CHARS ? stripped.substring(0, MAX_BODY_CHARS) : stripped;
         }
         if (htmlContent != null && !htmlContent.isBlank()) {
-            return extractTextFromHtml(htmlContent);
+            return stripReplyChains(extractTextFromHtml(htmlContent));
         }
         return "";
+    }
+
+    /**
+     * Removes reply chains and email signatures from plain text.
+     * Cuts everything from the first reply/forward/signature marker onwards.
+     */
+    String stripReplyChains(String text) {
+        if (text == null || text.isBlank()) return text;
+        Matcher m = REPLY_CHAIN_PATTERN.matcher(text);
+        if (m.find()) {
+            String stripped = text.substring(0, m.start()).stripTrailing();
+            if (!stripped.isBlank()) {
+                CentralLogger.logInfo("Reply chain stripped: " + text.length() + " → " + stripped.length() + " chars");
+                return stripped;
+            }
+        }
+        return text;
     }
 }

@@ -11,6 +11,8 @@ public interface DocumentChunkRepository extends MongoRepository<DocumentChunk, 
 
     boolean existsByEmailIdAndSourceTypeAndChunkIndex(String emailId, String sourceType, int chunkIndex);
 
+    boolean existsByAttachmentPathAndChunkIndex(String attachmentPath, int chunkIndex);
+
     long countByIngestionStatus(String status);
 
     List<DocumentChunk> findByIngestionStatus(String status);

@@ -83,6 +83,50 @@ class TextExtractionServiceTest {
         assertFalse(result.endsWith(" "));
     }
 
+    // --- stripReplyChains ---
+
+    @Test
+    void stripReplyChains_removesEnglishReplyQuote() {
+        String body = "Thanks for the update.\n\nOn Mon, 12 Jan 2026, John wrote:\n> Original content here";
+        String result = service.stripReplyChains(body);
+        assertEquals("Thanks for the update.", result);
+    }
+
+    @Test
+    void stripReplyChains_removesOriginalMessageSeparator() {
+        String body = "See below.\n\n-----Original Message-----\nFrom: someone@example.com";
+        String result = service.stripReplyChains(body);
+        assertEquals("See below.", result);
+    }
+
+    @Test
+    void stripReplyChains_removesHungarianSender() {
+        String body = "Rendben.\n\nVan: kovacs.gabor@pelda.hu\nTárgy: Re: Szerződés";
+        String result = service.stripReplyChains(body);
+        assertEquals("Rendben.", result);
+    }
+
+    @Test
+    void stripReplyChains_removesRfc3676Signature() {
+        String body = "Best regards,\nJohn\n--\nJohn Doe | Company Inc.";
+        String result = service.stripReplyChains(body);
+        assertEquals("Best regards,\nJohn", result);
+    }
+
+    @Test
+    void stripReplyChains_noMarker_returnsOriginal() {
+        String body = "Simple email without any reply chain.";
+        String result = service.stripReplyChains(body);
+        assertEquals(body, result);
+    }
+
+    @Test
+    void getEmailTextContent_stripsReplyChainFromBody() {
+        String body = "Main content.\n\nOn 1 Jan 2026, boss@example.com wrote:\n> Old content";
+        String result = service.getEmailTextContent(body, null);
+        assertEquals("Main content.", result);
+    }
+
     // --- extractTextFromFile ---
 
     @Test

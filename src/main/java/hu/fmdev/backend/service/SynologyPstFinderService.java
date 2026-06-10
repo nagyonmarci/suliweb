@@ -14,8 +14,11 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,21 +35,23 @@ public class SynologyPstFinderService {
         String[] extensions = settingsService.getEffectiveSearchExtensions().split(",");
 
         synologyApiClient.login();
-        try {
-            for (String extension : extensions) {
-                String ext = extension.trim();
-                CentralLogger.logInfo("Synology keresés indítása: " + ext);
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            var futures = Arrays.stream(extensions)
+                    .map(String::trim)
+                    .map(ext -> executor.<List<FileInfo>>submit(() -> searchExtension(ext)))
+                    .toList();
 
-                List<JsonNode> hits = synologyApiClient.searchFiles(ext);
-
-                for (JsonNode hit : hits) {
-                    FileInfo fileInfo = mapHitToFileInfo(hit);
-                    if (fileInfo != null) {
-                        allFiles.add(fileInfo);
-                    }
+            for (var future : futures) {
+                try {
+                    allFiles.addAll(future.get());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Synology keresés megszakadt", e);
+                } catch (ExecutionException e) {
+                    Throwable cause = e.getCause();
+                    if (cause instanceof RuntimeException re) throw re;
+                    throw new RuntimeException(cause);
                 }
-
-                CentralLogger.logInfo(ext + " keresés kész, találatok: " + hits.size());
             }
         } finally {
             synologyApiClient.logout();
@@ -87,6 +92,20 @@ public class SynologyPstFinderService {
         return new SaveResult(files.size(), saved, (int) duplicates);
     }
 
+    private List<FileInfo> searchExtension(String ext) {
+        CentralLogger.logInfo("Synology keresés indítása: " + ext);
+        List<JsonNode> hits = synologyApiClient.searchFiles(ext);
+        List<FileInfo> results = new ArrayList<>();
+        for (JsonNode hit : hits) {
+            FileInfo fileInfo = mapHitToFileInfo(hit);
+            if (fileInfo != null) {
+                results.add(fileInfo);
+            }
+        }
+        CentralLogger.logInfo(ext + " keresés kész, találatok: " + hits.size());
+        return results;
+    }
+
     private FileInfo mapHitToFileInfo(JsonNode hit) {
         try {
             String synologyPath = hit.path("SYNOMDPath").asText("");
@@ -108,13 +127,27 @@ public class SynologyPstFinderService {
                     : LocalDateTime.now();
 
             FileInfo fi = new FileInfo(localPath, fileName, size, lastModified, "New");
-            try {
-                var path = Paths.get(localPath);
-                if (Files.exists(path)) {
-                    fi.setContentHash(HashUtil.calculatePartialHash(path, 1_048_576));
+            var path = Paths.get(localPath);
+            if (Files.exists(path)) {
+                Exception lastEx = null;
+                for (int attempt = 1; attempt <= 3; attempt++) {
+                    try {
+                        fi.setContentHash(HashUtil.calculatePartialHash(path, 1_048_576));
+                        lastEx = null;
+                        break;
+                    } catch (java.io.IOException e) {
+                        lastEx = e;
+                        if (attempt < 3) {
+                            try { Thread.sleep(500); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); break; }
+                        }
+                    } catch (Exception e) {
+                        lastEx = e;
+                        break;
+                    }
                 }
-            } catch (Exception e) {
-                CentralLogger.logError("Hash számítás sikertelen (Synology): " + localPath, e);
+                if (lastEx != null) {
+                    CentralLogger.logError("Hash számítás sikertelen (Synology): " + localPath, lastEx);
+                }
             }
             return fi;
         } catch (Exception e) {
