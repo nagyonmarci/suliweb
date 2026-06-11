@@ -38,6 +38,69 @@ Spring Boot 4.0 alkalmazás Microsoft Outlook PST fájlok feldolgozásához. PST
 └──────────────────────────────────────────────────────────────────┘
 ```
 
+## Feldolgozási folyamat
+
+```
+PST fájl(ok)
+    │
+    ▼ POST /pst/processFromDb  (/feldolgozás oldal)
+┌─────────────────────────────────────────┐
+│ 1. PST BEOLVASÁS                        │
+│  • java-libpst, virtuális szálak        │
+│  • Dedup: SHA-256(pstFileName+msgId)    │
+│  • Csatolmány dedup: hash-alapú tárolás │
+└──────────────┬──────────────────────────┘
+               │ MongoDB: emails + attachments
+               ▼
+┌─────────────────────────────────────────┐
+│ 2. E-DISCOVERY INDEXELÉS                │
+│  Trigger: POST /api/ediscovery/ingest   │
+│  Auto-trigger: MongoDB Change Stream    │
+│  (insert / update / delete → auto-sync) │
+│                                         │
+│  Emailenként (50/batch, max 8 párhuzamos│
+│  Python hívás):                         │
+│  a) Reply chain levágás (email-reply-   │
+│     parser via Python sidecar)          │
+│  b) Csatolmány → Markdown (markitdown   │
+│     via Python sidecar; SHA-256 dedup)  │
+│                                         │
+│  Idempotens bulk create → ES-be;        │
+│  409 conflict = már indexelve, skip     │
+└──────────────┬──────────────────────────┘
+               │ Elasticsearch: email_archive index
+               ▼
+┌─────────────────────────────────────────┐
+│ 3. KNOWLEDGE GRAPH ÉPÍTÉS               │
+│  Trigger: POST /api/kg/ingest           │
+│                                         │
+│  Emailenként (virtuális szálak,         │
+│  deadlock esetén 3× retry):             │
+│  • Person csúcsok — email cím alapján   │
+│    merge (sender + recipients + CC)     │
+│  • Thread csúcs — conversationId merge  │
+│  • Email csúcs + összes összekötés      │
+│  • Concept csúcsok — NER entitások      │
+│    (Ollama llama3.2: PERSON/ORG/        │
+│    TOPIC/LOCATION)                      │
+│  • Attachment csúcsok (SHA-256)         │
+│                                         │
+│  Élek: SENT · TO · CC · BELONGS_TO ·   │
+│  REPLY_TO · MENTIONS · HAS_ATTACHMENT  │
+│  COMMUNICATES_WITH (számláló + dátum)  │
+└──────────────┬──────────────────────────┘
+               │ Neo4j: Person/Email/Thread/Concept gráf
+               ▼
+       GraphRAG chat (/api/kg/chat/stream)
+       Entitáskinyerés → Neo4j kontextus → Ollama LLM
+```
+
+**Fontos tudnivalók:**
+- Az e-Discovery indexelés **automatikusan** lefut, ha MongoDB-ben email változik (Change Stream). Manuális újraindexelés: `POST /api/ediscovery/ingest/{mongoEmailId}`.
+- A Knowledge Graph építés **nem automatikus** — PST feldolgozás után kézzel kell indítani.
+- Mindhárom lépés idempotens: újrafuttatás nem duplikál adatot.
+- Ha Ollama nem elérhető, a KG ingestion NER nélkül, Concept csúcsok nélkül fut le.
+
 ## Előfeltételek
 
 - Java 25 (Eclipse Temurin JDK ajánlott)
