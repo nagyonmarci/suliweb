@@ -111,11 +111,33 @@ public class KnowledgeGraphIngestionService {
         }
     }
 
+    private static boolean isDeadlock(Exception e) {
+        String msg = e.getMessage();
+        return msg != null && msg.contains("DeadlockDetected");
+    }
+
     private void processEmail(Email email) {
         progressTracker.increment();
-        try {
-            // Skip if already in graph
-            if (emailNodeRepo.existsByMessageId(resolveMessageId(email))) return;
+        Exception lastEx = null;
+        for (int attempt = 0; attempt < 3; attempt++) {
+            try {
+                doProcessEmail(email);
+                return;
+            } catch (Exception e) {
+                lastEx = e;
+                if (!isDeadlock(e)) break;
+                try { Thread.sleep(100L * (attempt + 1)); }
+                catch (InterruptedException ie) { Thread.currentThread().interrupt(); break; }
+            }
+        }
+        failedCount.incrementAndGet();
+        CentralLogger.logWarn("KG processEmail hiba [" + email.getId() + "]: "
+                + (lastEx != null ? lastEx.getMessage() : "unknown"));
+    }
+
+    private void doProcessEmail(Email email) {
+        // Skip if already in graph
+        if (emailNodeRepo.existsByMessageId(resolveMessageId(email))) return;
 
             // 1. Person nodes
             PersonNode sender = mergePerson(email.getSenderEmailAddress(), email.getSenderName());
@@ -201,10 +223,6 @@ public class KnowledgeGraphIngestionService {
             }
 
             processedCount.incrementAndGet();
-        } catch (Exception e) {
-            failedCount.incrementAndGet();
-            CentralLogger.logWarn("KG processEmail hiba [" + email.getId() + "]: " + e.getMessage());
-        }
     }
 
     // -------------------------------------------------------------------------

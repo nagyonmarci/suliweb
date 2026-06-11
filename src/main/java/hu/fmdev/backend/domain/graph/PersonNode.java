@@ -22,9 +22,6 @@ public class PersonNode {
     @Property("organization")
     private String organization;
 
-    @Relationship(type = "MEMBER_OF", direction = Relationship.Direction.OUTGOING)
-    private OrganizationNode organizationNode;
-
     @Relationship(type = "COMMUNICATES_WITH", direction = Relationship.Direction.OUTGOING)
     private List<CommunicatesWithRel> communicatesWith;
 }
