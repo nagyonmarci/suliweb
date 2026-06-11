@@ -1,6 +1,6 @@
 # SuliWeb - PST Email Processor
 
-Spring Boot 4.0 alkalmazás Microsoft Outlook PST fájlok feldolgozásához. PST fájlokat keres, emaileket és csatolmányokat kinyeri belőlük, MongoDB-ben tárolja a metaadatokat. Elasticsearch 8 alapú e-Discovery pipeline-nal, Neo4j 5.26 Knowledge Graph-fal, Python FastAPI sidecar-ral, JWT-alapú autentikációval és Astro 6 + React 19 frontend dashboarddal rendelkezik.
+Spring Boot 4.0 alkalmazás Microsoft Outlook PST fájlok feldolgozásához. PST fájlokat keres, emaileket és csatolmányokat kinyeri belőlük, MongoDB-ben tárolja a metaadatokat. Elasticsearch 8 alapú e-Discovery pipeline-nal, Neo4j 5.26 Knowledge Graph-fal, Python FastAPI sidecar-ral, JWT-alapú autentikációval és Astro 5 + React 19 frontend dashboarddal rendelkezik.
 
 ## Funkciók
 
@@ -16,13 +16,13 @@ Spring Boot 4.0 alkalmazás Microsoft Outlook PST fájlok feldolgozásához. PST
 - **Synology integráció** - NAS Universal Search API-n keresztül keres PST fájlokat párhuzamosan
 - **PDF űrlap kitöltés** - iText alapú PDF form filler
 - **JWT autentikáció** - Spring Security 7, access token (8 óra) + refresh token (7 nap), BCrypt
-- **Modern dashboard** - Astro 6 + React 19 + Tailwind CSS 4 reszponzív frontend
+- **Modern dashboard** - Astro 5 + React 19 + Tailwind CSS 4 reszponzív frontend
 
 ## Architektúra
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                       Frontend (Astro 6)                          │
+│                       Frontend (Astro 5)                          │
 │   Dashboard │ Emails │ e-Discovery │ Knowledge Graph │ RAG Chat  │
 │        :80 (nginx) → proxy → :8080  |  :4321 (dev)               │
 ├──────────────────────────────────────────────────────────────────┤
@@ -105,7 +105,7 @@ PST fájl(ok)
 
 - Java 25 (Eclipse Temurin JDK ajánlott)
 - Maven 3.9+
-- MongoDB 7+ (vagy Docker)
+- MongoDB 8 (vagy Docker)
 - Node.js 22+ (frontend fejlesztéshez)
 - Docker + Docker Compose (konténerizált futtatáshoz)
 - Ollama – a gazdagépen fut (`localhost:11434`), **nem Docker-ben**
@@ -134,15 +134,16 @@ Az alkalmazás elérhető: `http://localhost` (frontend + API proxy), `http://lo
 
 | Szolgáltatás | Port | Leírás |
 |---|---|---|
-| `frontend` | 80 | Astro statikus fájlok + nginx reverse proxy |
-| `backend` | 8080 | Spring Boot API |
-| `mongo` | 27017 | MongoDB 7 (email metadata, auth, progress) |
+| `suliweb-frontend` | 80 | Astro statikus fájlok + nginx reverse proxy |
+| `suliweb-backend` | 8080 | Spring Boot API |
+| `suliweb-mongo` | 27017 | MongoDB 8 (email metadata, auth, progress) |
 | `suliweb-elasticsearch` | 9200 | Elasticsearch 8.17.0 (e-Discovery full-text index) |
 | `suliweb-neo4j` | 7474/7687 | Neo4j 5.26 Community + APOC (Knowledge Graph) |
 | `python-processor` | 8001 | FastAPI sidecar (reply-strip + markitdown konverzió) |
 
 **Volumes:**
 - `mongodb_data` - MongoDB adatok
+- `mongodb_configdb` - MongoDB konfigurációs adatok
 - `attachments` - Kinyert email csatolmányok (`hashes/` almappa)
 - `pst_source` - PST forrásfájlok (read-only mount)
 - `elasticsearch_data` - Elasticsearch index
@@ -189,13 +190,17 @@ suliweb/
 │   │   ├── ModelMapperConfig.java
 │   │   └── SynologyConfig.java
 │   ├── controller/
+│   │   ├── AuthController.java
 │   │   ├── EmailController.java
 │   │   ├── EDiscoveryController.java    # /api/ediscovery – ingest + keresés
 │   │   ├── KnowledgeGraphController.java # /api/kg – gráf + chat
 │   │   ├── RagController.java           # /api/rag – GraphRAG chat (backward compat)
+│   │   ├── LogController.java           # /api/logs – alkalmazás logok
+│   │   ├── UserController.java          # /api/users – felhasználókezelés
 │   │   ├── PstFinderController.java
 │   │   ├── PstProcessorController.java
 │   │   ├── SynologyPstFinderController.java
+│   │   ├── SynologySettingsController.java
 │   │   ├── ProgressController.java
 │   │   ├── FileInfoController.java
 │   │   ├── FileUploadController.java
@@ -264,7 +269,9 @@ suliweb/
 │   │   │   ├── attachments.astro
 │   │   │   ├── processing.astro
 │   │   │   ├── synology.astro
-│   │   │   └── users.astro
+│   │   │   ├── logs.astro                   # Alkalmazás log nézegető
+│   │   │   ├── users.astro
+│   │   │   └── login.astro
 │   │   ├── components/
 │   │   │   ├── EDiscoverySearch.tsx         # ES keresőűrlap + snippet highlight
 │   │   │   ├── KnowledgeGraph.tsx           # Hálózat / szál / fogalom keresés + streaming chat
@@ -276,6 +283,7 @@ suliweb/
 │   │   │   ├── AttachmentList.tsx
 │   │   │   ├── PstProcessing.tsx
 │   │   │   ├── SynologyPanel.tsx
+│   │   │   ├── Logs.tsx                     # Log nézegető (szűrés, rendezés, auto-refresh)
 │   │   │   └── UserManagement.tsx
 │   │   ├── layouts/Layout.astro
 │   │   ├── styles/global.css
@@ -317,6 +325,8 @@ suliweb/
 | `/find/pst` | GET | PST fájlok keresése → adatbázisba mentés |
 | `/find/synology` | GET | PST keresés Synology NAS-on |
 | `/find/synologyToDb` | GET | Synology PST fájlok → adatbázisba mentés |
+| `/api/synology/settings` | GET | Synology kapcsolat beállításai |
+| `/api/synology/settings` | PUT | Synology kapcsolat mentése |
 | `/pst/processFromDb` | POST | PST fájlok feldolgozása adatbázisból |
 | `/pst/pause` | POST | Feldolgozás szüneteltetése |
 | `/pst/resume` | POST | Feldolgozás folytatása |
@@ -360,10 +370,23 @@ suliweb/
 | `/api/attachments/email/{emailId}` | GET | Email csatolmányai |
 | `/api/attachments/{id}/download` | GET | Csatolmány letöltése |
 
+### Felhasználók
+| Végpont | Metódus | Leírás |
+|---------|---------|--------|
+| `/api/users` | GET | Felhasználók listája |
+| `/api/users/{id}` | GET | Felhasználó adatai |
+| `/api/users` | POST | Új felhasználó létrehozása |
+| `/api/users/{id}` | PUT | Felhasználó módosítása |
+| `/api/users/{id}` | DELETE | Felhasználó törlése |
+| `/api/users/authorities` | GET | Elérhető jogosultságok listája |
+| `/api/users/{id}/files` | GET | Felhasználó elérhető PST fájljai |
+| `/api/users/{id}/files` | PUT | Felhasználó PST hozzáférés beállítása |
+
 ### Egyéb
 | Végpont | Metódus | Leírás |
 |---------|---------|--------|
 | `/api/progress` | GET | Feldolgozás állapota |
+| `/api/logs` | GET | Alkalmazás logok (`level`, `from`, `to`, `sort`, `limit` szűrők) |
 | `/api/file-infos` | GET | PST fájl információk |
 | `/api/file-infos/counts` | GET | PST számlálók (total/pending/processed) |
 | `/api/file-infos/duplicates` | GET | Azonos tartalmú PST fájlok csoportjai |
@@ -421,12 +444,12 @@ synology.search-extensions=pst,ost
 - Soft-fail szemantika: hiba esetén üres string, nem abort; csatolmány konverzióra nincs karakterkorlát
 
 **Frontend:**
-- Astro 6 – Statikus oldal generálás (Vite 7)
+- Astro 5 – Statikus oldal generálás (Vite 6)
 - React 19.2 – Interaktív komponensek
 - Tailwind CSS 4 – Stílusok
 
 **Adatbázisok és külső szolgáltatások:**
-- MongoDB 7 – Email metaadatok, auth, progress tracking
+- MongoDB 8 – Email metaadatok, auth, progress tracking
 - Elasticsearch 8.17.0 – e-Discovery full-text index (magyar szövegelemzés: asciifolding + hungarian_stop)
 - Neo4j 5.26 Community + APOC – Knowledge Graph (Person, Thread, Concept, Attachment csúcsok)
 - Ollama – NER entitáskinyerés és GraphRAG LLM chat (gazdagépen fut, `host.docker.internal:11434`)
@@ -459,9 +482,9 @@ docker compose up -d mongo suliweb-elasticsearch suliweb-neo4j python-processor
 
 | Szolgáltatás | Restart | Health check | Leírás |
 |---|---|---|---|
-| `frontend` | unless-stopped | backend healthy | Astro 6 → nginx (:80) |
-| `backend` | unless-stopped | `/api/progress` curl | Spring Boot (:8080) |
-| `mongo` | unless-stopped | `mongosh ping` | MongoDB (:27017) |
+| `suliweb-frontend` | unless-stopped | backend healthy | Astro 5 → nginx (:80) |
+| `suliweb-backend` | unless-stopped | `/api/progress` curl | Spring Boot (:8080) |
+| `suliweb-mongo` | unless-stopped | `mongosh ping` | MongoDB 8 (:27017) |
 | `suliweb-elasticsearch` | unless-stopped | `/_cluster/health` curl | Elasticsearch 8.17.0 (:9200) |
 | `suliweb-neo4j` | unless-stopped | `:7474` wget | Neo4j 5.26 Community (:7474/:7687) |
 | `python-processor` | unless-stopped | `/health` curl | FastAPI sidecar (:8001) |
