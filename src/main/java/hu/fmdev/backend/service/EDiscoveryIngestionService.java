@@ -32,6 +32,7 @@ public class EDiscoveryIngestionService {
 
     private static final int PAGE_SIZE = 50;
     private static final int BULK_SIZE = 100;
+    private static final Semaphore PYTHON_SEMAPHORE = new Semaphore(8);
 
     private final EmailRepository emailRepository;
     private final AttachmentRepository attachmentRepository;
@@ -242,16 +243,23 @@ public class EDiscoveryIngestionService {
     private String stripReply(String body) {
         if (body == null || body.isBlank()) return "";
         try {
-            Map<String, Object> resp = pythonClient.post()
-                    .uri("/strip-reply")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(Map.of("body", body))
-                    .retrieve()
-                    .bodyToMono(Map.class)
-                    .block();
-            if (resp != null && resp.get("stripped") instanceof String s && !s.isBlank()) {
-                return s;
+            PYTHON_SEMAPHORE.acquire();
+            try {
+                Map<String, Object> resp = pythonClient.post()
+                        .uri("/strip-reply")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(Map.of("body", body))
+                        .retrieve()
+                        .bodyToMono(Map.class)
+                        .block();
+                if (resp != null && resp.get("stripped") instanceof String s && !s.isBlank()) {
+                    return s;
+                }
+            } finally {
+                PYTHON_SEMAPHORE.release();
             }
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
         } catch (Exception e) {
             CentralLogger.logWarn("strip-reply call failed: " + e.getMessage());
         }
@@ -268,16 +276,23 @@ public class EDiscoveryIngestionService {
             });
             form.add("filename", filename != null ? filename : "");
 
-            Map<String, Object> resp = pythonClient.post()
-                    .uri("/convert-attachment")
-                    .contentType(MediaType.MULTIPART_FORM_DATA)
-                    .bodyValue(form)
-                    .retrieve()
-                    .bodyToMono(Map.class)
-                    .block();
-            if (resp != null && resp.get("markdown") instanceof String md) {
-                return md;
+            PYTHON_SEMAPHORE.acquire();
+            try {
+                Map<String, Object> resp = pythonClient.post()
+                        .uri("/convert-attachment")
+                        .contentType(MediaType.MULTIPART_FORM_DATA)
+                        .bodyValue(form)
+                        .retrieve()
+                        .bodyToMono(Map.class)
+                        .block();
+                if (resp != null && resp.get("markdown") instanceof String md) {
+                    return md;
+                }
+            } finally {
+                PYTHON_SEMAPHORE.release();
             }
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
         } catch (Exception e) {
             attFailures.incrementAndGet();
             CentralLogger.logWarn("convert-attachment failed [" + filename + "]: " + e.getMessage());
