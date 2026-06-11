@@ -10,8 +10,9 @@ Spring Boot 4.0 alkalmazás Microsoft Outlook PST fájlok feldolgozásához. PST
 - **PST duplikátum-szűrés** - SHA-256 hash alapú deduplikáció
 - **Csatolmány deduplikáció** - Hash alapú fájltárolás; azonos tartalmú csatolmány csak egyszer foglal helyet lemezen
 - **Szüneteltetés/folytatás** - Hosszú feldolgozási műveletek vezérlése
-- **e-Discovery pipeline** - Elasticsearch 8 teljes szöveges keresés; reply chain levágás (Python sidecar); csatolmány → Markdown konverzió; Message-ID alapú dedup; magyar szövegelemzés (asciifolding + stopword)
-- **Knowledge Graph** - Neo4j 5.26 kommunikációs gráf (Person, Thread, Concept csúcsok); NER entitáskinyerés Ollama-val; szál bejárás; fogalom közelség alapú keresés
+- **e-Discovery pipeline** - Elasticsearch 8 teljes szöveges keresés; reply chain levágás (Python sidecar); csatolmány → Markdown konverzió; Message-ID alapú dedup; magyar szövegelemzés (hungarian_stemmed + hungarian_ascii analyzer)
+- **Dead-letter queue** - Sikertelen reply-strip és csatolmány-konverzió MongoDB-ben naplózva (`failed_conversions`); egyedi és tömeges újrafeldolgozás REST API-n keresztül
+- **Knowledge Graph** - Neo4j 5.26 kommunikációs gráf (Person, Thread, Concept csúcsok); NER entitáskinyerés Ollama-val; 2-fázisú pipeline (virtuális szál NER + fix pool Neo4j írás); szál bejárás; fogalom közelség alapú keresés
 - **GraphRAG chat** - Entitáskinyerés → Neo4j kontextus → Ollama LLM válasz (streaming + nem-streaming)
 - **Synology integráció** - NAS Universal Search API-n keresztül keres PST fájlokat párhuzamosan
 - **PDF űrlap kitöltés** - iText alapú PDF form filler
@@ -74,15 +75,17 @@ PST fájl(ok)
 │ 3. KNOWLEDGE GRAPH ÉPÍTÉS               │
 │  Trigger: POST /api/kg/ingest           │
 │                                         │
-│  Emailenként (virtuális szálak,         │
-│  deadlock esetén 3× retry):             │
-│  • Person csúcsok — email cím alapján   │
-│    merge (sender + recipients + CC)     │
+│  2-fázisú pipeline:                     │
+│  Fázis 1 — NER (virtuális szálak):     │
+│  • Ollama entitáskinyerés emailenként   │
+│    (PERSON/ORG/TOPIC/LOCATION)          │
+│  Fázis 2 — Neo4j írás (fix pool,       │
+│    max-concurrent-writes=4):            │
+│  • Person csúcsok — email cím merge    │
+│    (sender + recipients + CC)           │
 │  • Thread csúcs — conversationId merge  │
 │  • Email csúcs + összes összekötés      │
 │  • Concept csúcsok — NER entitások      │
-│    (Ollama llama3.2: PERSON/ORG/        │
-│    TOPIC/LOCATION)                      │
 │  • Attachment csúcsok (SHA-256)         │
 │                                         │
 │  Élek: SENT · TO · CC · BELONGS_TO ·   │
@@ -100,6 +103,7 @@ PST fájl(ok)
 - A Knowledge Graph építés **nem automatikus** — PST feldolgozás után kézzel kell indítani.
 - Mindhárom lépés idempotens: újrafuttatás nem duplikál adatot.
 - Ha Ollama nem elérhető, a KG ingestion NER nélkül, Concept csúcsok nélkül fut le.
+- Sikertelen reply-strip / csatolmány-konverzió nem szakítja meg a feldolgozást — `failed_conversions` gyűjteménybe kerül, és `POST /api/ediscovery/retry-failed` -del újrafuttatható.
 
 ## Előfeltételek
 
@@ -184,8 +188,9 @@ suliweb/
 ├── src/main/java/hu/fmdev/backend/
 │   ├── BackendApplication.java
 │   ├── config/
-│   │   ├── SecurityConfig.java
-│   │   ├── ElasticsearchConfig.java     # ES kliens + email_archive index létrehozás
+│   │   ├── SecurityConfig.java          # Fail-secure allowlist + JWT filter chain
+│   │   ├── ElasticsearchConfig.java     # ES kliens + email_archive index + magyar analyzerek
+│   │   ├── KgIngestionProperties.java   # @ConfigurationProperties: kg.ingestion.*
 │   │   ├── RagConfig.java               # Ollama WebClient konfiguráció
 │   │   ├── ModelMapperConfig.java
 │   │   └── SynologyConfig.java
@@ -225,6 +230,7 @@ suliweb/
 │   │       └── GraphRagChatService.java     # Neo4j kontextus → Ollama LLM chat + stream
 │   ├── domain/
 │   │   ├── Email.java
+│   │   ├── FailedConversion.java            # Dead-letter rekord (MongoDB)
 │   │   ├── FileInfo.java
 │   │   ├── FileEntity.java
 │   │   ├── User.java
@@ -240,6 +246,7 @@ suliweb/
 │   │       ├── AttachmentNode.java
 │   │       └── ConceptNode.java
 │   ├── repository/
+│   │   ├── FailedConversionRepository.java  # MongoDB dead-letter CRUD
 │   │   └── graph/                           # Neo4j repository-k
 │   │       ├── PersonNodeRepository.java
 │   │       ├── EmailNodeRepository.java
@@ -250,6 +257,8 @@ suliweb/
 │   ├── logger/
 │   └── util/
 ├── src/test/java/hu/fmdev/backend/
+│   ├── security/SecurityFilterChainTest.java  # Biztonsági filter chain integrációs tesztek
+│   └── service/EDiscoveryFailedConversionTest.java  # Dead-letter unit tesztek
 ├── src/main/resources/
 │   ├── application.properties
 │   └── application-docker.properties
@@ -335,10 +344,13 @@ suliweb/
 ### e-Discovery (Elasticsearch)
 | Végpont | Metódus | Leírás |
 |---------|---------|--------|
-| `/api/ediscovery/ingest` | POST | Összes email ES indexelése (reply-strip + csatolmány konverzió) |
-| `/api/ediscovery/ingest/{id}` | POST | Egy email újraindexelése |
+| `/api/ediscovery/ingest` | POST | Összes email ES indexelése (reply-strip + csatolmány konverzió) — ROLE_ADMIN |
+| `/api/ediscovery/ingest/{id}` | POST | Egy email újraindexelése — ROLE_ADMIN |
+| `/api/ediscovery/retry-failed` | POST | Összes sikertelen konverzió újrafuttatása — ROLE_ADMIN |
+| `/api/ediscovery/retry-failed/{id}` | POST | Egy `FailedConversion` rekord újrafuttatása — ROLE_ADMIN |
+| `/api/ediscovery/failed` | GET | Megoldatlan konverziós hibák listája |
 | `/api/ediscovery/search` | GET | Teljes szöveges keresés (`q`, `topK`, `sender`, `pstOwner`, `pstFileName`, `dateFrom`, `dateTo`) |
-| `/api/ediscovery/status` | GET | Indexelés állapota + statisztikák |
+| `/api/ediscovery/status` | GET | Indexelés állapota + statisztikák (incl. `failedCount`) |
 
 ### Knowledge Graph (Neo4j)
 | Végpont | Metódus | Leírás |
@@ -385,7 +397,8 @@ suliweb/
 ### Egyéb
 | Végpont | Metódus | Leírás |
 |---------|---------|--------|
-| `/api/progress` | GET | Feldolgozás állapota |
+| `/api/progress` | GET | Feldolgozás állapota (publikus) |
+| `/actuator/health` | GET | Alkalmazás health check (publikus) |
 | `/api/logs` | GET | Alkalmazás logok (`level`, `from`, `to`, `sort`, `limit` szűrők) |
 | `/api/file-infos` | GET | PST fájl információk |
 | `/api/file-infos/counts` | GET | PST számlálók (total/pending/processed) |
@@ -411,13 +424,17 @@ ediscovery.es.url=http://localhost:9200
 ediscovery.python.url=http://localhost:8001
 
 # Neo4j Knowledge Graph
-spring.neo4j.uri=bolt://localhost:7687
+spring.neo4j.uri=${NEO4J_URI:bolt://localhost:7687}
 spring.neo4j.authentication.username=neo4j
-spring.neo4j.authentication.password=suliweb
+spring.neo4j.authentication.password=${NEO4J_PASSWORD:suliweb}
+
+# Knowledge Graph ingestion hangolás
+kg.ingestion.batch-size=100
+kg.ingestion.max-concurrent-writes=4
 
 # Ollama (a gazdagépen fut, nem Dockerben)
 rag.ollama-base-url=http://localhost:11434
-rag.chat-model=llama3.1:8b
+rag.chat-model=llama3.2
 rag.chat-context-top-k=8
 
 # Synology NAS (opcionális)
@@ -425,6 +442,10 @@ synology.host=
 synology.username=
 synology.local-mount-prefix=/mnt/nas
 synology.search-extensions=pst,ost
+
+# Actuator (csak health publikus)
+management.endpoints.web.exposure.include=health
+management.endpoint.health.show-details=never
 ```
 
 ## Technológiai stack
@@ -450,7 +471,7 @@ synology.search-extensions=pst,ost
 
 **Adatbázisok és külső szolgáltatások:**
 - MongoDB 8 – Email metaadatok, auth, progress tracking
-- Elasticsearch 8.17.0 – e-Discovery full-text index (magyar szövegelemzés: asciifolding + hungarian_stop)
+- Elasticsearch 8.17.0 – e-Discovery full-text index (magyar szövegelemzés: `hungarian_stemmed` Snowball + `hungarian_ascii` asciifolding analyzer, `.ascii` subfield ékezet-insenzitív kereséshez)
 - Neo4j 5.26 Community + APOC – Knowledge Graph (Person, Thread, Concept, Attachment csúcsok)
 - Ollama – NER entitáskinyerés és GraphRAG LLM chat (gazdagépen fut, `host.docker.internal:11434`)
 
@@ -458,6 +479,14 @@ synology.search-extensions=pst,ost
 - Docker + Docker Compose – 6 szolgáltatás, multi-stage build, health check-ek
 - nginx – Frontend szervírozás + API reverse proxy
 - Java 25 LTS (Eclipse Temurin)
+
+**CI/DevSecOps (`.github/workflows/ci.yml`):**
+- JaCoCo 0.8.15 – kód lefedettség (Java 26 kompatibilis)
+- Trivy – függőség CVE scan (HIGH/CRITICAL → build fail) + container scan + SBOM (CycloneDX)
+- Gitleaks – titkos adat szivárgás detektálás
+- SpotBugs – SAST statikus elemzés (SARIF → GitHub Security tab)
+- OWASP Dependency-Check – SCA sebezhetőség-elemzés (NVD adatbázis)
+- Hadolint – Dockerfile lint
 
 ## Fejlesztés
 
@@ -483,7 +512,7 @@ docker compose up -d mongo suliweb-elasticsearch suliweb-neo4j python-processor
 | Szolgáltatás | Restart | Health check | Leírás |
 |---|---|---|---|
 | `suliweb-frontend` | unless-stopped | backend healthy | Astro 5 → nginx (:80) |
-| `suliweb-backend` | unless-stopped | `/api/progress` curl | Spring Boot (:8080) |
+| `suliweb-backend` | unless-stopped | `/actuator/health` curl | Spring Boot (:8080) |
 | `suliweb-mongo` | unless-stopped | `mongosh ping` | MongoDB 8 (:27017) |
 | `suliweb-elasticsearch` | unless-stopped | `/_cluster/health` curl | Elasticsearch 8.17.0 (:9200) |
 | `suliweb-neo4j` | unless-stopped | `:7474` wget | Neo4j 5.26 Community (:7474/:7687) |
@@ -496,14 +525,21 @@ cp .env.example .env
 # Szerkesztés: NEO4J_PASSWORD, JWT_SECRET, Synology adatok stb.
 ```
 
-## Védett végpontok
+## Biztonság
+
+Fail-secure explicit allowlist — minden végpont alapból tiltott, kivéve az alábbiakat:
 
 | Útvonal | Hozzáférés |
 |---------|-----------|
-| `/api/auth/**` | Publikus |
-| `/api/rag/**`, `/api/progress` | Publikus |
-| `/api/**` | JWT szükséges |
-| `/find/**`, `/pst/**`, `/pdf/**` | Publikus (fejlesztési állapot) |
+| `POST /api/auth/login`, `POST /api/auth/refresh` | Publikus |
+| `GET /api/progress`, `GET /actuator/health` | Publikus |
+| `/pst/**`, `/find/**`, `/pdf/**` | `ROLE_ADMIN` |
+| `POST /api/ediscovery/ingest`, `/retry-failed` | `ROLE_ADMIN` |
+| `POST /api/kg/ingest` | `ROLE_ADMIN` |
+| `POST /api/auth/register`, `POST /api/users`, `DELETE /api/users/**` | `ROLE_ADMIN` |
+| Minden más `/api/**` | Bejelentkezett felhasználó (`authenticated`) |
+
+`@EnableMethodSecurity` + `@PreAuthorize("hasAuthority('ROLE_ADMIN')")` annotáció a kritikus controllereken (dupla védelem).
 
 ## Licenc
 

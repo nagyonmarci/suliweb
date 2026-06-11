@@ -56,7 +56,13 @@ public class ElasticsearchConfig {
                             .analysis(a -> a
                                     .filter("hungarian_stop", f -> f
                                             .definition(fd -> fd.stop(st -> st.stopwords("_hungarian_"))))
-                                    .analyzer("hungarian_text", an -> an
+                                    // Stemmelt analyzer ékezetes szavakra (asciifolding UTÁN stemmer — normalizált input)
+                                    .analyzer("hungarian_stemmed", an -> an
+                                            .custom(cu -> cu
+                                                    .tokenizer("standard")
+                                                    .filter("lowercase", "hungarian_stop", "hungarian")))
+                                    // Asciifolded analyzer ékezet nélküli kereséshez (stemmelés nélkül)
+                                    .analyzer("hungarian_ascii", an -> an
                                             .custom(cu -> cu
                                                     .tokenizer("standard")
                                                     .filter("lowercase", "asciifolding", "hungarian_stop")))))
@@ -73,10 +79,10 @@ public class ElasticsearchConfig {
         return Map.ofEntries(
                 Map.entry("messageId",    Property.of(p -> p.keyword(k -> k))),
                 Map.entry("mongoEmailId", Property.of(p -> p.keyword(k -> k))),
-                Map.entry("subject",      Property.of(p -> p.text(t -> t.analyzer("hungarian_text")))),
-                Map.entry("bodyDelta",    Property.of(p -> p.text(t -> t.analyzer("hungarian_text")))),
+                Map.entry("subject",      hungarianMultiField()),
+                Map.entry("bodyDelta",    hungarianMultiField()),
                 Map.entry("sender",       Property.of(p -> p.keyword(k -> k))),
-                Map.entry("senderName",   Property.of(p -> p.text(t -> t.analyzer("hungarian_text")))),
+                Map.entry("senderName",   hungarianMultiField()),
                 Map.entry("recipients",   Property.of(p -> p.keyword(k -> k))),
                 Map.entry("date",         Property.of(p -> p.date(d -> d))),
                 Map.entry("pstFileName",  Property.of(p -> p.keyword(k -> k))),
@@ -86,7 +92,14 @@ public class ElasticsearchConfig {
                         .properties(Map.of(
                                 "filename",        Property.of(fp -> fp.keyword(k -> k)),
                                 "sha256",          Property.of(fp -> fp.keyword(k -> k)),
-                                "markdownContent", Property.of(fp -> fp.text(t -> t.analyzer("hungarian_text"))))))))
+                                "markdownContent", hungarianMultiField())))))
         );
+    }
+
+    // Stemmelt fő mező + .ascii alfeld ékezet nélküli kereséshez
+    private static Property hungarianMultiField() {
+        return Property.of(p -> p.text(t -> t
+                .analyzer("hungarian_stemmed")
+                .fields("ascii", f -> f.text(tf -> tf.analyzer("hungarian_ascii")))));
     }
 }

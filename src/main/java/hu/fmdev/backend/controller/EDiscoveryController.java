@@ -1,9 +1,11 @@
 package hu.fmdev.backend.controller;
 
+import hu.fmdev.backend.domain.FailedConversion;
 import hu.fmdev.backend.service.EDiscoveryIngestionService;
 import hu.fmdev.backend.service.EDiscoverySearchService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -23,6 +25,7 @@ public class EDiscoveryController {
         this.searchService = searchService;
     }
 
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @PostMapping("/ingest")
     public ResponseEntity<String> triggerIngestion() {
         if (ingestionService.isRunning()) {
@@ -32,6 +35,7 @@ public class EDiscoveryController {
         return ResponseEntity.ok("e-Discovery indexelés elindítva");
     }
 
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @PostMapping("/ingest/{mongoEmailId}")
     public ResponseEntity<String> reIngest(@PathVariable String mongoEmailId) {
         Thread.startVirtualThread(() -> ingestionService.reIngest(mongoEmailId));
@@ -50,10 +54,32 @@ public class EDiscoveryController {
         return searchService.search(q, sender, pstOwner, pstFileName, dateFrom, dateTo, topK);
     }
 
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PostMapping("/retry-failed")
+    public ResponseEntity<String> retryAllFailed() {
+        int count = ingestionService.retryAllFailed();
+        return ResponseEntity.ok("Retry elindítva " + count + " emailhez");
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PostMapping("/retry-failed/{id}")
+    public ResponseEntity<String> retryFailed(@PathVariable String id) {
+        ingestionService.retryFailed(id);
+        return ResponseEntity.ok("Retry elindítva: " + id);
+    }
+
+    @GetMapping("/failed")
+    public List<FailedConversion> listFailed(
+            @RequestParam(required = false) FailedConversion.FailureType failureType,
+            @RequestParam(required = false) Boolean resolved) {
+        return ingestionService.getFailedConversions(failureType, resolved);
+    }
+
     @GetMapping("/status")
     public Map<String, Object> status() {
         return Map.of(
                 "running", ingestionService.isRunning(),
-                "stats",   ingestionService.getStats());
+                "stats",   ingestionService.getStats(),
+                "failedCount", ingestionService.getFailedCount());
     }
 }

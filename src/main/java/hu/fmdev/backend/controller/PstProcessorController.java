@@ -4,6 +4,7 @@ import hu.fmdev.backend.dto.ProcessFileRequest;
 import hu.fmdev.backend.logger.CentralLogger;
 import hu.fmdev.backend.service.PstProcessorService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -13,6 +14,7 @@ import java.io.InputStreamReader;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@PreAuthorize("hasAuthority('ROLE_ADMIN')")
 @RestController
 @RequestMapping("/pst")
 public class PstProcessorController {

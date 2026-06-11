@@ -6,9 +6,11 @@ import co.elastic.clients.elasticsearch.core.BulkResponse;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import hu.fmdev.backend.domain.Attachment;
 import hu.fmdev.backend.domain.Email;
+import hu.fmdev.backend.domain.FailedConversion;
 import hu.fmdev.backend.logger.CentralLogger;
 import hu.fmdev.backend.repository.AttachmentRepository;
 import hu.fmdev.backend.repository.EmailRepository;
+import hu.fmdev.backend.repository.FailedConversionRepository;
 import hu.fmdev.backend.service.rag.TextExtractionService;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.PageRequest;
@@ -25,6 +27,7 @@ import java.nio.file.Path;
 import java.time.ZoneOffset;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 import java.util.concurrent.atomic.*;
 
 @Service
@@ -40,6 +43,7 @@ public class EDiscoveryIngestionService {
     private final WebClient pythonClient;
     private final TextExtractionService textExtractionService;
     private final ProgressTracker progressTracker;
+    private final FailedConversionRepository failedConversionRepository;
 
     private volatile boolean running = false;
     private final AtomicLong totalEmails   = new AtomicLong();
@@ -52,13 +56,15 @@ public class EDiscoveryIngestionService {
                                       ElasticsearchClient esClient,
                                       @Qualifier("pythonProcessorClient") WebClient pythonClient,
                                       TextExtractionService textExtractionService,
-                                      ProgressTracker progressTracker) {
+                                      ProgressTracker progressTracker,
+                                      FailedConversionRepository failedConversionRepository) {
         this.emailRepository = emailRepository;
         this.attachmentRepository = attachmentRepository;
         this.esClient = esClient;
         this.pythonClient = pythonClient;
         this.textExtractionService = textExtractionService;
         this.progressTracker = progressTracker;
+        this.failedConversionRepository = failedConversionRepository;
     }
 
     public boolean isRunning() { return running; }
@@ -137,6 +143,41 @@ public class EDiscoveryIngestionService {
         if (!ops.isEmpty()) flushBulk(ops);
     }
 
+    public void retryFailed(String failedConversionId) {
+        FailedConversion fc = failedConversionRepository.findById(failedConversionId).orElse(null);
+        if (fc == null || fc.isResolved()) return;
+        reIngest(fc.getMongoEmailId());
+        fc.markResolved();
+        failedConversionRepository.save(fc);
+    }
+
+    public int retryAllFailed() {
+        List<FailedConversion> pending = failedConversionRepository.findByResolved(false);
+        Set<String> emailIds = pending.stream()
+                .map(FailedConversion::getMongoEmailId)
+                .collect(Collectors.toSet());
+        emailIds.forEach(this::reIngest);
+        pending.forEach(fc -> {
+            fc.markResolved();
+            failedConversionRepository.save(fc);
+        });
+        return emailIds.size();
+    }
+
+    public List<FailedConversion> getFailedConversions(FailedConversion.FailureType failureType, Boolean resolved) {
+        if (failureType != null && resolved != null) {
+            return failedConversionRepository.findByFailureTypeAndResolved(failureType, resolved);
+        }
+        if (resolved != null) {
+            return failedConversionRepository.findByResolved(resolved);
+        }
+        return failedConversionRepository.findAll();
+    }
+
+    public long getFailedCount() {
+        return failedConversionRepository.findByResolved(false).size();
+    }
+
     // -------------------------------------------------------------------------
 
     private List<BulkOperation> buildOps(Email email) {
@@ -144,7 +185,7 @@ public class EDiscoveryIngestionService {
 
         String id = esId(email);
         String rawBody = textExtractionService.getEmailTextContent(email.getBody(), email.getHtmlContent());
-        String bodyDelta = stripReply(rawBody);
+        String bodyDelta = stripReply(rawBody, email.getId(), id);
 
         // Attachment conversion: dedup by SHA-256 within this call
         List<Map<String, Object>> attachmentDocs = new ArrayList<>();
@@ -154,7 +195,7 @@ public class EDiscoveryIngestionService {
             String sha = att.getHash();
             if (sha == null || sha.isBlank() || att.getLocalPath() == null) continue;
             if (!hashToMarkdown.containsKey(sha)) {
-                String md = convertAttachment(att.getLocalPath(), att.getFilename());
+                String md = convertAttachment(att.getLocalPath(), att.getFilename(), email.getId(), id, sha);
                 hashToMarkdown.put(sha, md);
             }
             attachmentDocs.add(Map.of(
@@ -240,7 +281,7 @@ public class EDiscoveryIngestionService {
     // -------------------------------------------------------------------------
 
     @SuppressWarnings("unchecked")
-    private String stripReply(String body) {
+    private String stripReply(String body, String mongoEmailId, String messageId) {
         if (body == null || body.isBlank()) return "";
         try {
             PYTHON_SEMAPHORE.acquire();
@@ -255,6 +296,7 @@ public class EDiscoveryIngestionService {
                 if (resp != null && resp.get("stripped") instanceof String s && !s.isBlank()) {
                     return s;
                 }
+                recordFailure(FailedConversion.replyStrip(mongoEmailId, messageId, "sidecar returned empty result"));
             } finally {
                 PYTHON_SEMAPHORE.release();
             }
@@ -262,12 +304,14 @@ public class EDiscoveryIngestionService {
             Thread.currentThread().interrupt();
         } catch (Exception e) {
             CentralLogger.logWarn("strip-reply call failed: " + e.getMessage());
+            recordFailure(FailedConversion.replyStrip(mongoEmailId, messageId, e.getMessage()));
         }
         return body;
     }
 
     @SuppressWarnings("unchecked")
-    private String convertAttachment(String localPath, String filename) {
+    private String convertAttachment(String localPath, String filename,
+                                     String mongoEmailId, String messageId, String hash) {
         try {
             byte[] bytes = Files.readAllBytes(Path.of(localPath));
             MultiValueMap<String, Object> form = new LinkedMultiValueMap<>();
@@ -288,6 +332,8 @@ public class EDiscoveryIngestionService {
                 if (resp != null && resp.get("markdown") instanceof String md) {
                     return md;
                 }
+                recordFailure(FailedConversion.attachmentConvert(mongoEmailId, messageId, hash, filename,
+                        "sidecar returned no markdown"));
             } finally {
                 PYTHON_SEMAPHORE.release();
             }
@@ -296,8 +342,18 @@ public class EDiscoveryIngestionService {
         } catch (Exception e) {
             attFailures.incrementAndGet();
             CentralLogger.logWarn("convert-attachment failed [" + filename + "]: " + e.getMessage());
+            recordFailure(FailedConversion.attachmentConvert(mongoEmailId, messageId, hash, filename,
+                    e.getMessage()));
         }
         return "";
+    }
+
+    private void recordFailure(FailedConversion failure) {
+        try {
+            failedConversionRepository.save(failure);
+        } catch (Exception e) {
+            CentralLogger.logWarn("FailedConversion mentése sikertelen: " + e.getMessage());
+        }
     }
 
     // -------------------------------------------------------------------------

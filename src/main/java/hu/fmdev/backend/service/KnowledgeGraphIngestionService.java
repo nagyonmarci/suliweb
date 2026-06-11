@@ -1,5 +1,6 @@
 package hu.fmdev.backend.service;
 
+import hu.fmdev.backend.config.KgIngestionProperties;
 import hu.fmdev.backend.domain.Attachment;
 import hu.fmdev.backend.domain.Email;
 import hu.fmdev.backend.domain.graph.*;
@@ -19,8 +20,6 @@ import java.util.concurrent.atomic.*;
 @Service
 public class KnowledgeGraphIngestionService {
 
-    private static final int PAGE_SIZE = 50;
-
     private final EmailRepository emailRepository;
     private final AttachmentRepository attachmentRepository;
     private final PersonNodeRepository personRepo;
@@ -30,6 +29,7 @@ public class KnowledgeGraphIngestionService {
     private final EntityExtractionService entityExtraction;
     private final TextExtractionService textExtraction;
     private final ProgressTracker progressTracker;
+    private final KgIngestionProperties props;
 
     private volatile boolean running = false;
     private final AtomicLong totalEmails  = new AtomicLong();
@@ -44,7 +44,8 @@ public class KnowledgeGraphIngestionService {
                                           ConceptNodeRepository conceptRepo,
                                           EntityExtractionService entityExtraction,
                                           TextExtractionService textExtraction,
-                                          ProgressTracker progressTracker) {
+                                          ProgressTracker progressTracker,
+                                          KgIngestionProperties props) {
         this.emailRepository   = emailRepository;
         this.attachmentRepository = attachmentRepository;
         this.personRepo        = personRepo;
@@ -54,7 +55,10 @@ public class KnowledgeGraphIngestionService {
         this.entityExtraction  = entityExtraction;
         this.textExtraction    = textExtraction;
         this.progressTracker   = progressTracker;
+        this.props             = props;
     }
+
+    private record NerResult(Email email, List<EntityExtractionService.ExtractedEntity> entities) {}
 
     public boolean isRunning() { return running; }
 
@@ -73,26 +77,54 @@ public class KnowledgeGraphIngestionService {
             long total = emailRepository.count();
             totalEmails.set(total);
             progressTracker.startOperation("Knowledge Graph építés", (int) total);
-            CentralLogger.logInfo("KG ingestion start. Emails: " + total);
+            CentralLogger.logInfo("KG ingestion start. Emails: " + total
+                    + " batchSize=" + props.getBatchSize()
+                    + " maxConcurrentWrites=" + props.getMaxConcurrentWrites());
 
             int page = 0;
-            ExecutorService exec = Executors.newVirtualThreadPerTaskExecutor();
+            // Virtual threads for I/O-bound NER calls
+            ExecutorService nerExec = Executors.newVirtualThreadPerTaskExecutor();
+            // Fixed pool limits concurrent Neo4j writers
+            ExecutorService writeExec = Executors.newFixedThreadPool(props.getMaxConcurrentWrites());
             try {
                 while (true) {
-                    var emailPage = emailRepository.findAll(PageRequest.of(page, PAGE_SIZE));
+                    var emailPage = emailRepository.findAll(PageRequest.of(page, props.getBatchSize()));
                     if (emailPage.isEmpty()) break;
 
-                    List<Callable<Void>> tasks = emailPage.stream()
-                            .map(email -> (Callable<Void>) () -> {
-                                processEmail(email);
+                    // Phase 1: NER extraction (parallel, I/O-bound — no DB writes)
+                    List<Callable<NerResult>> nerTasks = emailPage.stream()
+                            .map(email -> (Callable<NerResult>) () -> extractNer(email))
+                            .toList();
+
+                    List<NerResult> nerResults = new ArrayList<>();
+                    try {
+                        for (var f : nerExec.invokeAll(nerTasks)) {
+                            try {
+                                NerResult r = f.get();
+                                if (r != null) nerResults.add(r);
+                            } catch (ExecutionException e) {
+                                CentralLogger.logError("NER extraction hiba", e.getCause());
+                            }
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        CentralLogger.logError("KG ingestion megszakítva (NER fázis)", e);
+                        break;
+                    }
+
+                    // Phase 2: Neo4j writes (concurrency limited by fixed thread pool)
+                    List<Callable<Void>> writeTasks = nerResults.stream()
+                            .map(r -> (Callable<Void>) () -> {
+                                writeEmailToGraph(r.email(), r.entities());
                                 return null;
                             })
                             .toList();
+
                     try {
-                        exec.invokeAll(tasks);
+                        writeExec.invokeAll(writeTasks);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
-                        CentralLogger.logError("KG ingestion megszakítva", e);
+                        CentralLogger.logError("KG ingestion megszakítva (write fázis)", e);
                         break;
                     }
 
@@ -100,7 +132,8 @@ public class KnowledgeGraphIngestionService {
                     page++;
                 }
             } finally {
-                exec.shutdown();
+                nerExec.shutdown();
+                writeExec.shutdown();
             }
 
             progressTracker.stopOperation();
@@ -111,34 +144,24 @@ public class KnowledgeGraphIngestionService {
         }
     }
 
-    private static boolean isDeadlock(Exception e) {
-        String msg = e.getMessage();
-        return msg != null && msg.contains("DeadlockDetected");
-    }
-
-    private void processEmail(Email email) {
+    private NerResult extractNer(Email email) {
         progressTracker.increment();
-        Exception lastEx = null;
-        for (int attempt = 0; attempt < 3; attempt++) {
-            try {
-                doProcessEmail(email);
-                return;
-            } catch (Exception e) {
-                lastEx = e;
-                if (!isDeadlock(e)) break;
-                try { Thread.sleep(100L * (attempt + 1)); }
-                catch (InterruptedException ie) { Thread.currentThread().interrupt(); break; }
-            }
-        }
-        failedCount.incrementAndGet();
-        CentralLogger.logWarn("KG processEmail hiba [" + email.getId() + "]: "
-                + (lastEx != null ? lastEx.getMessage() : "unknown"));
+        if (emailNodeRepo.existsByMessageId(resolveMessageId(email))) return null;
+        String bodyText = textExtraction.getEmailTextContent(email.getBody(), email.getHtmlContent());
+        List<EntityExtractionService.ExtractedEntity> entities = entityExtraction.extract(bodyText);
+        return new NerResult(email, entities);
     }
 
-    private void doProcessEmail(Email email) {
-        // Skip if already in graph
-        if (emailNodeRepo.existsByMessageId(resolveMessageId(email))) return;
+    private void writeEmailToGraph(Email email, List<EntityExtractionService.ExtractedEntity> entities) {
+        try {
+            doWriteEmail(email, entities);
+        } catch (Exception e) {
+            failedCount.incrementAndGet();
+            CentralLogger.logWarn("KG writeEmailToGraph hiba [" + email.getId() + "]: " + e.getMessage());
+        }
+    }
 
+    private void doWriteEmail(Email email, List<EntityExtractionService.ExtractedEntity> entities) {
             // 1. Person nodes
             PersonNode sender = mergePerson(email.getSenderEmailAddress(), email.getSenderName());
 
@@ -160,7 +183,6 @@ public class KnowledgeGraphIngestionService {
             emailNode.setSender(sender);
             emailNode.setThread(thread);
 
-            // TO recipients
             if (email.getRecipients() != null) {
                 List<PersonNode> toList = email.getRecipients().stream()
                         .filter(r -> r != null && !r.isBlank())
@@ -169,7 +191,6 @@ public class KnowledgeGraphIngestionService {
                 emailNode.setToRecipients(new ArrayList<>(toList));
             }
 
-            // CC recipients
             if (email.getCc() != null) {
                 List<PersonNode> ccList = email.getCc().stream()
                         .filter(r -> r != null && !r.isBlank())
@@ -191,9 +212,7 @@ public class KnowledgeGraphIngestionService {
                     }).toList();
             emailNode.setAttachments(new ArrayList<>(attNodes));
 
-            // 5. Concept extraction (NER via Ollama)
-            String bodyText = textExtraction.getEmailTextContent(email.getBody(), email.getHtmlContent());
-            List<EntityExtractionService.ExtractedEntity> entities = entityExtraction.extract(bodyText);
+            // 5. Concepts from pre-extracted NER results
             List<ConceptNode> concepts = entities.stream()
                     .map(e -> mergeConcept(e.name(), e.type()))
                     .toList();
@@ -202,7 +221,7 @@ public class KnowledgeGraphIngestionService {
             // 6. Save email node
             EmailNode saved = emailNodeRepo.save(emailNode);
 
-            // 7. REPLY_TO link (best-effort — requires the parent to already be in Neo4j)
+            // 7. REPLY_TO link (best-effort)
             if (email.getConversationId() != null && !email.getConversationId().isBlank()) {
                 emailNodeRepo.findByThreadId(email.getConversationId()).stream()
                         .filter(n -> !n.getMongoId().equals(email.getId()))

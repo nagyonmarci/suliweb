@@ -8,6 +8,7 @@ import hu.fmdev.backend.service.rag.GraphRagChatService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
@@ -31,6 +32,7 @@ public class KnowledgeGraphController {
         this.chatService      = chatService;
     }
 
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @PostMapping("/ingest")
     public ResponseEntity<String> triggerIngestion() {
         if (ingestionService.isRunning()) {

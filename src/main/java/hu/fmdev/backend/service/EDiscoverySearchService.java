@@ -48,9 +48,13 @@ public class EDiscoverySearchService {
                 })));
             }
 
+            // Stemmelt + ascii alfeld egyszerre: ragozott és ékezet nélküli keresés is működik
             Query multiMatch = Query.of(q -> q.multiMatch(mm -> mm
                     .query(query)
-                    .fields("subject^3", "bodyDelta^2", "senderName", "attachments.markdownContent")
+                    .fields("subject^3", "subject.ascii^2",
+                            "bodyDelta^2", "bodyDelta.ascii",
+                            "senderName", "senderName.ascii",
+                            "attachments.markdownContent", "attachments.markdownContent.ascii")
                     .type(TextQueryType.BestFields)));
 
             Query finalQuery = filters.isEmpty()
