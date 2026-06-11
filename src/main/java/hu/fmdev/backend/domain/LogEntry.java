@@ -14,7 +14,11 @@ public class LogEntry {
     private String message;
     private String stackTrace;
 
-    // Getters and setters
+    public String getId() { return id; }
+    public java.time.LocalDateTime getTimestamp() { return timestamp; }
+    public String getLevel() { return level; }
+    public String getMessage() { return message; }
+    public String getStackTrace() { return stackTrace; }
 
     public LogEntry() {
     }

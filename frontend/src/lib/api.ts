@@ -324,6 +324,14 @@ export interface KgStatus {
   };
 }
 
+export interface LogEntry {
+  id: string;
+  timestamp: string;
+  level: 'INFO' | 'DEBUG' | 'WARN' | 'ERROR';
+  message: string;
+  stackTrace?: string;
+}
+
 // --- API ---
 
 export const api = {
@@ -539,6 +547,13 @@ export const api = {
     }
 
     return sources;
+  },
+
+  // Logs
+  getLogs: (level?: string) => {
+    const params = new URLSearchParams({ limit: '300' });
+    if (level) params.set('level', level);
+    return fetchJson<LogEntry[]>(`/api/logs?${params}`);
   },
 
   // Users
