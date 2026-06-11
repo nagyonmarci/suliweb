@@ -550,9 +550,12 @@ export const api = {
   },
 
   // Logs
-  getLogs: (level?: string) => {
+  getLogs: (level?: string, from?: string, to?: string, sort?: string) => {
     const params = new URLSearchParams({ limit: '300' });
     if (level) params.set('level', level);
+    if (from)  params.set('from', from);
+    if (to)    params.set('to', to);
+    if (sort)  params.set('sort', sort);
     return fetchJson<LogEntry[]>(`/api/logs?${params}`);
   },
 

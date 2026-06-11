@@ -17,37 +17,54 @@ const ROW_BG: Record<string, string> = {
   DEBUG: 'bg-blue-50',
 };
 
+const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
 function fmt(ts: string) {
   return new Date(ts).toLocaleString('hu-HU', { hour12: false });
+}
+
+function toUtcIso(localDt: string): string | undefined {
+  if (!localDt) return undefined;
+  return new Date(localDt).toISOString();
 }
 
 export default function Logs() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [filter, setFilter] = useState<LevelFilter>('ALL');
+  const [fromVal, setFromVal] = useState('');
+  const [toVal, setToVal] = useState('');
+  const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  async function load(f: LevelFilter) {
+  async function load(f: LevelFilter, from: string, to: string, sort: string) {
     try {
-      const data = await api.getLogs(f === 'ALL' ? undefined : f);
+      const data = await api.getLogs(
+        f === 'ALL' ? undefined : f,
+        toUtcIso(from),
+        toUtcIso(to),
+        sort,
+      );
       setLogs(data);
     } catch { }
   }
 
   useEffect(() => {
     setLoading(true);
-    load(filter).finally(() => setLoading(false));
-  }, [filter]);
+    load(filter, fromVal, toVal, sortDir).finally(() => setLoading(false));
+  }, [filter, fromVal, toVal, sortDir]);
 
   useEffect(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     if (autoRefresh) {
-      intervalRef.current = setInterval(() => load(filter), 3000);
+      intervalRef.current = setInterval(
+        () => load(filter, fromVal, toVal, sortDir), 3000,
+      );
     }
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [autoRefresh, filter]);
+  }, [autoRefresh, filter, fromVal, toVal, sortDir]);
 
   function toggleExpand(id: string) {
     setExpanded(prev => {
@@ -61,6 +78,7 @@ export default function Logs() {
 
   return (
     <div className="space-y-4">
+      {/* Toolbar row 1: level filters + refresh toggle */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex gap-1 flex-wrap">
           {levels.map(l => (
@@ -86,6 +104,41 @@ export default function Logs() {
         </button>
       </div>
 
+      {/* Toolbar row 2: date range + sort */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <label className="flex items-center gap-2 text-sm text-gray-600">
+          Tól:
+          <input
+            type="datetime-local"
+            value={fromVal}
+            onChange={e => setFromVal(e.target.value)}
+            className="border border-gray-200 rounded-lg px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+        </label>
+        <label className="flex items-center gap-2 text-sm text-gray-600">
+          Ig:
+          <input
+            type="datetime-local"
+            value={toVal}
+            onChange={e => setToVal(e.target.value)}
+            className="border border-gray-200 rounded-lg px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+        </label>
+        {(fromVal || toVal) && (
+          <button
+            onClick={() => { setFromVal(''); setToVal(''); }}
+            className="text-xs text-gray-400 hover:text-gray-600 underline"
+          >törlés</button>
+        )}
+        <button
+          onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
+          className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+        >
+          Időpont {sortDir === 'desc' ? '↓' : '↑'}
+        </button>
+      </div>
+
+      {/* Log table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {loading && logs.length === 0 ? (
           <div className="p-8 text-center text-gray-400 text-sm">Betöltés...</div>
@@ -141,7 +194,9 @@ export default function Logs() {
           </div>
         )}
       </div>
-      <p className="text-xs text-gray-400 text-right">Legfrissebb {logs.length} bejegyzés</p>
+      <p className="text-xs text-gray-400 text-right">
+        {logs.length} bejegyzés · helyi idő: {TZ}
+      </p>
     </div>
   );
 }

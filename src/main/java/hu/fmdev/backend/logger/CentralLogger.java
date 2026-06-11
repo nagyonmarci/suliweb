@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 import jakarta.annotation.PostConstruct;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Component
 public class CentralLogger {
@@ -62,7 +62,7 @@ public class CentralLogger {
     }
 
     private void saveLogEntry(String level, String message, String stackTrace) {
-        LogEntry logEntry = new LogEntry(LocalDateTime.now(), level, message, stackTrace);
+        LogEntry logEntry = new LogEntry(Instant.now(), level, message, stackTrace);
         logEntryRepository.save(logEntry);
     }
 }
