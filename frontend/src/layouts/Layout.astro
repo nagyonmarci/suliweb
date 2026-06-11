@@ -15,6 +15,8 @@ const navItems = [
   { href: '/attachments', label: 'Csatolmányok', icon: 'paperclip' },
   { href: '/processing', label: 'Feldolgozás', icon: 'cpu' },
   { href: '/synology', label: 'Synology', icon: 'server' },
+  { href: '/ediscovery', label: 'e-Discovery', icon: 'ediscovery' },
+  { href: '/knowledge-graph', label: 'Knowledge Graph', icon: 'kg' },
   { href: '/users', label: 'Felhasználók', icon: 'users' },
 ];
 ---
@@ -74,6 +76,8 @@ const navItems = [
                 {item.icon === 'paperclip' && '📎'}
                 {item.icon === 'cpu' && '⚙'}
                 {item.icon === 'server' && '🖥'}
+                {item.icon === 'ediscovery' && '⚖'}
+                {item.icon === 'kg' && '🕸'}
                 {item.icon === 'users' && '👥'}
               </span>
               {item.label}
