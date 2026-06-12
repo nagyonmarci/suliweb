@@ -25,10 +25,13 @@ public class EntityExtractionService implements NerExtractor {
             Text: """;
 
     private final WebClient ollamaWebClient;
+    private final String nerModel;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public EntityExtractionService(WebClient ollamaWebClient) {
+    public EntityExtractionService(WebClient ollamaWebClient,
+                                   @org.springframework.beans.factory.annotation.Value("${rag.ner-model:${rag.chat-model:llama3.2}}") String nerModel) {
         this.ollamaWebClient = ollamaWebClient;
+        this.nerModel = nerModel;
     }
 
     public List<NerExtractor.ExtractedEntity> extract(String text) {
@@ -36,7 +39,7 @@ public class EntityExtractionService implements NerExtractor {
         String truncated = text.length() > MAX_INPUT_CHARS ? text.substring(0, MAX_INPUT_CHARS) : text;
         try {
             Map<String, Object> requestBody = Map.of(
-                    "model",  "llama3.2",
+                    "model",  nerModel,
                     "prompt", NER_PROMPT + truncated,
                     "stream", false,
                     "format", "json");
