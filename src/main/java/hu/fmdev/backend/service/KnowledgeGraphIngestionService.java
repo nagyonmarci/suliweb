@@ -171,10 +171,10 @@ public class KnowledgeGraphIngestionService {
         startedAt = Instant.now();
         totalEmails.set(0); processedCount.set(0); failedCount.set(0);
         try {
-            long total = emailNodeRepo.count();
+            long total = emailRepository.count();
             totalEmails.set(total);
             progressTracker.startOperation("Koncepciók újraépítése", (int) total);
-            CentralLogger.logInfo("KG concept re-ingestion start. EmailNodes: " + total);
+            CentralLogger.logInfo("KG concept re-ingestion start. Emails: " + total);
 
             int batchSize = appSettingsService.getEffectiveKgBatchSize();
             ExecutorService nerExec   = Executors.newVirtualThreadPerTaskExecutor();
@@ -183,26 +183,26 @@ public class KnowledgeGraphIngestionService {
             try {
                 int page = 0;
                 while (true) {
-                    var nodePage = emailNodeRepo.findAll(PageRequest.of(page, batchSize));
-                    if (nodePage.isEmpty()) break;
+                    var emailPage = emailRepository.findAll(PageRequest.of(page, batchSize));
+                    if (emailPage.isEmpty()) break;
 
-                    record NodeNer(EmailNode node, List<NerExtractor.ExtractedEntity> entities) {}
-                    List<Callable<NodeNer>> nerTasks = nodePage.stream()
-                            .map(node -> (Callable<NodeNer>) () -> {
+                    // Only process emails that already have an Email node in Neo4j
+                    record EmailNer(Email email, List<NerExtractor.ExtractedEntity> entities) {}
+                    List<Callable<EmailNer>> nerTasks = emailPage.stream()
+                            .map(email -> (Callable<EmailNer>) () -> {
                                 progressTracker.increment();
-                                if (node.getMongoId() == null) return null;
-                                return emailRepository.findById(node.getMongoId()).map(email -> {
-                                    String text = textExtraction.getEmailTextContent(
-                                            email.getBody(), email.getHtmlContent());
-                                    return new NodeNer(node, entityExtraction.extract(text));
-                                }).orElse(null);
+                                if (!emailNodeRepo.existsByMessageId(resolveMessageId(email))) return null;
+                                String text = textExtraction.getEmailTextContent(
+                                        email.getBody(), email.getHtmlContent());
+                                List<NerExtractor.ExtractedEntity> entities = entityExtraction.extract(text);
+                                return entities.isEmpty() ? null : new EmailNer(email, entities);
                             })
                             .toList();
 
-                    List<NodeNer> nerResults = new ArrayList<>();
+                    List<EmailNer> nerResults = new ArrayList<>();
                     for (var f : nerExec.invokeAll(nerTasks)) {
                         try {
-                            NodeNer r = f.get();
+                            EmailNer r = f.get();
                             if (r != null) nerResults.add(r);
                         } catch (ExecutionException e) {
                             CentralLogger.logError("Concept re-ingest NER hiba", e.getCause());
@@ -212,21 +212,20 @@ public class KnowledgeGraphIngestionService {
                     writeExec.invokeAll(nerResults.stream()
                             .map(r -> (Callable<Void>) () -> {
                                 try {
-                                    List<ConceptNode> concepts = r.entities().stream()
-                                            .map(e -> mergeConcept(e.name(), e.type()))
+                                    List<Map<String, String>> conceptMaps = r.entities().stream()
+                                            .map(e -> Map.of("name", e.name(), "type", e.type()))
                                             .toList();
-                                    r.node().setMentions(new ArrayList<>(concepts));
-                                    emailNodeRepo.save(r.node());
+                                    emailNodeRepo.replaceMentions(r.email().getId(), conceptMaps);
                                     processedCount.incrementAndGet();
                                 } catch (Exception e) {
                                     failedCount.incrementAndGet();
                                     CentralLogger.logWarn("Concept write hiba ["
-                                            + r.node().getMongoId() + "]: " + e.getMessage());
+                                            + r.email().getId() + "]: " + e.getMessage());
                                 }
                                 return null;
                             }).toList());
 
-                    if (!nodePage.hasNext()) break;
+                    if (!emailPage.hasNext()) break;
                     page++;
                 }
             } finally {
