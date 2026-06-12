@@ -1,7 +1,7 @@
 import logging
 import os
 import tempfile
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form
 from pydantic import BaseModel
 from markitdown import MarkItDown
 from email_reply_parser import EmailReplyParser
