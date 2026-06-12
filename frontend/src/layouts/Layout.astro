@@ -51,7 +51,7 @@ const navItems = [
 
     <div class="flex">
       <!-- Sidebar -->
-      <aside id="sidebar" class="fixed lg:sticky top-0 left-0 z-50 w-64 bg-gray-900 text-white min-h-screen lg:min-h-screen flex flex-col -translate-x-full lg:translate-x-0 transition-transform duration-200 ease-in-out">
+      <aside id="sidebar" class="fixed lg:sticky top-0 left-0 z-50 w-64 bg-gray-900 text-white h-screen flex flex-col -translate-x-full lg:translate-x-0 transition-transform duration-200 ease-in-out">
         <div class="p-6 border-b border-gray-700 hidden lg:block">
           <h1 class="text-xl font-bold tracking-tight">SuliWeb</h1>
           <p class="text-xs text-gray-400 mt-1">PST Processor</p>
@@ -59,7 +59,7 @@ const navItems = [
         <div class="p-6 border-b border-gray-700 lg:hidden">
           <p class="text-xs text-gray-400">PST Processor</p>
         </div>
-        <nav class="flex-1 p-4 space-y-1">
+        <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
           {navItems.map(item => (
             <a
               href={item.href}
