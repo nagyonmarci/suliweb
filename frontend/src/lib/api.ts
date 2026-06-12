@@ -193,32 +193,6 @@ export interface ProgressState {
   active: boolean;
 }
 
-// RAG types
-export interface SearchResult {
-  chunkId: string;
-  emailId: string;
-  sourceType: string;
-  attachmentFileName: string | null;
-  content: string;
-  emailSubject: string;
-  senderName: string;
-  senderEmailAddress: string;
-  pstFileName: string;
-  score: number;
-}
-
-export interface MatchedChunk {
-  content: string;
-  sourceType: string;
-  attachmentFileName: string | null;
-  score: number;
-}
-
-export interface EmailSearchResult {
-  email: Email;
-  bestScore: number;
-  matchedChunks: MatchedChunk[];
-}
 
 export interface RagStats {
   totalEmails: number;
@@ -234,10 +208,6 @@ export interface RagHealth {
   stats: RagStats;
 }
 
-export interface RagContext {
-  query: string;
-  context: string;
-}
 
 export interface ChatSource {
   emailId: string;
@@ -302,6 +272,84 @@ export interface SynologySettingsRequest {
   localMountPrefix?: string;
   searchExtensions?: string;
   batchSize?: number;
+}
+
+// e-Discovery types
+export interface EDiscoveryResult {
+  esId: string;
+  mongoEmailId: string;
+  subject: string;
+  senderName: string;
+  sender: string;
+  date: string;
+  pstFileName: string;
+  pstOwner: string;
+  snippet: string;
+  score: number;
+}
+
+export interface EDiscoveryStatus {
+  running: boolean;
+  stats: {
+    totalEmails: number;
+    indexed: number;
+    skipped: number;
+    attFailures: number;
+  };
+}
+
+export interface KgPersonNode {
+  id?: number;
+  email: string;
+  name?: string | null;
+  organization?: string | null;
+}
+
+export interface KgEmailNode {
+  messageId?: string;
+  mongoId?: string;
+  subject?: string;
+  date?: string;
+  pstFileName?: string;
+  pstOwner?: string;
+  bodyDelta?: string;
+}
+
+export interface KgStatus {
+  running: boolean;
+  stats: {
+    totalEmails: number;
+    processed: number;
+    failed: number;
+    ratePerMin: number;
+    etaSeconds: number | null;
+  };
+}
+
+export interface KgGraphStats {
+  topTopics: Array<{ name: string; count: number }>;
+  topOrgs: Array<{ name: string; count: number }>;
+  topSenders: Array<{ email: string; name: string | null; count: number }>;
+  personCount: number;
+  emailCount: number;
+  conceptCount: number;
+}
+
+export interface LogEntry {
+  id: string;
+  timestamp: string;
+  level: 'INFO' | 'DEBUG' | 'WARN' | 'ERROR';
+  message: string;
+  stackTrace?: string;
+}
+
+export interface AppSettingsDto {
+  ollamaBaseUrl: string;
+  chatModel: string;
+  nerModel: string;
+  chatMaxHistoryTurns: number;
+  kgBatchSize: number;
+  kgMaxConcurrentWrites: number;
 }
 
 // --- API ---
@@ -429,26 +477,7 @@ export const api = {
     fetchJson<SynologySettingsResponse>('/api/synology/settings', { method: 'PUT', body: JSON.stringify(s) }),
 
   // RAG
-  ragIngest: (includeAttachments = false) =>
-    fetchText(`/api/rag/ingest?includeAttachments=${includeAttachments}`, { method: 'POST' }),
-  ragReIngest: (emailId: string) => fetchText(`/api/rag/ingest/${emailId}`, { method: 'POST' }),
-  ragEmbed: () => fetchText('/api/rag/embed', { method: 'POST' }),
-  ragSearch: (q: string, topK = 10, filters?: Record<string, string>) => {
-    const params = new URLSearchParams({ q, topK: String(topK) });
-    if (filters) Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, v); });
-    return fetchJson<SearchResult[]>(`/api/rag/search?${params}`);
-  },
-  ragSearchEmails: (q: string, topK = 10, filters?: Record<string, string>) => {
-    const params = new URLSearchParams({ q, topK: String(topK) });
-    if (filters) Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, v); });
-    return fetchJson<EmailSearchResult[]>(`/api/rag/search/emails?${params}`);
-  },
-  ragContext: (q: string, topK = 10) =>
-    fetchJson<RagContext>(`/api/rag/context?q=${encodeURIComponent(q)}&topK=${topK}`),
-  ragStats: () => fetchJson<RagStats>('/api/rag/stats'),
   ragHealth: () => fetchJson<RagHealth>('/api/rag/health'),
-  ragResetFailed: () => fetchText('/api/rag/reset-failed', { method: 'POST' }),
-  ragResetAll: () => fetchText('/api/rag/reset-all', { method: 'POST' }),
   ragChat: (message: string, topK = 8, model?: string,
             history?: Array<{ role: string; content: string }>) =>
     fetchJson<ChatResponse>('/api/rag/chat', {
@@ -456,6 +485,101 @@ export const api = {
       body: JSON.stringify({ message, topK, model, history }),
     }),
   ragModels: () => fetchJson<string[]>('/api/rag/models'),
+
+  // e-Discovery
+  ediscoveryIngest: () => fetchText('/api/ediscovery/ingest', { method: 'POST' }),
+  ediscoveryReIngest: (id: string) => fetchText(`/api/ediscovery/ingest/${id}`, { method: 'POST' }),
+  ediscoverySearch: (q: string, topK = 10, filters?: {
+    sender?: string; pstOwner?: string; pstFileName?: string; dateFrom?: string; dateTo?: string;
+  }) => {
+    const params = new URLSearchParams({ q, topK: String(topK) });
+    if (filters?.sender) params.set('sender', filters.sender);
+    if (filters?.pstOwner) params.set('pstOwner', filters.pstOwner);
+    if (filters?.pstFileName) params.set('pstFileName', filters.pstFileName);
+    if (filters?.dateFrom) params.set('dateFrom', filters.dateFrom);
+    if (filters?.dateTo) params.set('dateTo', filters.dateTo);
+    return fetchJson<EDiscoveryResult[]>(`/api/ediscovery/search?${params}`);
+  },
+  ediscoveryStatus: () => fetchJson<EDiscoveryStatus>('/api/ediscovery/status'),
+
+  // Knowledge Graph
+  kgIngest: () => fetchText('/api/kg/ingest', { method: 'POST' }),
+  kgReingestConcepts: () => fetchText('/api/kg/reingest-concepts', { method: 'POST' }),
+  kgStatus: () => fetchJson<KgStatus>('/api/kg/status'),
+  kgGraphStats: () => fetchJson<KgGraphStats>('/api/kg/graph-stats'),
+  kgPersonNetwork: (email: string) =>
+    fetchJson<KgPersonNode[]>(`/api/kg/persons/${encodeURIComponent(email)}/network`),
+  kgThread: (threadId: string) =>
+    fetchJson<KgEmailNode[]>(`/api/kg/thread/${encodeURIComponent(threadId)}`),
+  kgConcept: (name: string, topK = 10) =>
+    fetchJson<KgEmailNode[]>(`/api/kg/concept/${encodeURIComponent(name)}?topK=${topK}`),
+  kgChat: (message: string, topK = 8, model?: string, history?: Array<{ role: string; content: string }>) =>
+    fetchJson<ChatResponse>('/api/kg/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message, topK, model, history }),
+    }),
+
+  kgChatStream: async (
+    message: string,
+    topK: number,
+    model: string | undefined,
+    history: Array<{ role: string; content: string }> | undefined,
+    onToken: (token: string) => void,
+  ): Promise<ChatSource[]> => {
+    const res = await fetch('/api/kg/chat/stream', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ message, topK, model, history }),
+    });
+
+    if (!res.ok || !res.body) {
+      const fallback = await api.kgChat(message, topK, model, history);
+      onToken(fallback.answer);
+      return fallback.sources;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let sources: ChatSource[] = [];
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        const trimmed = line.replace(/^data:\s*/, '').trim();
+        if (!trimmed) continue;
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (parsed.token) onToken(parsed.token);
+          if (parsed.done && parsed.sources) sources = parsed.sources;
+          if (parsed.error) throw new Error(parsed.error);
+        } catch { /* ignore */ }
+      }
+    }
+
+    if (buffer.trim()) {
+      try {
+        const parsed = JSON.parse(buffer.replace(/^data:\s*/, '').trim());
+        if (parsed.done && parsed.sources) sources = parsed.sources;
+      } catch { /* ignore */ }
+    }
+
+    return sources;
+  },
+
+  // Logs
+  getLogs: (level?: string, from?: string, to?: string, sort?: string) => {
+    const params = new URLSearchParams({ limit: '300' });
+    if (level) params.set('level', level);
+    if (from)  params.set('from', from);
+    if (to)    params.set('to', to);
+    if (sort)  params.set('sort', sort);
+    return fetchJson<LogEntry[]>(`/api/logs?${params}`);
+  },
 
   // Users
   getUsers: () => fetchJson<UserDto[]>('/api/users'),
@@ -521,4 +645,14 @@ export const api = {
 
     return sources;
   },
+
+  // Settings
+  getSettings: (): Promise<AppSettingsDto> =>
+    fetchJson('/api/settings'),
+
+  saveSettings: (data: Partial<AppSettingsDto>): Promise<AppSettingsDto> =>
+    fetchJson('/api/settings', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
 };

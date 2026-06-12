@@ -15,7 +15,11 @@ const navItems = [
   { href: '/attachments', label: 'Csatolmányok', icon: 'paperclip' },
   { href: '/processing', label: 'Feldolgozás', icon: 'cpu' },
   { href: '/synology', label: 'Synology', icon: 'server' },
+  { href: '/ediscovery', label: 'e-Discovery', icon: 'ediscovery' },
+  { href: '/knowledge-graph', label: 'Knowledge Graph', icon: 'kg' },
+  { href: '/logs', label: 'Logok', icon: 'logs' },
   { href: '/users', label: 'Felhasználók', icon: 'users' },
+  { href: '/settings', label: 'Beállítások', icon: 'settings' },
 ];
 ---
 
@@ -47,7 +51,7 @@ const navItems = [
 
     <div class="flex">
       <!-- Sidebar -->
-      <aside id="sidebar" class="fixed lg:sticky top-0 left-0 z-50 w-64 bg-gray-900 text-white min-h-screen lg:min-h-screen flex flex-col -translate-x-full lg:translate-x-0 transition-transform duration-200 ease-in-out">
+      <aside id="sidebar" class="fixed lg:sticky top-0 left-0 z-50 w-64 bg-gray-900 text-white h-screen flex flex-col -translate-x-full lg:translate-x-0 transition-transform duration-200 ease-in-out">
         <div class="p-6 border-b border-gray-700 hidden lg:block">
           <h1 class="text-xl font-bold tracking-tight">SuliWeb</h1>
           <p class="text-xs text-gray-400 mt-1">PST Processor</p>
@@ -55,7 +59,7 @@ const navItems = [
         <div class="p-6 border-b border-gray-700 lg:hidden">
           <p class="text-xs text-gray-400">PST Processor</p>
         </div>
-        <nav class="flex-1 p-4 space-y-1">
+        <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
           {navItems.map(item => (
             <a
               href={item.href}
@@ -74,7 +78,11 @@ const navItems = [
                 {item.icon === 'paperclip' && '📎'}
                 {item.icon === 'cpu' && '⚙'}
                 {item.icon === 'server' && '🖥'}
+                {item.icon === 'ediscovery' && '⚖'}
+                {item.icon === 'kg' && '🕸'}
+                {item.icon === 'logs' && '📋'}
                 {item.icon === 'users' && '👥'}
+                {item.icon === 'settings' && '⚙'}
               </span>
               {item.label}
             </a>
@@ -258,6 +266,7 @@ const navItems = [
             return { el, origStyle, x: rect.left, y: rect.top, vx, vy, w: rect.width, h: rect.height, angle, av: (Math.random() - 0.5) * 0.05 };
           });
 
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const floor = window.innerHeight;
 
           function step() {

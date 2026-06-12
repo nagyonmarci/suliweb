@@ -109,7 +109,7 @@ export default function AttachmentList() {
   }, [visibleColumns]);
 
   const paged = useMemo(() => {
-    let result = [...attachments];
+    const result = [...attachments];
     result.sort((a, b) => {
       const aVal = a[sortField] ?? '';
       const bVal = b[sortField] ?? '';
@@ -153,6 +153,7 @@ export default function AttachmentList() {
     try {
       const data = await api.getAttachmentDuplicateStats();
       setDupStats(data);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setDupMessage('Hiba: ' + e.message);
     } finally {
@@ -166,6 +167,7 @@ export default function AttachmentList() {
       const msg = await api.deduplicateAttachments();
       setDupMessage(msg);
       await loadDupStats();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setDupMessage('Hiba: ' + e.message);
     } finally {

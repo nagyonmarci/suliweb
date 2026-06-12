@@ -6,6 +6,7 @@ ignore:
 trustedRegistries:
   - docker.io
   - ghcr.io
+  - cgr.dev
   - eclipse-temurin
   - maven
   - nginx

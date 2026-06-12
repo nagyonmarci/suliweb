@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.4</version>
+        <version>4.0.7</version>
         <relativePath/>
     </parent>
 
@@ -50,6 +50,10 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
         <dependency>
             <groupId>com.jcraft</groupId>
@@ -111,19 +115,29 @@
         <dependency>
             <groupId>com.googlecode.owasp-java-html-sanitizer</groupId>
             <artifactId>owasp-java-html-sanitizer</artifactId>
-            <version>20240325.1</version>
+            <version>20260101.1</version>
         </dependency>
 
         <!-- RAG: Apache Tika for text extraction from attachments -->
         <dependency>
             <groupId>org.apache.tika</groupId>
             <artifactId>tika-core</artifactId>
-            <version>3.0.0</version>
+            <version>3.2.2</version>
         </dependency>
         <dependency>
             <groupId>org.apache.tika</groupId>
             <artifactId>tika-parsers-standard-package</artifactId>
-            <version>3.0.0</version>
+            <version>3.2.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>1.84</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk18on</artifactId>
+            <version>1.84</version>
         </dependency>
 
         <!-- RAG: Spring WebClient for Ollama HTTP calls -->
@@ -137,6 +151,18 @@
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>mockwebserver</artifactId>
             <version>4.12.0</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Test: Spring Security test support -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Test: Spring Boot 4 WebMvc test slice (@WebMvcTest) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-webmvc-test</artifactId>
             <scope>test</scope>
         </dependency>
 
@@ -164,37 +190,16 @@
             <artifactId>jsoup</artifactId>
             <version>1.18.1</version>
         </dependency>
-        <!-- Qdrant vector database Java client -->
+        <!-- Elasticsearch Java API client -->
         <dependency>
-            <groupId>io.qdrant</groupId>
-            <artifactId>client</artifactId>
-            <version>1.13.0</version>
+            <groupId>co.elastic.clients</groupId>
+            <artifactId>elasticsearch-java</artifactId>
+            <version>8.17.0</version>
         </dependency>
-        <!-- Qdrant transitive dependencies (grpc, protobuf, guava) -->
+        <!-- Spring Data Neo4j -->
         <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-netty-shaded</artifactId>
-            <version>1.68.1</version>
-        </dependency>
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-stub</artifactId>
-            <version>1.68.1</version>
-        </dependency>
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-protobuf</artifactId>
-            <version>1.68.1</version>
-        </dependency>
-        <dependency>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java</artifactId>
-            <version>3.25.5</version>
-        </dependency>
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>33.3.1-jre</version>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-neo4j</artifactId>
         </dependency>
     </dependencies>
 
@@ -226,7 +231,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.13</version>
+                <version>0.8.15</version>
                 <executions>
                     <execution>
                         <id>prepare-agent</id>
@@ -260,7 +265,7 @@
                 <artifactId>dependency-check-maven</artifactId>
                 <version>10.0.4</version>
                 <configuration>
-                    <failBuildOnCVSS>11</failBuildOnCVSS>
+                    <failBuildOnCVSS>7</failBuildOnCVSS>
                     <format>ALL</format>
                     <outputDirectory>${project.build.directory}/dependency-check-report</outputDirectory>
                     <suppressionFiles>

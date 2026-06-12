@@ -47,14 +47,6 @@ public class RagConfig {
     // HyDE (Hypothetical Document Embedding) – generates a hypothetical answer for better vector search
     private boolean hydeEnabled = true;
 
-    // Qdrant vector database settings
-    private boolean qdrantEnabled = false;
-    private String qdrantHost = "localhost";
-    private int qdrantGrpcPort = 6334;
-    private int qdrantRestPort = 6333;
-    private String qdrantCollectionName = "document_chunks";
-
-
     @Bean
     public WebClient ollamaWebClient() {
         return WebClient.builder()

@@ -35,6 +35,7 @@ export default function PstProcessing() {
       const dirs = directories.split('\n').map(d => d.trim()).filter(Boolean);
       const result = await api.findPst(dirs);
       setMessage(result);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setMessage('Hiba: ' + e.message);
     }
@@ -46,6 +47,7 @@ export default function PstProcessing() {
     try {
       const result = await api.processFromDb(saveAttachments);
       setMessage(result);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setMessage('Hiba: ' + e.message);
     } finally {
@@ -57,6 +59,7 @@ export default function PstProcessing() {
     try {
       await api.pauseProcessing();
       setMessage('Feldolgozás szüneteltetve.');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setMessage('Hiba: ' + e.message);
     }
@@ -66,6 +69,7 @@ export default function PstProcessing() {
     try {
       await api.resumeProcessing();
       setMessage('Feldolgozás folytatva.');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setMessage('Hiba: ' + e.message);
     }
@@ -77,6 +81,7 @@ export default function PstProcessing() {
     try {
       const result = await api.saveAttachmentsFromDb();
       setMessage(result);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setMessage('Hiba: ' + e.message);
     } finally {
