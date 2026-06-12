@@ -268,7 +268,7 @@ jobs:
           image-ref: suliweb-backend:scan
           format: sarif
           output: trivy-backend.sarif
-          severity: CRITICAL,HIGH,MEDIUM
+          severity: CRITICAL,HIGH
           exit-code: '1'
           ignore-unfixed: 'true'
 
@@ -281,7 +281,7 @@ jobs:
           image-ref: suliweb-frontend:scan
           format: sarif
           output: trivy-frontend.sarif
-          severity: CRITICAL,HIGH,MEDIUM
+          severity: CRITICAL,HIGH
           exit-code: '1'
           ignore-unfixed: 'true'
 

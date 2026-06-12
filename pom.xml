@@ -134,6 +134,11 @@
             <artifactId>bcprov-jdk18on</artifactId>
             <version>1.84</version>
         </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk18on</artifactId>
+            <version>1.84</version>
+        </dependency>
 
         <!-- RAG: Spring WebClient for Ollama HTTP calls -->
         <dependency>
