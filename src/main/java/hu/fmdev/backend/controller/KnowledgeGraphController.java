@@ -42,6 +42,16 @@ public class KnowledgeGraphController {
         return ResponseEntity.ok("Knowledge Graph építés elindítva");
     }
 
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PostMapping("/reingest-concepts")
+    public ResponseEntity<String> triggerConceptReingestion() {
+        if (ingestionService.isRunning()) {
+            return ResponseEntity.badRequest().body("KG ingestion már folyamatban");
+        }
+        Thread.startVirtualThread(ingestionService::ingestConceptsOnly);
+        return ResponseEntity.ok("Koncepció újraépítés elindítva");
+    }
+
     @GetMapping("/status")
     public Map<String, Object> status() {
         return Map.of(

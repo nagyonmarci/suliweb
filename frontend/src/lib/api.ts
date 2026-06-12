@@ -495,6 +495,7 @@ export const api = {
 
   // Knowledge Graph
   kgIngest: () => fetchText('/api/kg/ingest', { method: 'POST' }),
+  kgReingestConcepts: () => fetchText('/api/kg/reingest-concepts', { method: 'POST' }),
   kgStatus: () => fetchJson<KgStatus>('/api/kg/status'),
   kgPersonNetwork: (email: string) =>
     fetchJson<KgPersonNode[]>(`/api/kg/persons/${encodeURIComponent(email)}/network`),

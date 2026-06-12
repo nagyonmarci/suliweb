@@ -49,6 +49,7 @@ export default function KnowledgeGraph() {
   const [kgStatus, setKgStatus] = useState<KgStatus | null>(null);
   const [ingesting, setIngesting] = useState(false);
   const [ingestMsg, setIngestMsg] = useState('');
+  const [reingestMsg, setReingestMsg] = useState('');
 
   const [networkEmail, setNetworkEmail] = useState('');
   const [networkResults, setNetworkResults] = useState<KgPersonNode[]>([]);
@@ -108,6 +109,20 @@ export default function KnowledgeGraph() {
       loadStatus();
     } catch (e: any) {
       setIngestMsg('Hiba: ' + e.message);
+    } finally {
+      setIngesting(false);
+    }
+  }
+
+  async function handleReingestConcepts() {
+    setIngesting(true);
+    setReingestMsg('');
+    try {
+      const msg = await api.kgReingestConcepts();
+      setReingestMsg(msg);
+      loadStatus();
+    } catch (e: any) {
+      setReingestMsg('Hiba: ' + e.message);
     } finally {
       setIngesting(false);
     }
@@ -297,6 +312,23 @@ export default function KnowledgeGraph() {
             }`}>
               <span className="flex-1">{ingestMsg}</span>
               <button onClick={() => setIngestMsg('')} className="text-current opacity-50 hover:opacity-100">&times;</button>
+            </div>
+          )}
+          <button
+            onClick={handleReingestConcepts}
+            disabled={ingesting || kgStatus?.running}
+            className="mt-2 px-4 py-2 bg-violet-600 text-white text-sm rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors"
+          >
+            {kgStatus?.running ? 'Folyamatban...' : ingesting ? 'Indítás...' : 'Koncepciók újraépítése'}
+          </button>
+          {reingestMsg && (
+            <div className={`text-sm mt-3 p-3 rounded-lg flex items-start gap-2 ${
+              reingestMsg.toLowerCase().includes('hiba') || reingestMsg.toLowerCase().includes('error')
+                ? 'bg-red-50 text-red-700 border border-red-200'
+                : 'bg-green-50 text-green-700 border border-green-200'
+            }`}>
+              <span className="flex-1">{reingestMsg}</span>
+              <button onClick={() => setReingestMsg('')} className="text-current opacity-50 hover:opacity-100">&times;</button>
             </div>
           )}
         </div>

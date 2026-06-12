@@ -162,6 +162,87 @@ public class KnowledgeGraphIngestionService {
         }
     }
 
+    public void ingestConceptsOnly() {
+        if (running) {
+            CentralLogger.logWarn("KG concept re-ingestion skipped: already running");
+            return;
+        }
+        running = true;
+        startedAt = Instant.now();
+        totalEmails.set(0); processedCount.set(0); failedCount.set(0);
+        try {
+            long total = emailNodeRepo.count();
+            totalEmails.set(total);
+            progressTracker.startOperation("Koncepciók újraépítése", (int) total);
+            CentralLogger.logInfo("KG concept re-ingestion start. EmailNodes: " + total);
+
+            int batchSize = appSettingsService.getEffectiveKgBatchSize();
+            ExecutorService nerExec   = Executors.newVirtualThreadPerTaskExecutor();
+            ExecutorService writeExec = Executors.newFixedThreadPool(
+                    appSettingsService.getEffectiveKgMaxConcurrentWrites());
+            try {
+                int page = 0;
+                while (true) {
+                    var nodePage = emailNodeRepo.findAll(PageRequest.of(page, batchSize));
+                    if (nodePage.isEmpty()) break;
+
+                    record NodeNer(EmailNode node, List<NerExtractor.ExtractedEntity> entities) {}
+                    List<Callable<NodeNer>> nerTasks = nodePage.stream()
+                            .map(node -> (Callable<NodeNer>) () -> {
+                                progressTracker.increment();
+                                if (node.getMongoId() == null) return null;
+                                return emailRepository.findById(node.getMongoId()).map(email -> {
+                                    String text = textExtraction.getEmailTextContent(
+                                            email.getBody(), email.getHtmlContent());
+                                    return new NodeNer(node, entityExtraction.extract(text));
+                                }).orElse(null);
+                            })
+                            .toList();
+
+                    List<NodeNer> nerResults = new ArrayList<>();
+                    for (var f : nerExec.invokeAll(nerTasks)) {
+                        try {
+                            NodeNer r = f.get();
+                            if (r != null) nerResults.add(r);
+                        } catch (ExecutionException e) {
+                            CentralLogger.logError("Concept re-ingest NER hiba", e.getCause());
+                        }
+                    }
+
+                    writeExec.invokeAll(nerResults.stream()
+                            .map(r -> (Callable<Void>) () -> {
+                                try {
+                                    List<ConceptNode> concepts = r.entities().stream()
+                                            .map(e -> mergeConcept(e.name(), e.type()))
+                                            .toList();
+                                    r.node().setMentions(new ArrayList<>(concepts));
+                                    emailNodeRepo.save(r.node());
+                                    processedCount.incrementAndGet();
+                                } catch (Exception e) {
+                                    failedCount.incrementAndGet();
+                                    CentralLogger.logWarn("Concept write hiba ["
+                                            + r.node().getMongoId() + "]: " + e.getMessage());
+                                }
+                                return null;
+                            }).toList());
+
+                    if (!nodePage.hasNext()) break;
+                    page++;
+                }
+            } finally {
+                nerExec.shutdown();
+                writeExec.shutdown();
+            }
+            progressTracker.stopOperation();
+            CentralLogger.logInfo("KG concept re-ingest done. Processed: "
+                    + processedCount + " Failed: " + failedCount);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            running = false;
+        }
+    }
+
     private NerResult extractNer(Email email) {
         progressTracker.increment();
         if (emailNodeRepo.existsByMessageId(resolveMessageId(email))) return null;
