@@ -326,6 +326,15 @@ export interface KgStatus {
   };
 }
 
+export interface KgGraphStats {
+  topTopics: Array<{ name: string; count: number }>;
+  topOrgs: Array<{ name: string; count: number }>;
+  topSenders: Array<{ email: string; name: string | null; count: number }>;
+  personCount: number;
+  emailCount: number;
+  conceptCount: number;
+}
+
 export interface LogEntry {
   id: string;
   timestamp: string;
@@ -497,6 +506,7 @@ export const api = {
   kgIngest: () => fetchText('/api/kg/ingest', { method: 'POST' }),
   kgReingestConcepts: () => fetchText('/api/kg/reingest-concepts', { method: 'POST' }),
   kgStatus: () => fetchJson<KgStatus>('/api/kg/status'),
+  kgGraphStats: () => fetchJson<KgGraphStats>('/api/kg/graph-stats'),
   kgPersonNetwork: (email: string) =>
     fetchJson<KgPersonNode[]>(`/api/kg/persons/${encodeURIComponent(email)}/network`),
   kgThread: (threadId: string) =>

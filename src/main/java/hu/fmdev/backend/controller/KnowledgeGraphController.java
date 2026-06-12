@@ -59,6 +59,11 @@ public class KnowledgeGraphController {
                 "stats",   ingestionService.getStats());
     }
 
+    @GetMapping("/graph-stats")
+    public GraphSearchService.GraphStats graphStats() {
+        return graphSearch.getGraphStats();
+    }
+
     @GetMapping("/persons/{email}/network")
     public List<PersonNode> communicationNetwork(
             @PathVariable String email,

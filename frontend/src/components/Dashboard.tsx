@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api, type ProgressState, type RagHealth } from '../lib/api';
+import { api, type ProgressState, type RagHealth, type KgGraphStats } from '../lib/api';
 
 interface Stats {
   totalEmails: number;
@@ -12,12 +12,14 @@ export default function Dashboard() {
   const [stats, setStats] = useState<Stats>({ totalEmails: 0, totalFiles: 0, newFiles: 0, processedFiles: 0 });
   const [progress, setProgress] = useState<ProgressState | null>(null);
   const [ragHealth, setRagHealth] = useState<RagHealth | null>(null);
+  const [kgStats, setKgStats] = useState<KgGraphStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [statsError, setStatsError] = useState<string | null>(null);
 
   useEffect(() => {
     loadStats();
     loadRagHealth();
+    loadKgStats();
     const interval = setInterval(loadProgress, 2000);
     return () => clearInterval(interval);
   }, []);
@@ -58,6 +60,15 @@ export default function Dashboard() {
       setRagHealth(h);
     } catch {
       // RAG may not be configured
+    }
+  }
+
+  async function loadKgStats() {
+    try {
+      const s = await api.kgGraphStats();
+      if (s.personCount > 0 || s.emailCount > 0) setKgStats(s);
+    } catch {
+      // KG may not be built yet
     }
   }
 
@@ -139,6 +150,9 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* KG Statistics */}
+      {kgStats && <KgStatsPanel stats={kgStats} />}
+
       {/* Quick actions */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h3 className="text-sm font-semibold text-gray-700 mb-4">Gyors műveletek</h3>
@@ -155,6 +169,54 @@ export default function Dashboard() {
           <a href="/emails" className="px-4 py-2 bg-white border border-gray-300 text-sm rounded-lg hover:bg-gray-50 transition-colors">
             Email böngésző
           </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function KgStatsPanel({ stats }: { stats: KgGraphStats }) {
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-gray-700">Tudásgráf</h3>
+        <span className="text-xs text-gray-400">
+          {stats.personCount.toLocaleString('hu-HU')} személy · {stats.emailCount.toLocaleString('hu-HU')} email · {stats.conceptCount.toLocaleString('hu-HU')} fogalom
+        </span>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div>
+          <p className="text-xs font-medium text-gray-500 mb-2">Top témák</p>
+          <ol className="space-y-1">
+            {stats.topTopics.map((t, i) => (
+              <li key={t.name} className="flex items-center justify-between text-sm">
+                <span className="text-gray-700 truncate">{i + 1}. {t.name}</span>
+                <span className="text-blue-600 font-medium ml-2 shrink-0">{t.count}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+        <div>
+          <p className="text-xs font-medium text-gray-500 mb-2">Top szervezetek</p>
+          <ol className="space-y-1">
+            {stats.topOrgs.map((o, i) => (
+              <li key={o.name} className="flex items-center justify-between text-sm">
+                <span className="text-gray-700 truncate">{i + 1}. {o.name}</span>
+                <span className="text-purple-600 font-medium ml-2 shrink-0">{o.count}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+        <div>
+          <p className="text-xs font-medium text-gray-500 mb-2">Legaktívabb küldők</p>
+          <ol className="space-y-1">
+            {stats.topSenders.map((s, i) => (
+              <li key={s.email} className="flex items-center justify-between text-sm">
+                <span className="text-gray-700 truncate">{i + 1}. {s.name || s.email}</span>
+                <span className="text-green-600 font-medium ml-2 shrink-0">{s.count}</span>
+              </li>
+            ))}
+          </ol>
         </div>
       </div>
     </div>
