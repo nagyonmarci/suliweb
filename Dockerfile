@@ -8,7 +8,7 @@ ENV JWT_SECRET=docker-build-dummy-not-for-production
 RUN mvn clean package
 
 FROM eclipse-temurin:25-jre-noble AS runtime
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 RUN groupadd -r appgroup && useradd -r -g appgroup -s /bin/false appuser
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
