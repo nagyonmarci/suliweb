@@ -2,6 +2,7 @@ package hu.fmdev.backend.service.rag;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import hu.fmdev.backend.logger.CentralLogger;
+import hu.fmdev.backend.service.AppSettingsService;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -25,13 +26,12 @@ public class EntityExtractionService implements NerExtractor {
             Text: """;
 
     private final WebClient ollamaWebClient;
-    private final String nerModel;
+    private final AppSettingsService appSettingsService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public EntityExtractionService(WebClient ollamaWebClient,
-                                   @org.springframework.beans.factory.annotation.Value("${rag.ner-model:${rag.chat-model:llama3.2}}") String nerModel) {
+    public EntityExtractionService(WebClient ollamaWebClient, AppSettingsService appSettingsService) {
         this.ollamaWebClient = ollamaWebClient;
-        this.nerModel = nerModel;
+        this.appSettingsService = appSettingsService;
     }
 
     public List<NerExtractor.ExtractedEntity> extract(String text) {
@@ -39,7 +39,7 @@ public class EntityExtractionService implements NerExtractor {
         String truncated = text.length() > MAX_INPUT_CHARS ? text.substring(0, MAX_INPUT_CHARS) : text;
         try {
             Map<String, Object> requestBody = Map.of(
-                    "model",  nerModel,
+                    "model",  appSettingsService.getEffectiveNerModel(),
                     "prompt", NER_PROMPT + truncated,
                     "stream", false,
                     "format", "json");

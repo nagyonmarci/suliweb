@@ -334,6 +334,15 @@ export interface LogEntry {
   stackTrace?: string;
 }
 
+export interface AppSettingsDto {
+  ollamaBaseUrl: string;
+  chatModel: string;
+  nerModel: string;
+  chatMaxHistoryTurns: number;
+  kgBatchSize: number;
+  kgMaxConcurrentWrites: number;
+}
+
 // --- API ---
 
 export const api = {
@@ -625,4 +634,14 @@ export const api = {
 
     return sources;
   },
+
+  // Settings
+  getSettings: (): Promise<AppSettingsDto> =>
+    fetchJson('/api/settings'),
+
+  saveSettings: (data: Partial<AppSettingsDto>): Promise<AppSettingsDto> =>
+    fetchJson('/api/settings', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
 };

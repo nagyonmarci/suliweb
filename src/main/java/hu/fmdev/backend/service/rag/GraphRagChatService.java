@@ -2,9 +2,9 @@ package hu.fmdev.backend.service.rag;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import hu.fmdev.backend.config.RagConfig;
 import hu.fmdev.backend.domain.graph.EmailNode;
 import hu.fmdev.backend.logger.CentralLogger;
+import hu.fmdev.backend.service.AppSettingsService;
 import hu.fmdev.backend.service.GraphSearchService;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -24,17 +24,17 @@ public class GraphRagChatService {
     private final GraphSearchService graphSearch;
     private final EntityExtractionService entityExtraction;
     private final WebClient ollamaWebClient;
-    private final RagConfig ragConfig;
+    private final AppSettingsService appSettingsService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public GraphRagChatService(GraphSearchService graphSearch,
                                EntityExtractionService entityExtraction,
                                WebClient ollamaWebClient,
-                               RagConfig ragConfig) {
-        this.graphSearch       = graphSearch;
-        this.entityExtraction  = entityExtraction;
-        this.ollamaWebClient   = ollamaWebClient;
-        this.ragConfig         = ragConfig;
+                               AppSettingsService appSettingsService) {
+        this.graphSearch          = graphSearch;
+        this.entityExtraction     = entityExtraction;
+        this.ollamaWebClient      = ollamaWebClient;
+        this.appSettingsService   = appSettingsService;
     }
 
     // -------------------------------------------------------------------------
@@ -44,7 +44,7 @@ public class GraphRagChatService {
     public ChatResponse chat(String userMessage, int topK, String model,
                              List<HistoryMessage> history) {
         int k = topK > 0 ? topK : DEFAULT_TOP_K;
-        String resolvedModel = (model != null && !model.isBlank()) ? model : ragConfig.getChatModel();
+        String resolvedModel = (model != null && !model.isBlank()) ? model : appSettingsService.getEffectiveChatModel();
 
         List<EmailNode> contextEmails = retrieveContext(userMessage, k);
         String context = buildContextText(contextEmails);
@@ -62,7 +62,7 @@ public class GraphRagChatService {
     public Flux<String> chatStream(String userMessage, int topK, String model,
                                    List<HistoryMessage> history) {
         int k = topK > 0 ? topK : DEFAULT_TOP_K;
-        String resolvedModel = (model != null && !model.isBlank()) ? model : ragConfig.getChatModel();
+        String resolvedModel = (model != null && !model.isBlank()) ? model : appSettingsService.getEffectiveChatModel();
 
         List<EmailNode> contextEmails = retrieveContext(userMessage, k);
         String context = buildContextText(contextEmails);
@@ -146,7 +146,7 @@ public class GraphRagChatService {
         List<Map<String, String>> messages = new ArrayList<>();
         messages.add(Map.of("role", "system", "content", buildSystemPrompt(context)));
         if (history != null) {
-            int maxTurns = ragConfig.getChatMaxHistoryTurns() * 2;
+            int maxTurns = appSettingsService.getEffectiveChatMaxHistoryTurns() * 2;
             List<HistoryMessage> trimmed = history.size() > maxTurns
                     ? history.subList(history.size() - maxTurns, history.size())
                     : history;

@@ -1,6 +1,5 @@
 package hu.fmdev.backend.service;
 
-import hu.fmdev.backend.config.KgIngestionProperties;
 import hu.fmdev.backend.domain.Attachment;
 import hu.fmdev.backend.domain.Email;
 import hu.fmdev.backend.domain.graph.*;
@@ -31,7 +30,7 @@ public class KnowledgeGraphIngestionService {
     private final NerExtractor entityExtraction;
     private final TextExtractionService textExtraction;
     private final ProgressTracker progressTracker;
-    private final KgIngestionProperties props;
+    private final AppSettingsService appSettingsService;
 
     private volatile boolean running = false;
     private volatile Instant startedAt = null;
@@ -48,17 +47,17 @@ public class KnowledgeGraphIngestionService {
                                           NerExtractor entityExtraction,
                                           TextExtractionService textExtraction,
                                           ProgressTracker progressTracker,
-                                          KgIngestionProperties props) {
-        this.emailRepository   = emailRepository;
+                                          AppSettingsService appSettingsService) {
+        this.emailRepository    = emailRepository;
         this.attachmentRepository = attachmentRepository;
-        this.personRepo        = personRepo;
-        this.emailNodeRepo     = emailNodeRepo;
-        this.threadRepo        = threadRepo;
-        this.conceptRepo       = conceptRepo;
-        this.entityExtraction  = entityExtraction;
-        this.textExtraction    = textExtraction;
-        this.progressTracker   = progressTracker;
-        this.props             = props;
+        this.personRepo         = personRepo;
+        this.emailNodeRepo      = emailNodeRepo;
+        this.threadRepo         = threadRepo;
+        this.conceptRepo        = conceptRepo;
+        this.entityExtraction   = entityExtraction;
+        this.textExtraction     = textExtraction;
+        this.progressTracker    = progressTracker;
+        this.appSettingsService = appSettingsService;
     }
 
     private record NerResult(Email email, List<NerExtractor.ExtractedEntity> entities) {}
@@ -97,17 +96,17 @@ public class KnowledgeGraphIngestionService {
             totalEmails.set(total);
             progressTracker.startOperation("Knowledge Graph építés", (int) total);
             CentralLogger.logInfo("KG ingestion start. Emails: " + total
-                    + " batchSize=" + props.getBatchSize()
-                    + " maxConcurrentWrites=" + props.getMaxConcurrentWrites());
+                    + " batchSize=" + appSettingsService.getEffectiveKgBatchSize()
+                    + " maxConcurrentWrites=" + appSettingsService.getEffectiveKgMaxConcurrentWrites());
 
             int page = 0;
             // Virtual threads for I/O-bound NER calls
             ExecutorService nerExec = Executors.newVirtualThreadPerTaskExecutor();
             // Fixed pool limits concurrent Neo4j writers
-            ExecutorService writeExec = Executors.newFixedThreadPool(props.getMaxConcurrentWrites());
+            ExecutorService writeExec = Executors.newFixedThreadPool(appSettingsService.getEffectiveKgMaxConcurrentWrites());
             try {
                 while (true) {
-                    var emailPage = emailRepository.findAll(PageRequest.of(page, props.getBatchSize()));
+                    var emailPage = emailRepository.findAll(PageRequest.of(page, appSettingsService.getEffectiveKgBatchSize()));
                     if (emailPage.isEmpty()) break;
 
                     // Phase 1: NER extraction (parallel, I/O-bound — no DB writes)
