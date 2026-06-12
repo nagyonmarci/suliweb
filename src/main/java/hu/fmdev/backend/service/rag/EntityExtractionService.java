@@ -87,6 +87,10 @@ public class EntityExtractionService implements NerExtractor {
     private List<NerExtractor.ExtractedEntity> toEntities(List<Object> raw) {
         List<NerExtractor.ExtractedEntity> result = new ArrayList<>();
         for (Object item : raw) {
+            if (item instanceof String s) {
+                if (!s.isBlank()) result.add(new NerExtractor.ExtractedEntity(s.trim(), "TOPIC"));
+                continue;
+            }
             if (!(item instanceof Map)) continue;
             Map<Object, Object> m = (Map<Object, Object>) item;
             String name = String.valueOf(m.getOrDefault("name", "")).trim();
