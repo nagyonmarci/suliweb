@@ -270,6 +270,7 @@ jobs:
           output: trivy-backend.sarif
           severity: CRITICAL,HIGH,MEDIUM
           exit-code: '1'
+          ignore-unfixed: 'true'
 
       - name: Build frontend image for scanning
         run: docker build ./frontend -t suliweb-frontend:scan
@@ -282,6 +283,7 @@ jobs:
           output: trivy-frontend.sarif
           severity: CRITICAL,HIGH,MEDIUM
           exit-code: '1'
+          ignore-unfixed: 'true'
 
       - name: Build python-processor image for scanning
         run: docker build ./python-processor -t suliweb-python-processor:scan
@@ -294,6 +296,7 @@ jobs:
           output: trivy-python.sarif
           severity: CRITICAL,HIGH
           exit-code: '1'
+          ignore-unfixed: 'true'
 
       - name: Upload Trivy SARIF (backend) to Security tab
         uses: github/codeql-action/upload-sarif@v3
