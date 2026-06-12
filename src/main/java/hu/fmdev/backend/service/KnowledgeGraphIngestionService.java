@@ -211,11 +211,11 @@ public class KnowledgeGraphIngestionService {
 
                     writeExec.invokeAll(nerResults.stream()
                             .map(r -> (Callable<Void>) () -> {
+                                List<Map<String, String>> conceptMaps = r.entities().stream()
+                                        .map(e -> Map.of("name", e.name(), "type", e.type()))
+                                        .toList();
                                 try {
-                                    List<Map<String, String>> conceptMaps = r.entities().stream()
-                                            .map(e -> Map.of("name", e.name(), "type", e.type()))
-                                            .toList();
-                                    emailNodeRepo.replaceMentions(r.email().getId(), conceptMaps);
+                                    writeWithRetry(r.email().getId(), conceptMaps);
                                     processedCount.incrementAndGet();
                                 } catch (Exception e) {
                                     failedCount.incrementAndGet();
@@ -402,6 +402,24 @@ public class KnowledgeGraphIngestionService {
     }
 
     // -------------------------------------------------------------------------
+
+    private void writeWithRetry(String mongoId, List<Map<String, String>> concepts) throws Exception {
+        int maxRetries = 3;
+        for (int attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                emailNodeRepo.replaceMentions(mongoId, concepts);
+                return;
+            } catch (Exception e) {
+                String msg = e.getMessage();
+                boolean deadlock = msg != null && (msg.contains("DeadlockDetected") || msg.contains("can't acquire"));
+                if (deadlock && attempt < maxRetries) {
+                    Thread.sleep(50L * (1L << attempt));
+                } else {
+                    throw e;
+                }
+            }
+        }
+    }
 
     private String resolveMessageId(Email email) {
         String mid = email.getInternetMessageId();
