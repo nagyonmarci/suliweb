@@ -56,3 +56,8 @@ token.txt
 suliweb_dokumentacio.docx
 .ai/
 .codegraph/
+
+### Local task files ###
+tasks/
+__pycache__/
+*.pyc
