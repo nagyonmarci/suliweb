@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { api, type KgPersonNode, type KgEmailNode, type KgStatus, type ChatMessage, type ChatSource } from '../lib/api';
+import { api, type KgPersonNode, type KgEmailNode, type KgStatus, type ChatMessage } from '../lib/api';
 
 type KgTab = 'status' | 'network' | 'thread' | 'concept' | 'chat';
 
@@ -107,6 +107,7 @@ export default function KnowledgeGraph() {
       const msg = await api.kgIngest();
       setIngestMsg(msg);
       loadStatus();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setIngestMsg('Hiba: ' + e.message);
     } finally {
@@ -121,6 +122,7 @@ export default function KnowledgeGraph() {
       const msg = await api.kgReingestConcepts();
       setReingestMsg(msg);
       loadStatus();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setReingestMsg('Hiba: ' + e.message);
     } finally {
@@ -136,6 +138,7 @@ export default function KnowledgeGraph() {
     try {
       setNetworkResults(await api.kgPersonNetwork(networkEmail.trim()));
       setNetworkSearched(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setNetworkError('Hiba: ' + e.message);
     } finally {
@@ -151,6 +154,7 @@ export default function KnowledgeGraph() {
     try {
       setThreadResults(await api.kgThread(threadId.trim()));
       setThreadSearched(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setThreadError('Hiba: ' + e.message);
     } finally {
@@ -166,6 +170,7 @@ export default function KnowledgeGraph() {
     try {
       setConceptResults(await api.kgConcept(conceptName.trim(), conceptTopK));
       setConceptSearched(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setConceptError('Hiba: ' + e.message);
     } finally {
@@ -206,6 +211,7 @@ export default function KnowledgeGraph() {
         if (last?.role === 'assistant') msgs[msgs.length - 1] = { ...last, content: accumulated, sources };
         return msgs;
       });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setChatError('Nem sikerült választ kapni: ' + err.message);
       setChatMessages(prev => prev.slice(0, -1));

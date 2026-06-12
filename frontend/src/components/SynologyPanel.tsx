@@ -59,6 +59,7 @@ export default function SynologyPanel() {
       setFiles(data); setSearched(true);
       const dupCount = getDuplicateGroups(data).length;
       setMessage(`${data.length} PST/OST fájl található a Synology NAS-on.${dupCount > 0 ? ` (${dupCount} duplikált csoport)` : ''}`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) { setMessage('Hiba: ' + e.message); }
     finally { setLoading(false); }
   }
@@ -70,6 +71,7 @@ export default function SynologyPanel() {
       setMessage(result);
       const data = await api.findSynology();
       setFiles(data); setSearched(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) { setMessage('Hiba: ' + e.message); }
     finally { setLoading(false); }
   }
@@ -89,6 +91,7 @@ export default function SynologyPanel() {
       setSettings(saved);
       setPasswordInput('');
       setSettingsMessage('Beállítások mentve.');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setSettingsMessage('Hiba: ' + e.message);
     } finally {

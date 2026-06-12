@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api, type UserDto, type AuthorityDto, type FileInfo, type FileInfoDto } from '../lib/api';
+import { api, type UserDto, type AuthorityDto, type FileInfo } from '../lib/api';
 
 type ModalMode = 'create' | 'edit' | 'files' | null;
 
@@ -41,6 +41,7 @@ export default function UserManagement() {
       setUsers(usersData);
       setAuthorities(authoritiesData);
       setAllFiles(filesData);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setError(e.message ?? 'Betöltési hiba');
     } finally {
@@ -108,6 +109,7 @@ export default function UserManagement() {
       }
       closeModal();
       await loadAll();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setError(e.message ?? 'Mentési hiba');
     } finally {
@@ -122,6 +124,7 @@ export default function UserManagement() {
       await api.updateUserFiles(editingUser.id, selectedFileIds);
       closeModal();
       await loadAll();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setError(e.message ?? 'Mentési hiba');
     } finally {
@@ -134,6 +137,7 @@ export default function UserManagement() {
       await api.deleteUser(user.id);
       setDeleteConfirm(null);
       await loadAll();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setError(e.message ?? 'Törlési hiba');
     }

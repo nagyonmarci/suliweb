@@ -95,6 +95,7 @@ export default function EDiscoverySearch() {
       const msg = await api.ediscoveryIngest();
       setMessage(msg);
       loadStatus();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setMessage('Indexelési hiba: ' + e.message);
     } finally {
@@ -117,6 +118,7 @@ export default function EDiscoverySearch() {
       });
       setResults(r);
       setHasSearched(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setMessage('Keresési hiba: ' + e.message);
     } finally {

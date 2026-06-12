@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { api, type ChatMessage, type ChatSource } from '../lib/api';
+import { api, type ChatMessage } from '../lib/api';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -208,6 +208,7 @@ export default function RagChat() {
         }
         return { ...s, messages: msgs };
       }));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError('Nem sikerült választ kapni: ' + err.message);
     } finally {

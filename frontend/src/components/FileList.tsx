@@ -16,9 +16,9 @@ export default function FileList() {
   // Selection: fileId -> saveAttachments
   const [selected, setSelected] = useState<Map<string, boolean>>(new Map());
 
-  const [search, setSearch] = useState('');
+  const [search] = useState('');
   const [colFilters, setColFilters] = useState<Record<string, string>>({});
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter] = useState('all');
 
   const [sortField, setSortField] = useState<SortField>('lastModified');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -49,6 +49,7 @@ export default function FileList() {
       const data = await api.getDuplicates();
       setDuplicates(data);
       if (data.length === 0) setDupMessage('Nincs duplikált fájl (vagy még nem számítottak hash-t).');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setDupMessage('Hiba: ' + e.message);
     } finally {
@@ -63,6 +64,7 @@ export default function FileList() {
       setDupMessage(msg);
       await loadDuplicates();
       await loadFiles();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setDupMessage('Hiba: ' + e.message);
     } finally {
@@ -76,6 +78,7 @@ export default function FileList() {
       const msg = await api.computeHashes();
       setDupMessage(msg);
       await loadDuplicates();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setDupMessage('Hiba: ' + e.message);
     } finally {
@@ -83,6 +86,7 @@ export default function FileList() {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const statusCounts = useMemo(() =>
     files.reduce((acc, f) => {
       acc[f.status] = (acc[f.status] || 0) + 1;
@@ -178,6 +182,7 @@ export default function FileList() {
       const result = await api.processSelected(requests);
       setMessage(result);
       await loadFiles();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setMessage('Hiba: ' + e.message);
     } finally {
@@ -434,6 +439,7 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[status] || 'bg-gray-100 text-gray-700'}`}>{status}</span>;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function StatusChip({ label, active, onClick, color }: { label: string; active: boolean; onClick: () => void; color?: string }) {
   return (
     <button onClick={onClick} className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${active ? 'bg-gray-900 text-white border-gray-900' : `bg-white ${color || 'text-gray-700'} border-gray-300 hover:bg-gray-50`}`}>
@@ -442,6 +448,7 @@ function StatusChip({ label, active, onClick, color }: { label: string; active: 
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function statusColor(status: string): string {
   const map: Record<string, string> = { New: 'text-blue-600', Modified: 'text-amber-600', Processed: 'text-green-600', Deleted: 'text-red-600' };
   return map[status] || 'text-gray-600';

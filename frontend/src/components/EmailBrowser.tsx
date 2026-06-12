@@ -133,7 +133,7 @@ export default function EmailBrowser() {
   }, [visibleColumns]);
 
   const paged = useMemo(() => {
-    let result = [...emails];
+    const result = [...emails];
     result.sort((a, b) => {
       const aVal = a[sortField] ?? '';
       const bVal = b[sortField] ?? '';
