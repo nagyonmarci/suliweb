@@ -45,7 +45,7 @@ jobs:
           retention-days: 30
 
       - name: Trivy filesystem scan (dependency CVE-k)
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@0.71.0
         with:
           scan-type: fs
           scan-ref: .
@@ -64,7 +64,7 @@ jobs:
         continue-on-error: true
 
       - name: Generate SBOM (CycloneDX)
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@0.71.0
         with:
           scan-type: fs
           scan-ref: .
@@ -263,7 +263,7 @@ jobs:
         run: docker build . -t suliweb-backend:scan
 
       - name: Trivy scan - backend
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@0.71.0
         with:
           image-ref: suliweb-backend:scan
           format: sarif
@@ -277,7 +277,7 @@ jobs:
         run: docker build ./frontend -t suliweb-frontend:scan
 
       - name: Trivy scan - frontend
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@0.71.0
         with:
           image-ref: suliweb-frontend:scan
           format: sarif
@@ -291,7 +291,7 @@ jobs:
         run: docker build ./python-processor -t suliweb-python-processor:scan
 
       - name: Trivy scan - python-processor
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@0.71.0
         with:
           image-ref: suliweb-python-processor:scan
           format: sarif
