@@ -12,6 +12,13 @@ function formatDate(dateStr: string | null | undefined) {
   } catch { return dateStr; }
 }
 
+function formatEta(seconds: number | null | undefined): string {
+  if (seconds == null || seconds < 0) return '...';
+  if (seconds < 60) return `${Math.round(seconds)} mp`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)} perc`;
+  return `${Math.floor(seconds / 3600)} ó ${Math.round((seconds % 3600) / 60)} perc`;
+}
+
 function EmailList({ items }: { items: KgEmailNode[] }) {
   return (
     <div className="space-y-3">
@@ -205,12 +212,16 @@ export default function KnowledgeGraph() {
   return (
     <div className="space-y-6">
       {/* Stats overview */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className={`rounded-xl border p-4 ${kgStatus?.running ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-200'}`}>
           <p className="text-xs font-medium text-gray-500">Állapot</p>
           <p className={`text-base font-bold ${kgStatus?.running ? 'text-amber-700' : 'text-gray-700'}`}>
             {kgStatus?.running ? 'Épül...' : 'Kész'}
           </p>
+        </div>
+        <div className="rounded-xl border p-4 bg-gray-50 border-gray-200">
+          <p className="text-xs font-medium text-gray-500">Összes email</p>
+          <p className="text-lg font-bold text-gray-700">{stats?.totalEmails?.toLocaleString('hu-HU') ?? '-'}</p>
         </div>
         <div className="rounded-xl border p-4 bg-indigo-50 border-indigo-200">
           <p className="text-xs font-medium text-indigo-600">Feldolgozva</p>
@@ -221,6 +232,30 @@ export default function KnowledgeGraph() {
           <p className="text-lg font-bold text-red-700">{stats?.failed?.toLocaleString('hu-HU') ?? '-'}</p>
         </div>
       </div>
+
+      {/* Progress bar — csak futás közben */}
+      {kgStatus?.running && stats && stats.totalEmails > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
+          <div className="flex justify-between text-xs text-amber-700 font-medium">
+            <span>{stats.processed.toLocaleString('hu-HU')} / {stats.totalEmails.toLocaleString('hu-HU')} email</span>
+            <span>{Math.round(stats.processed / stats.totalEmails * 100)}%</span>
+          </div>
+          <div className="w-full bg-amber-200 rounded-full h-2">
+            <div
+              className="bg-amber-500 h-2 rounded-full transition-all duration-500"
+              style={{ width: `${Math.min(100, stats.processed / stats.totalEmails * 100)}%` }}
+            />
+          </div>
+          <div className="flex gap-4 text-xs text-amber-600">
+            {stats.ratePerMin > 0 && (
+              <span>{stats.ratePerMin.toFixed(1)} email/perc</span>
+            )}
+            {stats.etaSeconds != null && (
+              <span>Várható befejezés: {formatEta(stats.etaSeconds)}</span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Tab bar */}
       <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit flex-wrap">

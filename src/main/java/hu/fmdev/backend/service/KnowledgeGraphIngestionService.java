@@ -8,11 +8,13 @@ import hu.fmdev.backend.logger.CentralLogger;
 import hu.fmdev.backend.repository.AttachmentRepository;
 import hu.fmdev.backend.repository.EmailRepository;
 import hu.fmdev.backend.repository.graph.*;
-import hu.fmdev.backend.service.rag.EntityExtractionService;
+import hu.fmdev.backend.service.rag.NerExtractor;
 import hu.fmdev.backend.service.rag.TextExtractionService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
@@ -26,12 +28,13 @@ public class KnowledgeGraphIngestionService {
     private final EmailNodeRepository emailNodeRepo;
     private final ThreadNodeRepository threadRepo;
     private final ConceptNodeRepository conceptRepo;
-    private final EntityExtractionService entityExtraction;
+    private final NerExtractor entityExtraction;
     private final TextExtractionService textExtraction;
     private final ProgressTracker progressTracker;
     private final KgIngestionProperties props;
 
     private volatile boolean running = false;
+    private volatile Instant startedAt = null;
     private final AtomicLong totalEmails  = new AtomicLong();
     private final AtomicLong processedCount = new AtomicLong();
     private final AtomicLong failedCount  = new AtomicLong();
@@ -42,7 +45,7 @@ public class KnowledgeGraphIngestionService {
                                           EmailNodeRepository emailNodeRepo,
                                           ThreadNodeRepository threadRepo,
                                           ConceptNodeRepository conceptRepo,
-                                          EntityExtractionService entityExtraction,
+                                          NerExtractor entityExtraction,
                                           TextExtractionService textExtraction,
                                           ProgressTracker progressTracker,
                                           KgIngestionProperties props) {
@@ -58,12 +61,27 @@ public class KnowledgeGraphIngestionService {
         this.props             = props;
     }
 
-    private record NerResult(Email email, List<EntityExtractionService.ExtractedEntity> entities) {}
+    private record NerResult(Email email, List<NerExtractor.ExtractedEntity> entities) {}
 
     public boolean isRunning() { return running; }
 
     public KgStats getStats() {
-        return new KgStats(totalEmails.get(), processedCount.get(), failedCount.get());
+        long total = totalEmails.get();
+        long done  = processedCount.get();
+        long failed = failedCount.get();
+        double ratePerMin = 0;
+        Long etaSeconds = null;
+        Instant start = startedAt;
+        if (start != null && done > 0) {
+            double elapsedMin = Duration.between(start, Instant.now()).toSeconds() / 60.0;
+            if (elapsedMin > 0) {
+                ratePerMin = done / elapsedMin;
+                if (running && ratePerMin > 0) {
+                    etaSeconds = (long) ((total - done) / ratePerMin * 60);
+                }
+            }
+        }
+        return new KgStats(total, done, failed, ratePerMin, etaSeconds);
     }
 
     public void ingestAll() {
@@ -72,6 +90,7 @@ public class KnowledgeGraphIngestionService {
             return;
         }
         running = true;
+        startedAt = Instant.now();
         totalEmails.set(0); processedCount.set(0); failedCount.set(0);
         try {
             long total = emailRepository.count();
@@ -148,11 +167,11 @@ public class KnowledgeGraphIngestionService {
         progressTracker.increment();
         if (emailNodeRepo.existsByMessageId(resolveMessageId(email))) return null;
         String bodyText = textExtraction.getEmailTextContent(email.getBody(), email.getHtmlContent());
-        List<EntityExtractionService.ExtractedEntity> entities = entityExtraction.extract(bodyText);
+        List<NerExtractor.ExtractedEntity> entities = entityExtraction.extract(bodyText);
         return new NerResult(email, entities);
     }
 
-    private void writeEmailToGraph(Email email, List<EntityExtractionService.ExtractedEntity> entities) {
+    private void writeEmailToGraph(Email email, List<NerExtractor.ExtractedEntity> entities) {
         try {
             doWriteEmail(email, entities);
         } catch (Exception e) {
@@ -161,7 +180,7 @@ public class KnowledgeGraphIngestionService {
         }
     }
 
-    private void doWriteEmail(Email email, List<EntityExtractionService.ExtractedEntity> entities) {
+    private void doWriteEmail(Email email, List<NerExtractor.ExtractedEntity> entities) {
             // 1. Person nodes
             PersonNode sender = mergePerson(email.getSenderEmailAddress(), email.getSenderName());
 
@@ -324,5 +343,5 @@ public class KnowledgeGraphIngestionService {
         return at >= 0 ? email.substring(at + 1) : "";
     }
 
-    public record KgStats(long totalEmails, long processed, long failed) {}
+    public record KgStats(long totalEmails, long processed, long failed, double ratePerMin, Long etaSeconds) {}
 }

@@ -14,7 +14,7 @@ import java.util.Map;
  * Returns an empty list on any failure — graph ingestion continues without entities.
  */
 @Service
-public class EntityExtractionService {
+public class EntityExtractionService implements NerExtractor {
 
     private static final int MAX_INPUT_CHARS = 3_000;
 
@@ -31,7 +31,7 @@ public class EntityExtractionService {
         this.ollamaWebClient = ollamaWebClient;
     }
 
-    public List<ExtractedEntity> extract(String text) {
+    public List<NerExtractor.ExtractedEntity> extract(String text) {
         if (text == null || text.isBlank()) return List.of();
         String truncated = text.length() > MAX_INPUT_CHARS ? text.substring(0, MAX_INPUT_CHARS) : text;
         try {
@@ -59,7 +59,7 @@ public class EntityExtractionService {
     }
 
     @SuppressWarnings("unchecked")
-    private List<ExtractedEntity> parseEntities(String json) {
+    private List<NerExtractor.ExtractedEntity> parseEntities(String json) {
         if (json == null || json.isBlank()) return List.of();
         try {
             // Response may be wrapped in a JSON object or be a bare array
@@ -82,17 +82,15 @@ public class EntityExtractionService {
     }
 
     @SuppressWarnings("unchecked")
-    private List<ExtractedEntity> toEntities(List<Object> raw) {
-        List<ExtractedEntity> result = new ArrayList<>();
+    private List<NerExtractor.ExtractedEntity> toEntities(List<Object> raw) {
+        List<NerExtractor.ExtractedEntity> result = new ArrayList<>();
         for (Object item : raw) {
             if (!(item instanceof Map)) continue;
             Map<Object, Object> m = (Map<Object, Object>) item;
             String name = String.valueOf(m.getOrDefault("name", "")).trim();
             String type = String.valueOf(m.getOrDefault("type", "TOPIC")).trim();
-            if (!name.isEmpty()) result.add(new ExtractedEntity(name, type));
+            if (!name.isEmpty()) result.add(new NerExtractor.ExtractedEntity(name, type));
         }
         return result;
     }
-
-    public record ExtractedEntity(String name, String type) {}
 }

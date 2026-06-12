@@ -321,6 +321,8 @@ export interface KgStatus {
     totalEmails: number;
     processed: number;
     failed: number;
+    ratePerMin: number;
+    etaSeconds: number | null;
   };
 }
 
