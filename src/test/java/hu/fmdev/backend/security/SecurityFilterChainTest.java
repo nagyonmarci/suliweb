@@ -31,7 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest({EDiscoveryController.class, KnowledgeGraphController.class, PstProcessorController.class})
 @Import({SecurityConfig.class, JwtAuthenticationFilter.class})
 @TestPropertySource(properties = {
-        "jwt.secret=dGVzdC1zZWNyZXQtZm9yLXRlc3Rpbmctb25seS10aGlzLWlzLWxvbmctZW5vdWdoLXRv",
+        "jwt.secret=dGVzdC1zZWNyZXQtZm9yLXRlc3Rpbmctb25seS10aGlzLWlzLWxvbmctZW5vdWdoLXRv", // gitleaks:allow
         "cors.allowed-origins=http://localhost"
 })
 class SecurityFilterChainTest {
