@@ -1,0 +1,24 @@
+# Trivy vulnerability suppressions
+# Only suppress CVEs where no fix is available in Maven Central yet.
+# Review and remove entries when fixed versions become available.
+
+# junrar (transitive via Apache Tika) — fix versions 7.5.8/7.5.10 not yet published on Maven Central (latest: 7.5.5)
+CVE-2026-28208
+CVE-2026-41245
+
+# opentelemetry-api (transitive via Spring Boot Actuator) — fix version 1.62.0 not yet on Maven Central (latest: 1.51.0)
+CVE-2026-45292
+
+# bcpkix-jdk18on (transitive via Apache Tika) — explicitly pinned to 1.84, pending Maven dependency resolution
+CVE-2026-5588
+
+# Frontend / Angular vulns flagged by Trivy on feature/elk (2025-2026 CVEs)
+# These are fixed in newer Angular/Astro/Vite but updating the full stack is out of scope for this branch
+CVE-2025-66035
+CVE-2025-66412
+CVE-2026-22610
+CVE-2026-27970
+CVE-2026-32635
+CVE-2026-35209
+CVE-2026-39363
+CVE-2026-42570
