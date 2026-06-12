@@ -41,8 +41,7 @@ public class EntityExtractionService implements NerExtractor {
             Map<String, Object> requestBody = Map.of(
                     "model",  appSettingsService.getEffectiveNerModel(),
                     "prompt", NER_PROMPT + truncated,
-                    "stream", false,
-                    "format", "json");
+                    "stream", false);
 
             @SuppressWarnings("unchecked")
             Map<String, Object> response = ollamaWebClient.post()
