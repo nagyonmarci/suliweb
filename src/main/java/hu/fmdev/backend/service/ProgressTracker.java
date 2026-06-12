@@ -25,13 +25,7 @@ public class ProgressTracker {
     public void increment() {
         if (!state.isActive())
             return;
-
-        int current = processed.incrementAndGet();
-        synchronized (this) {
-            if (total > 0) {
-                state.setPercentage((int) ((current / (double) total) * 100));
-            }
-        }
+        processed.incrementAndGet();
     }
 
     public synchronized void setStatusDetail(String detail) {
@@ -51,8 +45,9 @@ public class ProgressTracker {
         ProgressState copy = new ProgressState();
         copy.setCurrentOperation(state.getCurrentOperation());
         copy.setTotalItems(state.getTotalItems());
-        copy.setProcessedItems(processed.get());
-        copy.setPercentage(state.getPercentage());
+        int p = processed.get();
+        copy.setProcessedItems(p);
+        copy.setPercentage(total > 0 ? (int) ((p / (double) total) * 100) : state.getPercentage());
         copy.setStatusDetail(state.getStatusDetail());
         copy.setActive(state.isActive());
         return copy;
