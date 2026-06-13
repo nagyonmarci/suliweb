@@ -343,6 +343,35 @@ export interface LogEntry {
   stackTrace?: string;
 }
 
+export type StageState = 'PENDING' | 'RUNNING' | 'DONE' | 'FAILED' | 'SKIPPED';
+
+export interface StageProgress {
+  id: string;
+  name: string;
+  state: StageState;
+  total: number;
+  processed: number;
+  percentage: number;
+  detail?: string | null;
+  ratePerMin?: number | null;
+  etaSeconds?: number | null;
+}
+
+export interface PipelineStatus {
+  running: boolean;
+  stages: StageProgress[];
+}
+
+export interface PipelineStartRequest {
+  directories: string[];
+  excludedDirectories: string[];
+  saveAttachments: boolean;
+  skipPstDiscovery: boolean;
+  skipPstProcessing: boolean;
+  skipEsIndexing: boolean;
+  skipKgIngestion: boolean;
+}
+
 export interface AppSettingsDto {
   ollamaBaseUrl: string;
   chatModel: string;
@@ -645,6 +674,14 @@ export const api = {
 
     return sources;
   },
+
+  // Pipeline
+  startPipeline: (req: PipelineStartRequest) =>
+    fetchText('/api/pipeline/start', {
+      method: 'POST',
+      body: JSON.stringify(req),
+    }),
+  getPipelineStatus: () => fetchJson<PipelineStatus>('/api/pipeline/status'),
 
   // Settings
   getSettings: (): Promise<AppSettingsDto> =>
