@@ -330,9 +330,6 @@ public class PstProcessorService {
 
         // --- Extended Metadata Extraction ---
         email.setInternetMessageId(message.getInternetMessageId());
-        email.setTransportMessageHeaders(message.getTransportMessageHeaders());
-        email.setImportance(message.getImportance());
-        email.setMessageClass(message.getMessageClass());
         email.setConversationTopic(message.getConversationTopic());
 
         byte[] conversationId = message.getConversationId();
@@ -340,23 +337,7 @@ public class PstProcessorService {
             email.setConversationId(bytesToHex(conversationId));
         }
 
-        email.setCreationTime(
-                message.getCreationTime() != null ? convertToLocalDateTime(message.getCreationTime()) : null);
-        email.setLastModificationTime(
-                message.getLastModificationTime() != null ? convertToLocalDateTime(message.getLastModificationTime())
-                        : null);
-        email.setClientSubmitTime(
-                message.getClientSubmitTime() != null ? convertToLocalDateTime(message.getClientSubmitTime()) : null);
         email.setIsRead(message.isRead());
-
-        try {
-            String[] categories = message.getColorCategories();
-            if (categories != null && categories.length > 0) {
-                email.setCategories(Arrays.asList(categories));
-            }
-        } catch (Exception e) {
-            CentralLogger.logError("Hiba a kategóriák kinyerésekor", e);
-        }
     }
 
     private String bytesToHex(byte[] bytes) {

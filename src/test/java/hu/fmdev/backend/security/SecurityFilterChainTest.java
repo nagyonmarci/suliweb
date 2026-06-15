@@ -21,6 +21,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -46,6 +47,7 @@ class SecurityFilterChainTest {
     @MockitoBean GraphSearchService graphSearchService;
     @MockitoBean GraphRagChatService graphRagChatService;
     @MockitoBean PstProcessorService pstProcessorService;
+    @MockitoBean WebClient ollamaWebClient;
 
     // --- Token nélkül minden védett végpont 401-et ad ---
 
@@ -122,7 +124,27 @@ class SecurityFilterChainTest {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    void kg_models_noToken_returns401() throws Exception {
+        mockMvc.perform(get("/api/kg/models"))
+                .andExpect(status().isUnauthorized());
+    }
+
     // --- ROLE_USER olvasó végponton → 2xx ---
+
+    @Test
+    void kg_models_userRole_returnsOk() throws Exception {
+        WebClient.RequestHeadersUriSpec<?> uriSpec = org.mockito.Mockito.mock(WebClient.RequestHeadersUriSpec.class);
+        WebClient.RequestHeadersSpec<?> headersSpec = org.mockito.Mockito.mock(WebClient.RequestHeadersSpec.class);
+        WebClient.ResponseSpec responseSpec = org.mockito.Mockito.mock(WebClient.ResponseSpec.class);
+        when(ollamaWebClient.get()).thenReturn((WebClient.RequestHeadersUriSpec) uriSpec);
+        when(uriSpec.uri("/api/tags")).thenReturn((WebClient.RequestHeadersSpec) headersSpec);
+        when(headersSpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.bodyToMono(java.util.Map.class)).thenReturn(reactor.core.publisher.Mono.empty());
+        mockMvc.perform(get("/api/kg/models")
+                        .with(user("testuser").authorities(new SimpleGrantedAuthority("ROLE_USER"))))
+                .andExpect(status().isOk());
+    }
 
     @Test
     void ediscovery_search_userRole_returnsOk() throws Exception {
