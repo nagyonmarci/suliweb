@@ -205,7 +205,9 @@ public class EDiscoveryIngestionService {
         progressTracker.increment();
 
         String id = esId(email);
-        String bodyDelta = textExtractionService.getEmailTextContent(email.getBody(), email.getHtmlContent());
+        String bodyDelta = email.getStrippedBody() != null
+                ? email.getStrippedBody()
+                : textExtractionService.getEmailTextContent(email.getBody(), email.getHtmlContent());
 
         List<Map<String, Object>> attachmentDocs = new ArrayList<>();
         for (Attachment att : attachments) {

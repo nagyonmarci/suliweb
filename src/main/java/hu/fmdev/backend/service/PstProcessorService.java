@@ -12,6 +12,7 @@ import hu.fmdev.backend.logger.CentralLogger;
 import hu.fmdev.backend.repository.AttachmentRepository;
 import hu.fmdev.backend.repository.EmailRepository;
 import hu.fmdev.backend.repository.FileInfoRepository;
+import hu.fmdev.backend.service.rag.TextExtractionService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -36,6 +37,7 @@ public class PstProcessorService {
     private final FileInfoRepository fileInfoRepository;
     private final AttachmentRepository attachmentRepository;
     private final ProgressTracker progressTracker;
+    private final TextExtractionService textExtractionService;
     private volatile boolean paused = false;
 
     @Value("${attachments.directory}")
@@ -63,11 +65,13 @@ public class PstProcessorService {
     }
 
     public PstProcessorService(EmailRepository emailRepository, FileInfoRepository fileInfoRepository,
-            AttachmentRepository attachmentRepository, ProgressTracker progressTracker) {
+            AttachmentRepository attachmentRepository, ProgressTracker progressTracker,
+            TextExtractionService textExtractionService) {
         this.emailRepository = emailRepository;
         this.fileInfoRepository = fileInfoRepository;
         this.attachmentRepository = attachmentRepository;
         this.progressTracker = progressTracker;
+        this.textExtractionService = textExtractionService;
     }
 
     public String processPstFileFromUpload(MultipartFile file, boolean saveAttachments) throws PstProcessingException {
@@ -301,6 +305,7 @@ public class PstProcessorService {
 
         Email email = createNewEmail(uniqueEntryId, pstFileName, currentFolderPath);
         updateEmailWithMessageDetails(email, message);
+        email.setStrippedBody(textExtractionService.getEmailTextContent(email.getBody(), email.getHtmlContent()));
         emailRepository.save(email); // Save first to get the ID
 
         if (saveAttachments) {

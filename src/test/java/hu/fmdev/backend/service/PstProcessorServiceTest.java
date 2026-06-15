@@ -5,6 +5,7 @@ import hu.fmdev.backend.domain.ProgressState;
 import hu.fmdev.backend.repository.AttachmentRepository;
 import hu.fmdev.backend.repository.EmailRepository;
 import hu.fmdev.backend.repository.FileInfoRepository;
+import hu.fmdev.backend.service.rag.TextExtractionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,6 +29,7 @@ class PstProcessorServiceTest {
     @Mock private FileInfoRepository fileInfoRepository;
     @Mock private AttachmentRepository attachmentRepository;
     @Mock private ProgressTracker progressTracker;
+    @Mock private TextExtractionService textExtractionService;
 
     private PstProcessorService service;
 
@@ -39,7 +41,7 @@ class PstProcessorServiceTest {
         ProgressState idleState = new ProgressState();
         idleState.setActive(false);
         lenient().when(progressTracker.getProgress()).thenReturn(idleState);
-        service = new PstProcessorService(emailRepository, fileInfoRepository, attachmentRepository, progressTracker);
+        service = new PstProcessorService(emailRepository, fileInfoRepository, attachmentRepository, progressTracker, textExtractionService);
     }
 
     // --- generateUniqueEntryId ---
