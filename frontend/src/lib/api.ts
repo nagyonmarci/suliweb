@@ -373,6 +373,11 @@ export interface PipelineStartRequest {
 }
 
 
+export interface PstFinderSettings {
+  searchDirectories: string[];
+  excludedDirectories: string[];
+}
+
 export interface AppSettingsDto {
   ollamaBaseUrl: string;
   chatModel: string;
@@ -480,6 +485,11 @@ export const api = {
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
   },
+
+  // PST Finder settings
+  getPstFinderSettings: () => fetchJson<PstFinderSettings>('/api/pst-finder/settings'),
+  savePstFinderSettings: (s: PstFinderSettings) =>
+    fetchJson<PstFinderSettings>('/api/pst-finder/settings', { method: 'PUT', body: JSON.stringify(s) }),
 
   // PST Finder
   findPst: (directories: string[], excludedDirectories?: string[]) => {

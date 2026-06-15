@@ -159,8 +159,8 @@ Az alkalmazás elérhető: `http://localhost` (frontend + API proxy), `http://lo
 
 ```yaml
 - type: bind
-  source: ${VOLUME_ARCHIV_PATH:-/Volumes/archiv}   # .env-ben állítható be
-  target: ${VOLUME_ARCHIV_PATH:-/Volumes/archiv}   # ugyanaz mint az adatbázisban tárolt path
+  source: ${DATA_ROOT:-/Volumes}   # .env-ben állítható be, pl. DATA_ROOT=/mnt/nas
+  target: ${DATA_ROOT:-/Volumes}   # a keresési könyvtárak admin UI-on konfigurálhatók
   read_only: true
 ```
 

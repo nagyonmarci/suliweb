@@ -40,26 +40,8 @@ services:
       - pst_source:/data/pst_source:ro
       - logs:/app/logs
       - type: bind
-        source: ${VOLUME_ARCHIV_PATH:-/Volumes/archiv}
-        target: ${VOLUME_ARCHIV_PATH:-/Volumes/archiv}
-        read_only: true
-        bind:
-          create_host_path: true
-      - type: bind
-        source: ${VOLUME_DATA_PATH:-/Volumes/data}
-        target: ${VOLUME_DATA_PATH:-/Volumes/data}
-        read_only: true
-        bind:
-          create_host_path: true
-      - type: bind
-        source: ${VOLUME_EADAT_PATH:-/Volumes/eadat}
-        target: ${VOLUME_EADAT_PATH:-/Volumes/eadat}
-        read_only: true
-        bind:
-          create_host_path: true
-      - type: bind
-        source: ${PST_SOURCE_PATH:-/data/psts}
-        target: ${PST_SOURCE_PATH:-/data/psts}
+        source: ${DATA_ROOT:-/Volumes}
+        target: ${DATA_ROOT:-/Volumes}
         read_only: true
         bind:
           create_host_path: true
