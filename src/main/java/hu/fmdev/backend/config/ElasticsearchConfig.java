@@ -1,6 +1,7 @@
 package hu.fmdev.backend.config;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import co.elastic.clients.elasticsearch._types.mapping.*;
 import co.elastic.clients.elasticsearch.indices.CreateIndexRequest;
 import co.elastic.clients.json.jackson.JacksonJsonpMapper;
@@ -45,8 +46,12 @@ public class ElasticsearchConfig {
     public void ensureEmailArchiveIndex() {
         try {
             ElasticsearchClient client = elasticsearchClient();
-            boolean exists = client.indices().exists(e -> e.index("email_archive")).value();
-            if (exists) return;
+            try {
+                client.indices().get(g -> g.index("email_archive"));
+                return; // index exists
+            } catch (ElasticsearchException e) {
+                if (e.status() != 404) throw e;
+            }
 
             client.indices().create(CreateIndexRequest.of(ci -> ci
                     .index("email_archive")

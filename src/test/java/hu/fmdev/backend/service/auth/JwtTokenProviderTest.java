@@ -18,7 +18,7 @@ class JwtTokenProviderTest {
         JwtConfig config = new JwtConfig();
         // 256-bit key in Base64
         config.setSecret(Base64.getEncoder().encodeToString(
-                "this-is-a-test-secret-key-32bytes!".getBytes()));
+                "this-is-a-test-secret-key-32bytes!".getBytes())); // pragma: allowlist secret
         config.setAccessTokenExpirationMs(900_000);
         config.setRefreshTokenExpirationMs(604_800_000);
         tokenProvider = new JwtTokenProvider(config);
@@ -70,7 +70,7 @@ class JwtTokenProviderTest {
     void validateToken_expiredToken_returnsFalse() {
         JwtConfig config = new JwtConfig();
         config.setSecret(Base64.getEncoder().encodeToString(
-                "this-is-a-test-secret-key-32bytes!".getBytes()));
+                "this-is-a-test-secret-key-32bytes!".getBytes())); // pragma: allowlist secret
         config.setAccessTokenExpirationMs(0); // expires immediately
         config.setRefreshTokenExpirationMs(604_800_000);
         JwtTokenProvider shortLivedProvider = new JwtTokenProvider(config);

@@ -94,13 +94,12 @@ public class TextExtractionService {
      * Removes reply chains and email signatures from plain text.
      * Cuts everything from the first reply/forward/signature marker onwards.
      */
-    String stripReplyChains(String text) {
+    public String stripReplyChains(String text) {
         if (text == null || text.isBlank()) return text;
         Matcher m = REPLY_CHAIN_PATTERN.matcher(text);
         if (m.find()) {
             String stripped = text.substring(0, m.start()).stripTrailing();
             if (!stripped.isBlank()) {
-                CentralLogger.logInfo("Reply chain stripped: " + text.length() + " → " + stripped.length() + " chars");
                 return stripped;
             }
         }

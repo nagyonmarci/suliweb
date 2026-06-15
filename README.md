@@ -159,8 +159,8 @@ Az alkalmazás elérhető: `http://localhost` (frontend + API proxy), `http://lo
 
 ```yaml
 - type: bind
-  source: /Volumes/archiv   # gazdagépen lévő tényleges elérési út
-  target: /Volumes/archiv   # ugyanaz mint az adatbázisban tárolt path
+  source: ${DATA_ROOT:-/Volumes}   # .env-ben állítható be, pl. DATA_ROOT=/mnt/nas
+  target: ${DATA_ROOT:-/Volumes}   # a keresési könyvtárak admin UI-on konfigurálhatók
   read_only: true
 ```
 
@@ -426,7 +426,7 @@ ediscovery.python.url=http://localhost:8001
 # Neo4j Knowledge Graph
 spring.neo4j.uri=${NEO4J_URI:bolt://localhost:7687}
 spring.neo4j.authentication.username=neo4j
-spring.neo4j.authentication.password=${NEO4J_PASSWORD:suliweb}
+spring.neo4j.authentication.password=${NEO4J_PASSWORD}
 
 # Knowledge Graph ingestion hangolás
 kg.ingestion.batch-size=100

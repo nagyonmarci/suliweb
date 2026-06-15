@@ -1,19 +1,27 @@
-suliweb.test {
-    # Backend API routes
-    handle /api/* {
-        reverse_proxy backend:8080
-    }
-    handle /find/* {
-        reverse_proxy backend:8080
-    }
-    handle /pst/* {
-        reverse_proxy backend:8080
-    }
-    handle /pdf/* {
-        reverse_proxy backend:8080
-    }
-    # Frontend catch-all
-    handle {
-        reverse_proxy frontend:80
-    }
+# Caddy a 80/443 porton szolgálja ki a suliweb.test-et.
+# A :8080 csak belső Docker port (nginx + Spring Boot), nem publikus URL.
+# TLS tanúsítvány: mkcert (lásd youtube-video-transcript README).
+http://suliweb.test {
+	redir https://suliweb.test{uri} permanent
+}
+
+https://suliweb.test {
+	tls /etc/caddy/certs/suliweb.test.pem /etc/caddy/certs/suliweb.test-key.pem
+
+	@suliweb_api path /api/* /find/* /pst/* /pdf/*
+	handle @suliweb_api {
+		reverse_proxy suliweb-backend:8080 {
+			health_uri /actuator/health
+			health_interval 5s
+			health_timeout 3s
+		}
+	}
+	# Frontend catch-all (nginx a konténerben :8080-on hallgat, nem :80-on)
+	handle {
+		reverse_proxy suliweb-frontend:8080 {
+			health_uri /
+			health_interval 10s
+			health_timeout 3s
+		}
+	}
 }

@@ -21,6 +21,7 @@ public class Email {
     private LocalDateTime receivedTime;
     private String body;
     private String htmlContent;
+    private String strippedBody;
     private List<String> recipients;
     private List<String> cc;
     private List<String> bcc;
@@ -29,14 +30,7 @@ public class Email {
 
     // --- Extended Metadata ---
     private String internetMessageId;
-    private String transportMessageHeaders;
-    private Integer importance;
-    private List<String> categories;
     private String conversationTopic;
     private String conversationId;
-    private String messageClass;
-    private LocalDateTime creationTime;
-    private LocalDateTime lastModificationTime;
-    private LocalDateTime clientSubmitTime;
     private Boolean isRead;
 }

@@ -12,6 +12,7 @@ import hu.fmdev.backend.logger.CentralLogger;
 import hu.fmdev.backend.repository.AttachmentRepository;
 import hu.fmdev.backend.repository.EmailRepository;
 import hu.fmdev.backend.repository.FileInfoRepository;
+import hu.fmdev.backend.service.rag.TextExtractionService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -36,6 +37,7 @@ public class PstProcessorService {
     private final FileInfoRepository fileInfoRepository;
     private final AttachmentRepository attachmentRepository;
     private final ProgressTracker progressTracker;
+    private final TextExtractionService textExtractionService;
     private volatile boolean paused = false;
 
     @Value("${attachments.directory}")
@@ -63,11 +65,13 @@ public class PstProcessorService {
     }
 
     public PstProcessorService(EmailRepository emailRepository, FileInfoRepository fileInfoRepository,
-            AttachmentRepository attachmentRepository, ProgressTracker progressTracker) {
+            AttachmentRepository attachmentRepository, ProgressTracker progressTracker,
+            TextExtractionService textExtractionService) {
         this.emailRepository = emailRepository;
         this.fileInfoRepository = fileInfoRepository;
         this.attachmentRepository = attachmentRepository;
         this.progressTracker = progressTracker;
+        this.textExtractionService = textExtractionService;
     }
 
     public String processPstFileFromUpload(MultipartFile file, boolean saveAttachments) throws PstProcessingException {
@@ -301,6 +305,7 @@ public class PstProcessorService {
 
         Email email = createNewEmail(uniqueEntryId, pstFileName, currentFolderPath);
         updateEmailWithMessageDetails(email, message);
+        email.setStrippedBody(textExtractionService.getEmailTextContent(email.getBody(), email.getHtmlContent()));
         emailRepository.save(email); // Save first to get the ID
 
         if (saveAttachments) {
@@ -330,9 +335,6 @@ public class PstProcessorService {
 
         // --- Extended Metadata Extraction ---
         email.setInternetMessageId(message.getInternetMessageId());
-        email.setTransportMessageHeaders(message.getTransportMessageHeaders());
-        email.setImportance(message.getImportance());
-        email.setMessageClass(message.getMessageClass());
         email.setConversationTopic(message.getConversationTopic());
 
         byte[] conversationId = message.getConversationId();
@@ -340,23 +342,7 @@ public class PstProcessorService {
             email.setConversationId(bytesToHex(conversationId));
         }
 
-        email.setCreationTime(
-                message.getCreationTime() != null ? convertToLocalDateTime(message.getCreationTime()) : null);
-        email.setLastModificationTime(
-                message.getLastModificationTime() != null ? convertToLocalDateTime(message.getLastModificationTime())
-                        : null);
-        email.setClientSubmitTime(
-                message.getClientSubmitTime() != null ? convertToLocalDateTime(message.getClientSubmitTime()) : null);
         email.setIsRead(message.isRead());
-
-        try {
-            String[] categories = message.getColorCategories();
-            if (categories != null && categories.length > 0) {
-                email.setCategories(Arrays.asList(categories));
-            }
-        } catch (Exception e) {
-            CentralLogger.logError("Hiba a kategóriák kinyerésekor", e);
-        }
     }
 
     private String bytesToHex(byte[] bytes) {

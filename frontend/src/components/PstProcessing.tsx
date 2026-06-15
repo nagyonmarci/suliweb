@@ -12,6 +12,9 @@ export default function PstProcessing() {
   useEffect(() => {
     pollProgress();
     intervalRef.current = setInterval(pollProgress, 1500);
+    api.getPstFinderSettings().then(s => {
+      if (s.searchDirectories.length > 0) setDirectories(s.searchDirectories.join('\n'));
+    }).catch(() => {});
     return () => clearInterval(intervalRef.current);
   }, []);
 
@@ -133,12 +136,28 @@ export default function PstProcessing() {
           rows={3}
           className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3 font-mono"
         />
-        <button
-          onClick={handleFindPst}
-          className="px-4 py-2.5 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors"
-        >
-          Keresés és mentés adatbázisba
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleFindPst}
+            className="px-4 py-2.5 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors"
+          >
+            Keresés és mentés adatbázisba
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                const dirs = directories.split('\n').map(d => d.trim()).filter(Boolean);
+                await api.savePstFinderSettings({ searchDirectories: dirs, excludedDirectories: [] });
+                setMessage('Keresési könyvtárak elmentve alapértékként.');
+              } catch (e) {
+                setMessage('Hiba a mentésnél: ' + (e instanceof Error ? e.message : String(e)));
+              }
+            }}
+            className="px-4 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Mentés alapértékként
+          </button>
+        </div>
       </div>
 
       {/* Process from DB */}
