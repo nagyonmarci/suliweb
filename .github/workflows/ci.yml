@@ -23,6 +23,9 @@ jobs:
   backend-test:
     name: Backend Tests + Coverage
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v5
 
@@ -158,6 +161,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: backend-test
     continue-on-error: true
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v5
 
@@ -261,6 +267,9 @@ jobs:
     name: Container Scan - Trivy
     runs-on: ubuntu-latest
     needs: backend-test
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v5
 
@@ -345,6 +354,9 @@ jobs:
     name: Dockerfile Lint - Hadolint
     runs-on: ubuntu-latest
     continue-on-error: true
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v5
 
