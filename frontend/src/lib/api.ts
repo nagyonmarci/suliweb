@@ -372,6 +372,7 @@ export interface PipelineStartRequest {
   skipKgIngestion: boolean;
 }
 
+
 export interface AppSettingsDto {
   ollamaBaseUrl: string;
   chatModel: string;
@@ -682,6 +683,7 @@ export const api = {
       body: JSON.stringify(req),
     }),
   getPipelineStatus: () => fetchJson<PipelineStatus>('/api/pipeline/status'),
+
 
   // Settings
   getSettings: (): Promise<AppSettingsDto> =>
