@@ -4,8 +4,10 @@ services:
     container_name: suliweb-frontend
     restart: unless-stopped
     networks:
-      - default
-      - web
+      default:
+      web:
+        aliases:
+          - frontend
     depends_on:
       suliweb-backend:
         condition: service_healthy
@@ -13,8 +15,10 @@ services:
   suliweb-backend:
     container_name: suliweb-backend
     networks:
-      - default
-      - web
+      default:
+      web:
+        aliases:
+          - backend
     build: .
     restart: unless-stopped
     environment:
