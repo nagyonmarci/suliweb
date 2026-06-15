@@ -276,7 +276,6 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: '1'
           ignore-unfixed: 'true'
-          skip-version-check: 'true'
 
       - name: Build frontend image for scanning
         run: docker build ./frontend -t suliweb-frontend:scan
@@ -290,7 +289,6 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: '1'
           ignore-unfixed: 'true'
-          skip-version-check: 'true'
 
       - name: Build python-processor image for scanning
         run: docker build ./python-processor -t suliweb-python-processor:scan
@@ -304,7 +302,6 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: '1'
           ignore-unfixed: 'true'
-          skip-version-check: 'true'
           skip-dirs: "python-processor"  # temporary until we upgrade markitdown[all] deps
         continue-on-error: true
 
