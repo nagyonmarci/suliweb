@@ -21,6 +21,7 @@ public class Email {
     private LocalDateTime receivedTime;
     private String body;
     private String htmlContent;
+    private String strippedBody;
     private List<String> recipients;
     private List<String> cc;
     private List<String> bcc;

@@ -186,6 +186,7 @@ public class EDiscoveryIngestionService {
         String id = esId(email);
         String rawBody = textExtractionService.getEmailTextContent(email.getBody(), email.getHtmlContent());
         String bodyDelta = stripReply(rawBody, email.getId(), id);
+        emailRepository.updateStrippedBody(email.getId(), bodyDelta);
 
         // Attachment conversion: dedup by SHA-256 within this call
         List<Map<String, Object>> attachmentDocs = new ArrayList<>();

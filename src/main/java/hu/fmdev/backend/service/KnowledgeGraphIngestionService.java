@@ -192,8 +192,9 @@ public class KnowledgeGraphIngestionService {
                             .map(email -> (Callable<EmailNer>) () -> {
                                 progressTracker.increment();
                                 if (!emailNodeRepo.existsByMessageId(resolveMessageId(email))) return null;
-                                String text = textExtraction.getEmailTextContent(
-                                        email.getBody(), email.getHtmlContent());
+                                String text = email.getStrippedBody() != null
+                                        ? email.getStrippedBody()
+                                        : textExtraction.getEmailTextContent(email.getBody(), email.getHtmlContent());
                                 List<NerExtractor.ExtractedEntity> entities = entityExtraction.extract(text);
                                 return entities.isEmpty() ? null : new EmailNer(email, entities);
                             })
@@ -245,7 +246,9 @@ public class KnowledgeGraphIngestionService {
     private NerResult extractNer(Email email) {
         progressTracker.increment();
         if (emailNodeRepo.existsByMessageId(resolveMessageId(email))) return null;
-        String bodyText = textExtraction.getEmailTextContent(email.getBody(), email.getHtmlContent());
+        String bodyText = email.getStrippedBody() != null
+                ? email.getStrippedBody()
+                : textExtraction.getEmailTextContent(email.getBody(), email.getHtmlContent());
         List<NerExtractor.ExtractedEntity> entities = entityExtraction.extract(bodyText);
         return new NerResult(email, entities);
     }
