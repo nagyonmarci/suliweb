@@ -10,9 +10,11 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -23,13 +25,16 @@ public class KnowledgeGraphController {
     private final KnowledgeGraphIngestionService ingestionService;
     private final GraphSearchService graphSearch;
     private final GraphRagChatService chatService;
+    private final WebClient ollamaWebClient;
 
     public KnowledgeGraphController(KnowledgeGraphIngestionService ingestionService,
                                     GraphSearchService graphSearch,
-                                    GraphRagChatService chatService) {
+                                    GraphRagChatService chatService,
+                                    WebClient ollamaWebClient) {
         this.ingestionService = ingestionService;
         this.graphSearch      = graphSearch;
         this.chatService      = chatService;
+        this.ollamaWebClient  = ollamaWebClient;
     }
 
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
@@ -94,5 +99,28 @@ public class KnowledgeGraphController {
     public Flux<String> chatStream(
             @RequestBody GraphRagChatService.ChatRequest request) {
         return chatService.chatStream(request.message(), request.topK(), request.model(), request.history());
+    }
+
+    @GetMapping("/models")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<List<String>> listModels() {
+        try {
+            Map<String, Object> response = ollamaWebClient.get()
+                    .uri("/api/tags")
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
+            if (response == null) return ResponseEntity.ok(Collections.emptyList());
+            List<Map<String, Object>> models = (List<Map<String, Object>>) response.get("models");
+            if (models == null) return ResponseEntity.ok(Collections.emptyList());
+            List<String> names = models.stream()
+                    .map(m -> (String) m.get("name"))
+                    .filter(n -> n != null && !n.isBlank())
+                    .sorted()
+                    .toList();
+            return ResponseEntity.ok(names);
+        } catch (Exception e) {
+            return ResponseEntity.ok(Collections.emptyList());
+        }
     }
 }

@@ -13,13 +13,14 @@ import hu.fmdev.backend.repository.EmailRepository;
 import hu.fmdev.backend.repository.FailedConversionRepository;
 import hu.fmdev.backend.service.rag.TextExtractionService;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
+import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -27,15 +28,11 @@ import java.nio.file.Path;
 import java.time.ZoneOffset;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.stream.Collectors;
 import java.util.concurrent.atomic.*;
+import java.util.stream.Collectors;
 
 @Service
 public class EDiscoveryIngestionService {
-
-    private static final int PAGE_SIZE = 50;
-    private static final int BULK_SIZE = 100;
-    private static final Semaphore PYTHON_SEMAPHORE = new Semaphore(8);
 
     private final EmailRepository emailRepository;
     private final AttachmentRepository attachmentRepository;
@@ -44,6 +41,9 @@ public class EDiscoveryIngestionService {
     private final TextExtractionService textExtractionService;
     private final ProgressTracker progressTracker;
     private final FailedConversionRepository failedConversionRepository;
+    private final int batchSize;
+    private final int bulkSize;
+    private final Semaphore pythonSemaphore;
 
     private volatile boolean running = false;
     private final AtomicLong totalEmails   = new AtomicLong();
@@ -57,7 +57,10 @@ public class EDiscoveryIngestionService {
                                       @Qualifier("pythonProcessorClient") WebClient pythonClient,
                                       TextExtractionService textExtractionService,
                                       ProgressTracker progressTracker,
-                                      FailedConversionRepository failedConversionRepository) {
+                                      FailedConversionRepository failedConversionRepository,
+                                      @Value("${ediscovery.ingestion.batch-size:200}") int batchSize,
+                                      @Value("${ediscovery.ingestion.bulk-size:200}") int bulkSize,
+                                      @Value("${ediscovery.ingestion.python-concurrency:24}") int pythonConcurrency) {
         this.emailRepository = emailRepository;
         this.attachmentRepository = attachmentRepository;
         this.esClient = esClient;
@@ -65,6 +68,9 @@ public class EDiscoveryIngestionService {
         this.textExtractionService = textExtractionService;
         this.progressTracker = progressTracker;
         this.failedConversionRepository = failedConversionRepository;
+        this.batchSize = batchSize;
+        this.bulkSize = bulkSize;
+        this.pythonSemaphore = new Semaphore(Math.max(1, pythonConcurrency));
     }
 
     public boolean isRunning() { return running; }
@@ -81,22 +87,35 @@ public class EDiscoveryIngestionService {
         }
         running = true;
         totalEmails.set(0); indexedCount.set(0); skippedCount.set(0); attFailures.set(0);
+        ConcurrentHashMap<String, String> hashToMarkdown = new ConcurrentHashMap<>();
         try {
             long total = emailRepository.count();
             totalEmails.set(total);
             progressTracker.startOperation("e-Discovery indexelés", (int) total);
-            CentralLogger.logInfo("e-Discovery ingestion start. Emails: " + total);
+            CentralLogger.logInfo("e-Discovery ingestion start. Emails: " + total
+                    + " batchSize=" + batchSize
+                    + " pythonConcurrency=" + pythonSemaphore.availablePermits());
 
             int page = 0;
             ExecutorService exec = Executors.newVirtualThreadPerTaskExecutor();
             try {
                 while (true) {
-                    var emailPage = emailRepository.findAll(PageRequest.of(page, PAGE_SIZE));
+                    var emailPage = emailRepository.findAll(PageRequest.of(page, batchSize));
                     if (emailPage.isEmpty()) break;
 
-                    // Collect and process page into bulk operations in parallel
+                    List<String> emailIds = emailPage.getContent().stream()
+                            .map(Email::getId)
+                            .toList();
+                    Map<String, List<Attachment>> attachmentsByEmail = attachmentRepository
+                            .findByEmailIdIn(emailIds)
+                            .stream()
+                            .collect(Collectors.groupingBy(Attachment::getEmailId));
+
                     List<Callable<List<BulkOperation>>> tasks = emailPage.stream()
-                            .map(email -> (Callable<List<BulkOperation>>) () -> buildOps(email))
+                            .map(email -> (Callable<List<BulkOperation>>) () -> buildOps(
+                                    email,
+                                    attachmentsByEmail.getOrDefault(email.getId(), List.of()),
+                                    hashToMarkdown))
                             .toList();
 
                     List<BulkOperation> ops = new ArrayList<>();
@@ -124,7 +143,8 @@ public class EDiscoveryIngestionService {
 
             progressTracker.stopOperation();
             CentralLogger.logInfo("e-Discovery ingestion done. Indexed: " + indexedCount
-                    + " Skipped: " + skippedCount + " AttFail: " + attFailures);
+                    + " Skipped: " + skippedCount + " AttFail: " + attFailures
+                    + " UniqueAttachments: " + hashToMarkdown.size());
         } finally {
             running = false;
         }
@@ -134,12 +154,11 @@ public class EDiscoveryIngestionService {
         Email email = emailRepository.findById(mongoEmailId).orElse(null);
         if (email == null) return;
         try {
-            // Delete existing doc first, then re-index
             esClient.delete(d -> d.index("email_archive").id(esId(email)));
         } catch (IOException e) {
             CentralLogger.logWarn("Korábbi ES doc törlése sikertelen: " + mongoEmailId);
         }
-        List<BulkOperation> ops = buildOps(email);
+        List<BulkOperation> ops = buildOps(email, attachmentRepository.findByEmailId(email.getId()), new ConcurrentHashMap<>());
         if (!ops.isEmpty()) flushBulk(ops);
     }
 
@@ -180,34 +199,29 @@ public class EDiscoveryIngestionService {
 
     // -------------------------------------------------------------------------
 
-    private List<BulkOperation> buildOps(Email email) {
+    private List<BulkOperation> buildOps(Email email,
+                                           List<Attachment> attachments,
+                                           ConcurrentHashMap<String, String> hashToMarkdown) {
         progressTracker.increment();
 
         String id = esId(email);
         String bodyDelta = textExtractionService.getEmailTextContent(email.getBody(), email.getHtmlContent());
-        emailRepository.updateStrippedBody(email.getId(), bodyDelta);
 
-        // Attachment conversion: dedup by SHA-256 within this call
         List<Map<String, Object>> attachmentDocs = new ArrayList<>();
-        Map<String, String> hashToMarkdown = new HashMap<>();
-        List<Attachment> atts = attachmentRepository.findByEmailId(email.getId());
-        for (Attachment att : atts) {
+        for (Attachment att : attachments) {
             String sha = att.getHash();
             if (sha == null || sha.isBlank() || att.getLocalPath() == null) continue;
-            if (!hashToMarkdown.containsKey(sha)) {
-                String md = convertAttachment(att.getLocalPath(), att.getFilename(), email.getId(), id, sha);
-                hashToMarkdown.put(sha, md);
-            }
+            String markdown = hashToMarkdown.computeIfAbsent(sha, h ->
+                    convertAttachment(att.getLocalPath(), att.getFilename(), email.getId(), id, sha));
             attachmentDocs.add(Map.of(
                     "filename", att.getFilename() != null ? att.getFilename() : "",
                     "sha256",   sha,
-                    "markdownContent", hashToMarkdown.get(sha)));
+                    "markdownContent", markdown != null ? markdown : ""));
         }
 
         Map<String, Object> doc = buildDoc(id, email, bodyDelta, attachmentDocs);
 
-        // Use create op_type: ES returns 409 for duplicates (counted as skip, not error)
-        BulkOperation op = BulkOperation.of(b -> b.create(c -> c
+        BulkOperation op = BulkOperation.of(b -> b.index(i -> i
                 .index("email_archive")
                 .id(id)
                 .document(doc)));
@@ -215,20 +229,16 @@ public class EDiscoveryIngestionService {
     }
 
     private void flushBulk(List<BulkOperation> ops) {
-        for (int i = 0; i < ops.size(); i += BULK_SIZE) {
-            List<BulkOperation> batch = ops.subList(i, Math.min(i + BULK_SIZE, ops.size()));
+        for (int i = 0; i < ops.size(); i += bulkSize) {
+            List<BulkOperation> batch = ops.subList(i, Math.min(i + bulkSize, ops.size()));
             try {
                 BulkResponse resp = esClient.bulk(BulkRequest.of(b -> b.operations(batch)));
                 if (resp.errors()) {
                     for (var item : resp.items()) {
                         var err = item.error();
                         if (err != null) {
-                            if ("version_conflict_engine_exception".equals(Objects.toString(err.type(), ""))) {
-                                skippedCount.incrementAndGet();
-                            } else {
-                                CentralLogger.logWarn("ES bulk error [" + item.id() + "]: "
-                                        + Objects.toString(err.reason(), ""));
-                            }
+                            CentralLogger.logWarn("ES bulk error [" + item.id() + "]: "
+                                    + Objects.toString(err.reason(), ""));
                         } else {
                             indexedCount.incrementAndGet();
                         }
@@ -291,7 +301,7 @@ public class EDiscoveryIngestionService {
             });
             form.add("filename", filename != null ? filename : "");
 
-            PYTHON_SEMAPHORE.acquire();
+            pythonSemaphore.acquire();
             try {
                 Map<String, Object> resp = pythonClient.post()
                         .uri("/convert-attachment")
@@ -306,7 +316,7 @@ public class EDiscoveryIngestionService {
                 recordFailure(FailedConversion.attachmentConvert(mongoEmailId, messageId, hash, filename,
                         "sidecar returned no markdown"));
             } finally {
-                PYTHON_SEMAPHORE.release();
+                pythonSemaphore.release();
             }
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();

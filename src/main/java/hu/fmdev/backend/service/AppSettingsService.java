@@ -1,11 +1,11 @@
 package hu.fmdev.backend.service;
 
-import hu.fmdev.backend.config.KgIngestionProperties;
 import hu.fmdev.backend.config.RagConfig;
 import hu.fmdev.backend.domain.AppSettings;
 import hu.fmdev.backend.dto.AppSettingsDto;
 import hu.fmdev.backend.repository.AppSettingsRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -16,7 +16,12 @@ public class AppSettingsService {
 
     private final AppSettingsRepository repository;
     private final RagConfig ragConfig;
-    private final KgIngestionProperties kgProps;
+
+    @Value("${kg.ingestion.batch-size:100}")
+    private int kgDefaultBatchSize;
+
+    @Value("${kg.ingestion.max-concurrent-writes:4}")
+    private int kgDefaultMaxConcurrentWrites;
 
     public String getEffectiveChatModel() {
         return repository.findById("singleton")
@@ -43,14 +48,14 @@ public class AppSettingsService {
         return repository.findById("singleton")
                 .map(AppSettings::getKgBatchSize)
                 .filter(v -> v != null && v > 0)
-                .orElse(kgProps.getBatchSize());
+                .orElse(kgDefaultBatchSize);
     }
 
     public int getEffectiveKgMaxConcurrentWrites() {
         return repository.findById("singleton")
                 .map(AppSettings::getKgMaxConcurrentWrites)
                 .filter(v -> v != null && v > 0)
-                .orElse(kgProps.getMaxConcurrentWrites());
+                .orElse(kgDefaultMaxConcurrentWrites);
     }
 
     public AppSettingsDto getSettings() {

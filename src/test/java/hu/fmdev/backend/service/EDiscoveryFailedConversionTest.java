@@ -37,7 +37,8 @@ class EDiscoveryFailedConversionTest {
     void setUp() {
         service = new EDiscoveryIngestionService(
                 emailRepository, attachmentRepository, esClient, pythonClient,
-                textExtractionService, progressTracker, failedConversionRepository);
+                textExtractionService, progressTracker, failedConversionRepository,
+                200, 200, 24);
     }
 
     @Test
