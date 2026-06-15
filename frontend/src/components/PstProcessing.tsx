@@ -149,8 +149,8 @@ export default function PstProcessing() {
                 const dirs = directories.split('\n').map(d => d.trim()).filter(Boolean);
                 await api.savePstFinderSettings({ searchDirectories: dirs, excludedDirectories: [] });
                 setMessage('Keresési könyvtárak elmentve alapértékként.');
-              } catch (e: any) {
-                setMessage('Hiba a mentésnél: ' + e.message);
+              } catch (e) {
+                setMessage('Hiba a mentésnél: ' + (e instanceof Error ? e.message : String(e)));
               }
             }}
             className="px-4 py-2.5 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors"
