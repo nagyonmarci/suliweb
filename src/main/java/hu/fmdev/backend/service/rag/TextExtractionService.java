@@ -100,7 +100,6 @@ public class TextExtractionService {
         if (m.find()) {
             String stripped = text.substring(0, m.start()).stripTrailing();
             if (!stripped.isBlank()) {
-                CentralLogger.logInfo("Reply chain stripped: " + text.length() + " → " + stripped.length() + " chars");
                 return stripped;
             }
         }
