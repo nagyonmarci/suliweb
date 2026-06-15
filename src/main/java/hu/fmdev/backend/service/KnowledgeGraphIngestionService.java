@@ -404,21 +404,27 @@ public class KnowledgeGraphIngestionService {
     // -------------------------------------------------------------------------
 
     private void writeWithRetry(String mongoId, List<Map<String, String>> concepts) throws Exception {
-        int maxRetries = 3;
+        // Step 1: ensure concept nodes exist — may deadlock if two threads merge the same
+        // concept simultaneously, so we retry with jitter
+        int maxRetries = 5;
         for (int attempt = 0; attempt <= maxRetries; attempt++) {
             try {
-                emailNodeRepo.replaceMentions(mongoId, concepts);
-                return;
+                emailNodeRepo.ensureConcepts(concepts);
+                break;
             } catch (Exception e) {
                 String msg = e.getMessage();
                 boolean deadlock = msg != null && (msg.contains("DeadlockDetected") || msg.contains("can't acquire"));
                 if (deadlock && attempt < maxRetries) {
-                    Thread.sleep(50L * (1L << attempt));
+                    long jitter = ThreadLocalRandom.current().nextLong(50);
+                    Thread.sleep(50L * (1L << attempt) + jitter);
                 } else {
                     throw e;
                 }
             }
         }
+        // Step 2: link email to existing concepts — pure MATCH, no lock upgrade, no deadlock
+        List<String> names = concepts.stream().map(c -> c.get("name")).toList();
+        emailNodeRepo.linkEmailToConcepts(mongoId, names);
     }
 
     private String resolveMessageId(Email email) {
