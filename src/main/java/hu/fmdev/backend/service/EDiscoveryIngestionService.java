@@ -184,8 +184,7 @@ public class EDiscoveryIngestionService {
         progressTracker.increment();
 
         String id = esId(email);
-        String rawBody = textExtractionService.getEmailTextContent(email.getBody(), email.getHtmlContent());
-        String bodyDelta = stripReply(rawBody, email.getId(), id);
+        String bodyDelta = textExtractionService.getEmailTextContent(email.getBody(), email.getHtmlContent());
         emailRepository.updateStrippedBody(email.getId(), bodyDelta);
 
         // Attachment conversion: dedup by SHA-256 within this call
@@ -280,35 +279,6 @@ public class EDiscoveryIngestionService {
     // -------------------------------------------------------------------------
     // Python sidecar calls (soft-fail)
     // -------------------------------------------------------------------------
-
-    @SuppressWarnings("unchecked")
-    private String stripReply(String body, String mongoEmailId, String messageId) {
-        if (body == null || body.isBlank()) return "";
-        try {
-            PYTHON_SEMAPHORE.acquire();
-            try {
-                Map<String, Object> resp = pythonClient.post()
-                        .uri("/strip-reply")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .bodyValue(Map.of("body", body))
-                        .retrieve()
-                        .bodyToMono(Map.class)
-                        .block();
-                if (resp != null && resp.get("stripped") instanceof String s && !s.isBlank()) {
-                    return s;
-                }
-                recordFailure(FailedConversion.replyStrip(mongoEmailId, messageId, "sidecar returned empty result"));
-            } finally {
-                PYTHON_SEMAPHORE.release();
-            }
-        } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
-        } catch (Exception e) {
-            CentralLogger.logWarn("strip-reply call failed: " + e.getMessage());
-            recordFailure(FailedConversion.replyStrip(mongoEmailId, messageId, e.getMessage()));
-        }
-        return body;
-    }
 
     @SuppressWarnings("unchecked")
     private String convertAttachment(String localPath, String filename,
