@@ -1,11 +1,16 @@
 # Backend Dockerfile - Spring Boot
 FROM maven:3.9-eclipse-temurin-25 AS build
 WORKDIR /app
+# Copy pom.xml first — dependency layer is cached as long as pom.xml doesn't change
 COPY pom.xml .
+# Pre-fetch all dependencies (cached layer, skipped when pom.xml is unchanged)
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn dependency:go-offline -q
 COPY src ./src
 # Dummy secret so tests can run during Docker build (overridden at runtime)
 ENV JWT_SECRET=docker-build-dummy-not-for-production
-RUN mvn clean package && mkdir -p /app/attachments /app/logs
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn clean package -q && mkdir -p /app/attachments /app/logs
 COPY src/main/docker/HealthCheck.java /app/HealthCheck.java
 RUN javac /app/HealthCheck.java -d /app
 
