@@ -2,6 +2,7 @@ package hu.fmdev.backend.controller;
 
 import hu.fmdev.backend.domain.FailedConversion;
 import hu.fmdev.backend.service.AttachmentProcessingService;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -53,6 +54,6 @@ public class AttachmentProcessingController {
     @PostMapping("/retry-failed/{id}")
     public ResponseEntity<String> retryFailed(@PathVariable String id) {
         processingService.retryFailed(id);
-        return ResponseEntity.ok("Retry elindítva: " + id);
+        return ResponseEntity.ok().contentType(MediaType.TEXT_PLAIN).body("Retry elindítva: " + id);
     }
 }
