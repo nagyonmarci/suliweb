@@ -54,8 +54,7 @@ public class EDiscoverySearchService {
                     .query(query)
                     .fields("subject^3", "subject.ascii^2",
                             "bodyDelta^2", "bodyDelta.ascii",
-                            "senderName", "senderName.ascii",
-                            "attachments.markdownContent", "attachments.markdownContent.ascii")
+                            "senderName", "senderName.ascii")
                     .type(TextQueryType.BestFields)));
 
             Query finalQuery = filters.isEmpty()

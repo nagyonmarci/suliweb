@@ -1,7 +1,6 @@
 package hu.fmdev.backend.service;
 
 import hu.fmdev.backend.domain.FailedConversion;
-import hu.fmdev.backend.repository.AttachmentRepository;
 import hu.fmdev.backend.repository.EmailRepository;
 import hu.fmdev.backend.repository.FailedConversionRepository;
 import hu.fmdev.backend.service.rag.TextExtractionService;
@@ -12,7 +11,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.List;
 
@@ -24,9 +22,7 @@ import static org.mockito.Mockito.*;
 class EDiscoveryFailedConversionTest {
 
     @Mock EmailRepository emailRepository;
-    @Mock AttachmentRepository attachmentRepository;
     @Mock ElasticsearchClient esClient;
-    @Mock WebClient pythonClient;
     @Mock TextExtractionService textExtractionService;
     @Mock ProgressTracker progressTracker;
     @Mock FailedConversionRepository failedConversionRepository;
@@ -36,9 +32,9 @@ class EDiscoveryFailedConversionTest {
     @BeforeEach
     void setUp() {
         service = new EDiscoveryIngestionService(
-                emailRepository, attachmentRepository, esClient, pythonClient,
+                emailRepository, esClient,
                 textExtractionService, progressTracker, failedConversionRepository,
-                200, 200, 24);
+                200, 200);
     }
 
     @Test
