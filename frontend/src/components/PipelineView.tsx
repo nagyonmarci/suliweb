@@ -1,18 +1,21 @@
+import '../lib/i18n';
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { api, type StageProgress, type PipelineStatus } from '../lib/api';
 
-function formatEta(seconds: number | null | undefined): string {
+function formatEta(seconds: number | null | undefined, t: TFunction): string {
   if (seconds == null || seconds <= 0) return '';
-  if (seconds < 60) return '< 1 perc';
+  if (seconds < 60) return t('pipeline.lessThanMinute');
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  if (h > 0) return `${h}ó ${m}p`;
-  return `${m} perc`;
+  if (h > 0) return t('pipeline.hoursMinutes', { h, m });
+  return t('pipeline.minutes', { m });
 }
 
-function formatRate(rate: number | null | undefined): string {
+function formatRate(rate: number | null | undefined, t: TFunction): string {
   if (rate == null || rate <= 0) return '';
-  return `${rate.toFixed(1)}/perc`;
+  return t('pipeline.perMinute', { rate: rate.toFixed(1) });
 }
 
 type StageState = StageProgress['state'];
@@ -45,6 +48,7 @@ function progressBarColor(state: StageState): string {
 }
 
 function StageCard({ stage }: { stage: StageProgress }) {
+  const { t } = useTranslation();
   const pct = Math.min(100, Math.max(0, stage.percentage));
   return (
     <div className={`rounded-lg border p-4 ${stageBg(stage.state)}`}>
@@ -60,11 +64,11 @@ function StageCard({ stage }: { stage: StageProgress }) {
           stage.state === 'SKIPPED' ? 'bg-gray-100 text-gray-500' :
           'bg-gray-100 text-gray-400'
         }`}>
-          {stage.state === 'PENDING'  ? 'Várakozik' :
-           stage.state === 'RUNNING'  ? 'Fut' :
-           stage.state === 'DONE'     ? 'Kész' :
-           stage.state === 'FAILED'   ? 'Hiba' :
-           'Kihagyva'}
+          {stage.state === 'PENDING'  ? t('pipeline.statePending') :
+           stage.state === 'RUNNING'  ? t('pipeline.stateRunning') :
+           stage.state === 'DONE'     ? t('common.done') :
+           stage.state === 'FAILED'   ? t('common.failed') :
+           t('pipeline.stateSkipped')}
         </span>
       </div>
 
@@ -85,10 +89,10 @@ function StageCard({ stage }: { stage: StageProgress }) {
               <span>{stage.processed.toLocaleString()} / {stage.total.toLocaleString()}</span>
             )}
             {stage.ratePerMin != null && stage.ratePerMin > 0 && (
-              <span>{formatRate(stage.ratePerMin)}</span>
+              <span>{formatRate(stage.ratePerMin, t)}</span>
             )}
             {stage.etaSeconds != null && stage.etaSeconds > 0 && (
-              <span>ETA: {formatEta(stage.etaSeconds)}</span>
+              <span>ETA: {formatEta(stage.etaSeconds, t)}</span>
             )}
           </>
         )}
@@ -111,6 +115,7 @@ const DEFAULT_REQUEST = {
 };
 
 export default function PipelineView() {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<PipelineStatus | null>(null);
   const [config, setConfig] = useState(DEFAULT_REQUEST);
   const [showConfig, setShowConfig] = useState(true);
@@ -129,7 +134,7 @@ export default function PipelineView() {
       setStatus(s);
       if (s.running) setShowConfig(false);
     } catch {
-      // backend nem elérhető
+      // backend not available
     }
   }
 
@@ -139,7 +144,7 @@ export default function PipelineView() {
     const excl = config.excludedDirectories.split('\n').map(d => d.trim()).filter(Boolean);
 
     if (!config.skipPstDiscovery && dirs.length === 0) {
-      setMessage('Add meg legalább egy könyvtárat, vagy kapcsold ki a PST keresést!');
+      setMessage(t('pipeline.enterDirectoryOrSkip'));
       return;
     }
 
@@ -156,7 +161,7 @@ export default function PipelineView() {
       setShowConfig(false);
       setMessage('');
     } catch (e: unknown) {
-      setMessage('Hiba: ' + (e instanceof Error ? e.message : String(e)));
+      setMessage(t('common.error') + ': ' + (e instanceof Error ? e.message : String(e)));
     }
   }
 
@@ -172,9 +177,9 @@ export default function PipelineView() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-gray-800">Teljes Pipeline</h2>
+          <h2 className="text-xl font-semibold text-gray-800">{t('pipeline.fullPipeline')}</h2>
           <p className="text-sm text-gray-500 mt-0.5">
-            PST keresés → Beolvasás → Elasticsearch → Knowledge Graph
+            {t('pipeline.pipelineDescription')}
           </p>
         </div>
         {!isRunning && (
@@ -182,7 +187,7 @@ export default function PipelineView() {
             onClick={() => setShowConfig(v => !v)}
             className="text-sm text-blue-600 hover:underline"
           >
-            {showConfig ? 'Beállítások elrejtése' : 'Beállítások'}
+            {showConfig ? t('pipeline.hideSettings') : t('nav.settings')}
           </button>
         )}
       </div>
@@ -192,7 +197,7 @@ export default function PipelineView() {
         <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Könyvtárak (soronként egy)
+              {t('pipeline.directoriesLabel')}
             </label>
             <textarea
               className="w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono h-24 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -204,7 +209,7 @@ export default function PipelineView() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Kizárt könyvtárak (opcionális)
+              {t('pipeline.excludedDirectoriesLabel')}
             </label>
             <textarea
               className="w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono h-16 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -222,18 +227,18 @@ export default function PipelineView() {
                 onChange={e => setConfig(c => ({ ...c, saveAttachments: e.target.checked }))}
                 className="rounded"
               />
-              Csatolmányok mentése
+              {t('fileList.saveAttachments')}
             </label>
           </div>
 
           <div className="border-t border-gray-100 pt-3">
-            <p className="text-xs text-gray-500 mb-2 font-medium">Stage-ek kihagyása:</p>
+            <p className="text-xs text-gray-500 mb-2 font-medium">{t('pipeline.skipStages')}</p>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { key: 'skipPstDiscovery',  label: 'PST keresés kihagyása' },
-                { key: 'skipPstProcessing', label: 'PST beolvasás kihagyása' },
-                { key: 'skipEsIndexing',    label: 'ES indexelés kihagyása' },
-                { key: 'skipKgIngestion',   label: 'KG ingestion kihagyása' },
+                { key: 'skipPstDiscovery',  label: t('pipeline.skipPstDiscovery') },
+                { key: 'skipPstProcessing', label: t('pipeline.skipPstProcessing') },
+                { key: 'skipEsIndexing',    label: t('pipeline.skipEsIndexing') },
+                { key: 'skipKgIngestion',   label: t('pipeline.skipKgIngestion') },
               ].map(({ key, label }) => (
                 <label key={key} className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
                   <input
@@ -257,10 +262,10 @@ export default function PipelineView() {
             onClick={handleStart}
             className="px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
           >
-            Pipeline indítása
+            {t('pipeline.startPipeline')}
           </button>
           {allDone && stages.length > 0 && (
-            <span className="text-sm text-green-600 font-medium">Minden stage kész!</span>
+            <span className="text-sm text-green-600 font-medium">{t('pipeline.allStagesDone')}</span>
           )}
         </div>
       )}
@@ -280,7 +285,7 @@ export default function PipelineView() {
 
       {stages.length === 0 && !isRunning && (
         <div className="text-center py-12 text-gray-400 text-sm">
-          Konfiguráld a beállításokat és indítsd el a pipeline-t.
+          {t('pipeline.configureAndStart')}
         </div>
       )}
     </div>

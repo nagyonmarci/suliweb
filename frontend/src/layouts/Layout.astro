@@ -1,27 +1,23 @@
 ---
 import '../styles/global.css';
+import Sidebar from '../components/Sidebar.tsx';
+import hu from '../locales/hu.json';
 
 interface Props {
+  /** Translation key resolved against locales/*.json, e.g. "pages.dashboard" */
   title: string;
   activePage?: string;
 }
 const { title, activePage = '' } = Astro.props;
 
-const navItems = [
-  { href: '/', label: 'Dashboard', icon: 'home' },
-  { href: '/emails', label: 'E-mailek', icon: 'mail' },
-  { href: '/rag', label: 'RAG Keresés', icon: 'search' },
-  { href: '/files', label: 'PST fájlok', icon: 'folder' },
-  { href: '/attachments', label: 'Csatolmányok', icon: 'paperclip' },
-  { href: '/pipeline', label: 'Pipeline', icon: 'pipeline' },
-  { href: '/processing', label: 'Feldolgozás', icon: 'cpu' },
-  { href: '/synology', label: 'Synology', icon: 'server' },
-  { href: '/ediscovery', label: 'e-Discovery', icon: 'ediscovery' },
-  { href: '/knowledge-graph', label: 'Knowledge Graph', icon: 'kg' },
-  { href: '/logs', label: 'Logok', icon: 'logs' },
-  { href: '/users', label: 'Felhasználók', icon: 'users' },
-  { href: '/settings', label: 'Beállítások', icon: 'settings' },
-];
+function resolve(dict: Record<string, unknown>, key: string): string {
+  const value = key.split('.').reduce<unknown>(
+    (o, k) => (o && typeof o === 'object' ? (o as Record<string, unknown>)[k] : undefined),
+    dict
+  );
+  return typeof value === 'string' ? value : key;
+}
+const defaultTitle = resolve(hu, title);
 ---
 
 <!doctype html>
@@ -29,7 +25,7 @@ const navItems = [
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{title} - SuliWeb</title>
+    <title>{defaultTitle} - SuliWeb</title>
   </head>
   <body class="bg-gray-50 text-gray-900 min-h-screen">
     <!-- Mobile header -->
@@ -37,7 +33,7 @@ const navItems = [
       <div>
         <h1 class="text-lg font-bold tracking-tight">SuliWeb</h1>
       </div>
-      <button id="menu-toggle" class="p-2 rounded-lg hover:bg-gray-800 transition-colors" aria-label="Menü">
+      <button id="menu-toggle" class="p-2 rounded-lg hover:bg-gray-800 transition-colors" aria-label="Menu">
         <svg id="menu-icon-open" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
         </svg>
@@ -51,70 +47,12 @@ const navItems = [
     <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-40 hidden lg:hidden"></div>
 
     <div class="flex">
-      <!-- Sidebar -->
-      <aside id="sidebar" class="fixed lg:sticky top-0 left-0 z-50 w-64 bg-gray-900 text-white h-screen flex flex-col -translate-x-full lg:translate-x-0 transition-transform duration-200 ease-in-out">
-        <div class="p-6 border-b border-gray-700 hidden lg:block">
-          <h1 class="text-xl font-bold tracking-tight">SuliWeb</h1>
-          <p class="text-xs text-gray-400 mt-1">PST Processor</p>
-        </div>
-        <div class="p-6 border-b border-gray-700 lg:hidden">
-          <p class="text-xs text-gray-400">PST Processor</p>
-        </div>
-        <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
-          {navItems.map(item => (
-            <a
-              href={item.href}
-              class:list={[
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                activePage === item.href
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-              ]}
-            >
-              <span class="w-5 h-5 flex items-center justify-center text-xs">
-                {item.icon === 'home' && '⌂'}
-                {item.icon === 'mail' && '✉'}
-                {item.icon === 'search' && '🔍'}
-                {item.icon === 'folder' && '📁'}
-                {item.icon === 'paperclip' && '📎'}
-                {item.icon === 'pipeline' && '▶'}
-                {item.icon === 'cpu' && '⚙'}
-                {item.icon === 'server' && '🖥'}
-                {item.icon === 'ediscovery' && '⚖'}
-                {item.icon === 'kg' && '🕸'}
-                {item.icon === 'logs' && '📋'}
-                {item.icon === 'users' && '👥'}
-                {item.icon === 'settings' && '⚙'}
-              </span>
-              {item.label}
-            </a>
-          ))}
-        </nav>
-
-        <!-- User info at bottom of sidebar -->
-        <div class="p-4 border-t border-gray-700">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2 min-w-0">
-              <span class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-sm font-medium shrink-0" id="user-avatar">?</span>
-              <span class="text-sm text-gray-300 truncate" id="user-display-name">...</span>
-            </div>
-            <button
-              id="logout-btn"
-              class="text-gray-400 hover:text-white transition-colors p-1 shrink-0"
-              title="Kijelentkezés"
-            >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </aside>
+      <Sidebar activePage={activePage} client:load />
 
       <!-- Main content -->
       <main class="flex-1 min-w-0">
         <header class="bg-white border-b border-gray-200 px-4 sm:px-8 py-4">
-          <h2 class="text-lg font-semibold text-gray-800">{title}</h2>
+          <h2 id="page-title" data-i18n-key={title} class="text-lg font-semibold text-gray-800">{defaultTitle}</h2>
         </header>
         <div class="p-4 sm:p-8">
           <slot />
@@ -123,36 +61,25 @@ const navItems = [
     </div>
 
     <script>
+      import i18n from '../lib/i18n';
+
       // Auth check
       if (!localStorage.getItem('accessToken')) {
         window.location.href = '/login';
       }
 
-      // Load user info
-      (async () => {
-        try {
-          const token = localStorage.getItem('accessToken');
-          if (!token) return;
-
-          const res = await fetch('/api/auth/me', {
-            headers: { 'Authorization': `Bearer ${token}` },
-          });
-
-          if (res.ok) {
-            const user = await res.json();
-            const avatar = document.getElementById('user-avatar');
-            const displayName = document.getElementById('user-display-name');
-            if (avatar && user.username) {
-              avatar.textContent = user.username.charAt(0).toUpperCase();
-            }
-            if (displayName && user.username) {
-              displayName.textContent = user.username;
-            }
-          }
-        } catch {
-          // Silently fail - user info is non-critical
-        }
-      })();
+      // Translated page title (h2 heading + browser tab title)
+      function applyPageTitle() {
+        const el = document.getElementById('page-title');
+        if (!el) return;
+        const key = el.dataset.i18nKey;
+        if (!key) return;
+        const text = i18n.t(key);
+        el.textContent = text;
+        document.title = text + ' - SuliWeb';
+      }
+      applyPageTitle();
+      i18n.on('languageChanged', applyPageTitle);
 
       // Sidebar toggle
       const toggle = document.getElementById('menu-toggle');
@@ -184,13 +111,6 @@ const navItems = [
       });
 
       overlay?.addEventListener('click', closeMenu);
-
-      // Logout
-      document.getElementById('logout-btn')?.addEventListener('click', () => {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        window.location.href = '/login';
-      });
 
       // ---- Antigravity Easter Egg ----
       (() => {
@@ -228,7 +148,9 @@ const navItems = [
             boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
             transition: 'opacity 0.4s',
           });
-          banner.textContent = '🌌 Antigravitáció aktív — nyomj ESC-et a visszaállításhoz';
+          banner.textContent = localStorage.getItem('lang') === 'en'
+            ? '🌌 Antigravity active — press ESC to reset'
+            : '🌌 Antigravitáció aktív — nyomj ESC-et a visszaállításhoz';
           document.body.appendChild(banner);
 
           // Collect elements to animate

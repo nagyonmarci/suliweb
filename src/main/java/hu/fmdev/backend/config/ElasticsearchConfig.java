@@ -61,11 +61,13 @@ public class ElasticsearchConfig {
                             .analysis(a -> a
                                     .filter("hungarian_stop", f -> f
                                             .definition(fd -> fd.stop(st -> st.stopwords("_hungarian_"))))
+                                    .filter("hungarian_stemmer", f -> f
+                                            .definition(fd -> fd.stemmer(st -> st.language("hungarian"))))
                                     // Stemmelt analyzer ékezetes szavakra (asciifolding UTÁN stemmer — normalizált input)
                                     .analyzer("hungarian_stemmed", an -> an
                                             .custom(cu -> cu
                                                     .tokenizer("standard")
-                                                    .filter("lowercase", "hungarian_stop", "hungarian")))
+                                                    .filter("lowercase", "hungarian_stop", "hungarian_stemmer")))
                                     // Asciifolded analyzer ékezet nélküli kereséshez (stemmelés nélkül)
                                     .analyzer("hungarian_ascii", an -> an
                                             .custom(cu -> cu
@@ -75,6 +77,44 @@ public class ElasticsearchConfig {
                             .properties(buildMappings()))));
 
             CentralLogger.logInfo("Elasticsearch 'email_archive' index létrehozva");
+        } catch (Exception e) {
+            CentralLogger.logError("Elasticsearch index létrehozása sikertelen", e);
+        }
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void ensureAttachmentArchiveIndex() {
+        try {
+            ElasticsearchClient client = elasticsearchClient();
+            try {
+                client.indices().get(g -> g.index("attachment_archive"));
+                return; // index exists
+            } catch (ElasticsearchException e) {
+                if (e.status() != 404) throw e;
+            }
+
+            client.indices().create(CreateIndexRequest.of(ci -> ci
+                    .index("attachment_archive")
+                    .settings(s -> s
+                            .numberOfShards("1")
+                            .numberOfReplicas("0")
+                            .analysis(a -> a
+                                    .filter("hungarian_stop", f -> f
+                                            .definition(fd -> fd.stop(st -> st.stopwords("_hungarian_"))))
+                                    .filter("hungarian_stemmer", f -> f
+                                            .definition(fd -> fd.stemmer(st -> st.language("hungarian"))))
+                                    .analyzer("hungarian_stemmed", an -> an
+                                            .custom(cu -> cu
+                                                    .tokenizer("standard")
+                                                    .filter("lowercase", "hungarian_stop", "hungarian_stemmer")))
+                                    .analyzer("hungarian_ascii", an -> an
+                                            .custom(cu -> cu
+                                                    .tokenizer("standard")
+                                                    .filter("lowercase", "asciifolding", "hungarian_stop")))))
+                    .mappings(m -> m
+                            .properties(buildAttachmentMappings()))));
+
+            CentralLogger.logInfo("Elasticsearch 'attachment_archive' index létrehozva");
         } catch (Exception e) {
             CentralLogger.logError("Elasticsearch index létrehozása sikertelen", e);
         }
@@ -92,12 +132,18 @@ public class ElasticsearchConfig {
                 Map.entry("date",         Property.of(p -> p.date(d -> d))),
                 Map.entry("pstFileName",  Property.of(p -> p.keyword(k -> k))),
                 Map.entry("pstOwner",     Property.of(p -> p.keyword(k -> k))),
-                Map.entry("threadId",     Property.of(p -> p.keyword(k -> k))),
-                Map.entry("attachments",  Property.of(p -> p.nested(n -> n
-                        .properties(Map.of(
-                                "filename",        Property.of(fp -> fp.keyword(k -> k)),
-                                "sha256",          Property.of(fp -> fp.keyword(k -> k)),
-                                "markdownContent", hungarianMultiField())))))
+                Map.entry("threadId",     Property.of(p -> p.keyword(k -> k)))
+        );
+    }
+
+    private Map<String, Property> buildAttachmentMappings() {
+        return Map.ofEntries(
+                Map.entry("hash",            Property.of(p -> p.keyword(k -> k))),
+                Map.entry("filename",        Property.of(p -> p.keyword(k -> k))),
+                Map.entry("contentType",     Property.of(p -> p.keyword(k -> k))),
+                Map.entry("pstFileName",     Property.of(p -> p.keyword(k -> k))),
+                Map.entry("emailIds",        Property.of(p -> p.keyword(k -> k))),
+                Map.entry("markdownContent", hungarianMultiField())
         );
     }
 

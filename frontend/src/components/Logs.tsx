@@ -1,4 +1,6 @@
+import '../lib/i18n';
 import { useState, useEffect, useRef, Fragment } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api, type LogEntry } from '../lib/api';
 
 type LevelFilter = 'ALL' | 'ERROR' | 'WARN' | 'INFO' | 'DEBUG';
@@ -19,8 +21,8 @@ const ROW_BG: Record<string, string> = {
 
 const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-function fmt(ts: string) {
-  return new Date(ts).toLocaleString('hu-HU', { hour12: false });
+function fmt(ts: string, locale: string) {
+  return new Date(ts).toLocaleString(locale, { hour12: false });
 }
 
 function toUtcIso(localDt: string): string | undefined {
@@ -29,6 +31,8 @@ function toUtcIso(localDt: string): string | undefined {
 }
 
 export default function Logs() {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language === 'en' ? 'en-US' : 'hu-HU';
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [filter, setFilter] = useState<LevelFilter>('ALL');
   const [fromVal, setFromVal] = useState('');
@@ -100,14 +104,14 @@ export default function Logs() {
           }`}
         >
           <span className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
-          {autoRefresh ? 'Élő frissítés' : 'Szünetel'}
+          {autoRefresh ? t('logs.liveRefresh') : t('logs.paused')}
         </button>
       </div>
 
       {/* Toolbar row 2: date range + sort */}
       <div className="flex items-center gap-3 flex-wrap">
         <label className="flex items-center gap-2 text-sm text-gray-600">
-          Tól:
+          {t('emailBrowser.from')}:
           <input
             type="datetime-local"
             value={fromVal}
@@ -116,7 +120,7 @@ export default function Logs() {
           />
         </label>
         <label className="flex items-center gap-2 text-sm text-gray-600">
-          Ig:
+          {t('emailBrowser.to')}:
           <input
             type="datetime-local"
             value={toVal}
@@ -128,30 +132,30 @@ export default function Logs() {
           <button
             onClick={() => { setFromVal(''); setToVal(''); }}
             className="text-xs text-gray-400 hover:text-gray-600 underline"
-          >törlés</button>
+          >{t('logs.clear')}</button>
         )}
         <button
           onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
           className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
         >
-          Időpont {sortDir === 'desc' ? '↓' : '↑'}
+          {t('logs.timestamp')} {sortDir === 'desc' ? '↓' : '↑'}
         </button>
       </div>
 
       {/* Log table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {loading && logs.length === 0 ? (
-          <div className="p-8 text-center text-gray-400 text-sm">Betöltés...</div>
+          <div className="p-8 text-center text-gray-400 text-sm">{t('common.loading')}</div>
         ) : logs.length === 0 ? (
-          <div className="p-8 text-center text-gray-400 text-sm">Nincs log bejegyzés.</div>
+          <div className="p-8 text-center text-gray-400 text-sm">{t('logs.noEntries')}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
-                  <th className="text-left px-4 py-2 font-medium whitespace-nowrap">Időpont</th>
-                  <th className="text-left px-4 py-2 font-medium">Szint</th>
-                  <th className="text-left px-4 py-2 font-medium w-full">Üzenet</th>
+                  <th className="text-left px-4 py-2 font-medium whitespace-nowrap">{t('logs.timestamp')}</th>
+                  <th className="text-left px-4 py-2 font-medium">{t('logs.level')}</th>
+                  <th className="text-left px-4 py-2 font-medium w-full">{t('logs.message')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -162,7 +166,7 @@ export default function Logs() {
                       onClick={() => log.stackTrace && toggleExpand(log.id)}
                     >
                       <td className="px-4 py-2 text-gray-400 whitespace-nowrap font-mono text-xs">
-                        {fmt(log.timestamp)}
+                        {fmt(log.timestamp, locale)}
                       </td>
                       <td className="px-4 py-2">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${BADGE[log.level] ?? 'bg-gray-100 text-gray-600'}`}>
@@ -195,7 +199,7 @@ export default function Logs() {
         )}
       </div>
       <p className="text-xs text-gray-400 text-right">
-        {logs.length} bejegyzés · helyi idő: {TZ}
+        {t('logs.entryCount', { count: logs.length, tz: TZ })}
       </p>
     </div>
   );

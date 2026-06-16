@@ -1,187 +1,199 @@
 # SuliWeb - PST Email Processor
 
-Spring Boot 4.0 alkalmazás Microsoft Outlook PST fájlok feldolgozásához. PST fájlokat keres, emaileket és csatolmányokat kinyeri belőlük, MongoDB-ben tárolja a metaadatokat. Elasticsearch 8 alapú e-Discovery pipeline-nal, Neo4j 5.26 Knowledge Graph-fal, Python FastAPI sidecar-ral, JWT-alapú autentikációval és Astro 5 + React 19 frontend dashboarddal rendelkezik.
+Spring Boot 4.0 application for processing Microsoft Outlook PST files. Finds PST files, extracts emails and attachments, and stores the metadata in MongoDB. Includes an Elasticsearch 9 e-Discovery pipeline, a separate attachment-processing pipeline, a Neo4j 5.26 Knowledge Graph, a Python FastAPI sidecar, JWT-based authentication, and an Astro 5 + React 19 frontend dashboard.
 
-## Funkciók
+## Features
 
-- **PST fájlkeresés** - Helyi könyvtárakban vagy Synology NAS-on keres PST fájlokat
-- **Email kinyerés** - PST fájlokból emaileket és csatolmányokat nyer ki párhuzamos feldolgozással (Virtual Threads)
-- **PST fájl státuszok** - `New`, `Processed`, `Modified`, `Invalid`, `Missing`
-- **PST duplikátum-szűrés** - SHA-256 hash alapú deduplikáció
-- **Csatolmány deduplikáció** - Hash alapú fájltárolás; azonos tartalmú csatolmány csak egyszer foglal helyet lemezen
-- **Szüneteltetés/folytatás** - Hosszú feldolgozási műveletek vezérlése
-- **e-Discovery pipeline** - Elasticsearch 8 teljes szöveges keresés; reply chain levágás (Python sidecar); csatolmány → Markdown konverzió; Message-ID alapú dedup; magyar szövegelemzés (hungarian_stemmed + hungarian_ascii analyzer)
-- **Dead-letter queue** - Sikertelen reply-strip és csatolmány-konverzió MongoDB-ben naplózva (`failed_conversions`); egyedi és tömeges újrafeldolgozás REST API-n keresztül
-- **Knowledge Graph** - Neo4j 5.26 kommunikációs gráf (Person, Thread, Concept csúcsok); NER entitáskinyerés Ollama-val; 2-fázisú pipeline (virtuális szál NER + fix pool Neo4j írás); szál bejárás; fogalom közelség alapú keresés
-- **GraphRAG chat** - Entitáskinyerés → Neo4j kontextus → Ollama LLM válasz (streaming + nem-streaming)
-- **Synology integráció** - NAS Universal Search API-n keresztül keres PST fájlokat párhuzamosan
-- **PDF űrlap kitöltés** - iText alapú PDF form filler
-- **JWT autentikáció** - Spring Security 7, access token (8 óra) + refresh token (7 nap), BCrypt
-- **Modern dashboard** - Astro 5 + React 19 + Tailwind CSS 4 reszponzív frontend
+- **PST file discovery** - Searches local directories or a Synology NAS for PST files
+- **Email extraction** - Extracts emails and attachments from PST files with parallel processing (Virtual Threads)
+- **PST file statuses** - `New`, `Processed`, `Modified`, `Invalid`, `Missing`
+- **PST duplicate filtering** - SHA-256 hash-based deduplication
+- **Attachment deduplication** - Hash-based file storage; identical attachment content is stored on disk only once
+- **Pause/resume** - Control over long-running processing operations
+- **e-Discovery pipeline** - Elasticsearch 9 full-text search of email bodies; reply-chain stripping done in Java; Message-ID based dedup; Hungarian text analysis (`hungarian_stemmed` + `hungarian_ascii` analyzers)
+- **Attachment processing pipeline** - Separate, on-demand pipeline that converts attachments to Markdown via the Python sidecar and indexes them into their own Elasticsearch index (`attachment_archive`), deduplicated by content hash
+- **Dead-letter queue** - Failed attachment conversions are logged in MongoDB (`failed_conversions`); both single-item and bulk retry are available via the REST API
+- **Knowledge Graph** - Neo4j 5.26 communication graph (Person, Thread, Concept nodes); NER entity extraction via Ollama; two-phase pipeline (virtual-thread NER + fixed-pool Neo4j writes); thread traversal; concept-proximity search
+- **GraphRAG chat** - Entity extraction → Neo4j context → Ollama LLM response (streaming + non-streaming)
+- **Synology integration** - Searches for PST files on a NAS in parallel via the Universal Search API
+- **PDF form filling** - iText-based PDF form filler
+- **JWT authentication** - Spring Security 7, access token (8h) + refresh token (7d), BCrypt
+- **Modern dashboard** - Astro 5 + React 19 + Tailwind CSS 4 responsive frontend
 
-## Architektúra
+## Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │                       Frontend (Astro 5)                          │
-│   Dashboard │ Emails │ e-Discovery │ Knowledge Graph │ RAG Chat  │
-│        :80 (nginx) → proxy → :8080  |  :4321 (dev)               │
+│ Dashboard │ Emails │ e-Discovery │ Attachment processing │ KG │RAG │
+│        :80 (nginx) → proxy → :8080  |  :4321 (dev)                │
 ├──────────────────────────────────────────────────────────────────┤
 │                  Spring Boot Backend (:8080)                       │
-│  PST feldolgozás → MongoDB (metadata, auth, progress)            │
-│  e-Discovery:  Elasticsearch 8  (full-text, dedup, highlight)    │
-│  Knowledge Graph: Neo4j 5.26 (persons, threads, concepts, NER)   │
-│  GraphRAG: EntityExtraction → Neo4j kontextus → Ollama LLM chat  │
+│  PST processing → MongoDB (metadata, auth, progress)               │
+│  e-Discovery:  Elasticsearch 9 (full-text, dedup, highlight)      │
+│  Attachment processing: Elasticsearch 9 (separate index)           │
+│  Knowledge Graph: Neo4j 5.26 (persons, threads, concepts, NER)    │
+│  GraphRAG: EntityExtraction → Neo4j context → Ollama LLM chat     │
 ├──────────────────────────────────────────────────────────────────┤
-│  MongoDB (:27017)     Elasticsearch (:9200)     Neo4j (:7474)    │
-│  Python sidecar (:8001, strip-reply + markitdown)                │
-│  Ollama (:11434, Mac host – NER + GraphRAG chat)                 │
+│  MongoDB (:27017)     Elasticsearch (:9200)     Neo4j (:7474)     │
+│  Python sidecar (:8001, attachment → markdown conversion)          │
+│  Ollama (:11434, runs on host – NER + GraphRAG chat)               │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-## Feldolgozási folyamat
+## Processing flow
 
 ```
-PST fájl(ok)
+PST file(s)
     │
-    ▼ POST /pst/processFromDb  (/feldolgozás oldal)
+    ▼ POST /pst/processFromDb  (Processing page)
 ┌─────────────────────────────────────────┐
-│ 1. PST BEOLVASÁS                        │
-│  • java-libpst, virtuális szálak        │
+│ 1. PST READING                          │
+│  • java-libpst, virtual threads         │
 │  • Dedup: SHA-256(pstFileName+msgId)    │
-│  • Csatolmány dedup: hash-alapú tárolás │
+│  • Attachment dedup: hash-based storage │
+│  • Reply-chain stripping done in Java   │
 └──────────────┬──────────────────────────┘
                │ MongoDB: emails + attachments
                ▼
 ┌─────────────────────────────────────────┐
-│ 2. E-DISCOVERY INDEXELÉS                │
+│ 2. E-DISCOVERY INDEXING                 │
 │  Trigger: POST /api/ediscovery/ingest   │
 │  Auto-trigger: MongoDB Change Stream    │
 │  (insert / update / delete → auto-sync) │
 │                                         │
-│  Emailenként (50/batch, max 8 párhuzamos│
-│  Python hívás):                         │
-│  a) Reply chain levágás (email-reply-   │
-│     parser via Python sidecar)          │
-│  b) Csatolmány → Markdown (markitdown   │
-│     via Python sidecar; SHA-256 dedup)  │
-│                                         │
-│  Idempotens bulk create → ES-be;        │
-│  409 conflict = már indexelve, skip     │
+│  Indexes email subject/body/metadata    │
+│  into Elasticsearch (no attachments)    │
 └──────────────┬──────────────────────────┘
                │ Elasticsearch: email_archive index
                ▼
+       Full-text search (/api/ediscovery/search)
+
 ┌─────────────────────────────────────────┐
-│ 3. KNOWLEDGE GRAPH ÉPÍTÉS               │
+│ 2b. ATTACHMENT PROCESSING (separate,    │
+│     on-demand pipeline)                 │
+│  Trigger: POST /api/attachments/        │
+│           processing/start              │
+│                                         │
+│  Groups attachments by content hash,    │
+│  converts each unique file to Markdown  │
+│  via the Python sidecar (markitdown),   │
+│  skips files already indexed            │
+└──────────────┬──────────────────────────┘
+               │ Elasticsearch: attachment_archive index
+               ▼
+┌─────────────────────────────────────────┐
+│ 3. KNOWLEDGE GRAPH BUILD                │
 │  Trigger: POST /api/kg/ingest           │
 │                                         │
-│  2-fázisú pipeline:                     │
-│  Fázis 1 — NER (virtuális szálak):     │
-│  • Ollama entitáskinyerés emailenként   │
+│  Two-phase pipeline:                    │
+│  Phase 1 — NER (virtual threads):      │
+│  • Ollama entity extraction per email   │
 │    (PERSON/ORG/TOPIC/LOCATION)          │
-│  Fázis 2 — Neo4j írás (fix pool,       │
+│  Phase 2 — Neo4j write (fixed pool,    │
 │    max-concurrent-writes=4):            │
-│  • Person csúcsok — email cím merge    │
-│    (sender + recipients + CC)           │
-│  • Thread csúcs — conversationId merge  │
-│  • Email csúcs + összes összekötés      │
-│  • Concept csúcsok — NER entitások      │
-│  • Attachment csúcsok (SHA-256)         │
+│  • Person nodes — merged by email      │
+│    address (sender + recipients + CC)   │
+│  • Thread node — merged by             │
+│    conversationId                       │
+│  • Email node + all relationships       │
+│  • Concept nodes — NER entities         │
+│  • Attachment nodes (SHA-256)           │
 │                                         │
-│  Élek: SENT · TO · CC · BELONGS_TO ·   │
+│  Edges: SENT · TO · CC · BELONGS_TO ·  │
 │  REPLY_TO · MENTIONS · HAS_ATTACHMENT  │
-│  COMMUNICATES_WITH (számláló + dátum)  │
+│  COMMUNICATES_WITH (count + date)       │
 └──────────────┬──────────────────────────┘
-               │ Neo4j: Person/Email/Thread/Concept gráf
+               │ Neo4j: Person/Email/Thread/Concept graph
                ▼
        GraphRAG chat (/api/kg/chat/stream)
-       Entitáskinyerés → Neo4j kontextus → Ollama LLM
+       Entity extraction → Neo4j context → Ollama LLM
 ```
 
-**Fontos tudnivalók:**
-- Az e-Discovery indexelés **automatikusan** lefut, ha MongoDB-ben email változik (Change Stream). Manuális újraindexelés: `POST /api/ediscovery/ingest/{mongoEmailId}`.
-- A Knowledge Graph építés **nem automatikus** — PST feldolgozás után kézzel kell indítani.
-- Mindhárom lépés idempotens: újrafuttatás nem duplikál adatot.
-- Ha Ollama nem elérhető, a KG ingestion NER nélkül, Concept csúcsok nélkül fut le.
-- Sikertelen reply-strip / csatolmány-konverzió nem szakítja meg a feldolgozást — `failed_conversions` gyűjteménybe kerül, és `POST /api/ediscovery/retry-failed` -del újrafuttatható.
+**Important notes:**
+- e-Discovery indexing runs **automatically** when an email changes in MongoDB (Change Stream). Manual re-index: `POST /api/ediscovery/ingest/{mongoEmailId}`.
+- Attachment processing and Knowledge Graph building are **not automatic** — both must be triggered manually after PST processing.
+- All pipelines are idempotent: re-running does not duplicate data.
+- If Ollama is unavailable, KG ingestion runs without NER and without Concept nodes.
+- A failed attachment conversion does not abort the pipeline — it is recorded in the `failed_conversions` collection and can be retried via `POST /api/attachments/processing/retry-failed`.
 
-## Előfeltételek
+## Prerequisites
 
-- Java 25 (Eclipse Temurin JDK ajánlott)
+- Java 25 (Eclipse Temurin JDK recommended)
 - Maven 3.9+
-- MongoDB 8 (vagy Docker)
-- Node.js 22+ (frontend fejlesztéshez)
-- Docker + Docker Compose (konténerizált futtatáshoz)
-- Ollama – a gazdagépen fut (`localhost:11434`), **nem Docker-ben**
+- MongoDB 8 (or Docker)
+- Node.js 22+ (for frontend development)
+- Docker + Docker Compose (for containerized runs)
+- Ollama – runs on the host (`localhost:11434`), **not in Docker**
 
-## Gyors indítás
+## Quick start
 
-### Docker-rel (ajánlott)
+### With Docker (recommended)
 
 ```bash
-# Teljes stack indítása
+# Start the full stack
 docker compose up -d
 
-# Build-del újraindítás
+# Rebuild and restart
 docker compose up -d --build
 
-# Logok megtekintése
+# View logs
 docker compose logs -f
 
-# Leállítás
+# Stop
 docker compose down
 ```
 
-Az alkalmazás elérhető: `http://localhost` (frontend + API proxy), `http://localhost:8080` (backend direkt)
+The app is available at `http://localhost` (frontend + API proxy) and `http://localhost:8080` (backend directly).
 
-**Docker szolgáltatások:**
+**Docker services:**
 
-| Szolgáltatás | Port | Leírás |
+| Service | Port | Description |
 |---|---|---|
-| `suliweb-frontend` | 80 | Astro statikus fájlok + nginx reverse proxy |
+| `suliweb-frontend` | 80 | Astro static files + nginx reverse proxy |
 | `suliweb-backend` | 8080 | Spring Boot API |
 | `suliweb-mongo` | 27017 | MongoDB 8 (email metadata, auth, progress) |
-| `suliweb-elasticsearch` | 9200 | Elasticsearch 8.17.0 (e-Discovery full-text index) |
+| `suliweb-elasticsearch` | 9200 | Elasticsearch 9.4.2 (e-Discovery + attachment full-text indexes) |
 | `suliweb-neo4j` | 7474/7687 | Neo4j 5.26 Community + APOC (Knowledge Graph) |
-| `python-processor` | 8001 | FastAPI sidecar (reply-strip + markitdown konverzió) |
+| `python-processor` | 8001 | FastAPI sidecar (attachment → markdown conversion) |
 
 **Volumes:**
-- `mongodb_data` - MongoDB adatok
-- `mongodb_configdb` - MongoDB konfigurációs adatok
-- `attachments` - Kinyert email csatolmányok (`hashes/` almappa)
-- `pst_source` - PST forrásfájlok (read-only mount)
-- `elasticsearch_data` - Elasticsearch index
-- `neo4j_data` - Neo4j gráfadatok
-- `neo4j_logs` - Neo4j logok
-- `logs` - Backend alkalmazás logok
+- `mongodb_data` - MongoDB data
+- `mongodb_configdb` - MongoDB config data
+- `attachments` - Extracted email attachments (`hashes/` subfolder)
+- `pst_source` - PST source files (read-only mount)
+- `elasticsearch_data` - Elasticsearch indices
+- `neo4j_data` - Neo4j graph data
+- `neo4j_logs` - Neo4j logs
+- `logs` - Backend application logs
 
-**Bind mountok (helyi NAS / hálózati meghajtók):**
+**Bind mounts (local NAS / network drives):**
 
 ```yaml
 - type: bind
-  source: ${DATA_ROOT:-/Volumes}   # .env-ben állítható be, pl. DATA_ROOT=/mnt/nas
-  target: ${DATA_ROOT:-/Volumes}   # a keresési könyvtárak admin UI-on konfigurálhatók
+  source: ${DATA_ROOT:-/Volumes}   # configurable via .env, e.g. DATA_ROOT=/mnt/nas
+  target: ${DATA_ROOT:-/Volumes}   # search directories are configurable in the admin UI
   read_only: true
 ```
 
-### Lokálisan
+### Locally
 
 ```bash
-# MongoDB + Elasticsearch + Neo4j indítása (ha nincs Docker)
+# Start MongoDB + Elasticsearch + Neo4j (if not using Docker)
 mongod
-# ES és Neo4j lokálisan is futtatható, vagy docker compose -f docker-compose.yml up suliweb-elasticsearch suliweb-neo4j python-processor
+# ES and Neo4j can also run locally, or: docker compose up suliweb-elasticsearch suliweb-neo4j python-processor
 
-# Backend build és indítás
+# Build and run the backend
 mvn clean install
 mvn spring-boot:run
 
-# Frontend indítása (külön terminálban)
+# Run the frontend (separate terminal)
 cd frontend
 npm install
 npm run dev
 ```
 
-## Projekt struktúra
+## Project structure
 
 ```
 suliweb/
@@ -189,20 +201,24 @@ suliweb/
 │   ├── BackendApplication.java
 │   ├── config/
 │   │   ├── SecurityConfig.java          # Fail-secure allowlist + JWT filter chain
-│   │   ├── ElasticsearchConfig.java     # ES kliens + email_archive index + magyar analyzerek
-│   │   ├── KgIngestionProperties.java   # @ConfigurationProperties: kg.ingestion.*
-│   │   ├── RagConfig.java               # Ollama WebClient konfiguráció
+│   │   ├── ElasticsearchConfig.java     # ES client + email_archive/attachment_archive indices + Hungarian analyzers
+│   │   ├── RagConfig.java               # Ollama WebClient configuration
+│   │   ├── JwtConfig.java
 │   │   ├── ModelMapperConfig.java
 │   │   └── SynologyConfig.java
 │   ├── controller/
 │   │   ├── AuthController.java
 │   │   ├── EmailController.java
-│   │   ├── EDiscoveryController.java    # /api/ediscovery – ingest + keresés
-│   │   ├── KnowledgeGraphController.java # /api/kg – gráf + chat
-│   │   ├── RagController.java           # /api/rag – GraphRAG chat (backward compat)
-│   │   ├── LogController.java           # /api/logs – alkalmazás logok
-│   │   ├── UserController.java          # /api/users – felhasználókezelés
+│   │   ├── EDiscoveryController.java          # /api/ediscovery – ingest + search
+│   │   ├── AttachmentController.java          # /api/attachments – browse, search, download, dedupe
+│   │   ├── AttachmentProcessingController.java # /api/attachments/processing – markdown conversion + ES indexing
+│   │   ├── KnowledgeGraphController.java      # /api/kg – graph + chat
+│   │   ├── AppSettingsController.java         # /api/settings – runtime-tunable ingestion settings
+│   │   ├── PipelineController.java            # /api/pipeline – orchestrated multi-stage run
+│   │   ├── LogController.java                 # /api/logs – application logs
+│   │   ├── UserController.java                # /api/users – user management
 │   │   ├── PstFinderController.java
+│   │   ├── PstFinderSettingsController.java
 │   │   ├── PstProcessorController.java
 │   │   ├── SynologyPstFinderController.java
 │   │   ├── SynologySettingsController.java
@@ -212,25 +228,37 @@ suliweb/
 │   │   ├── FileController.java
 │   │   └── PdfFormFillerController.java
 │   ├── service/
-│   │   ├── EDiscoveryIngestionService.java  # ES bulk indexelés, reply-strip, att konverzió
-│   │   ├── EDiscoverySearchService.java     # ES bool query, highlight, szűrők
-│   │   ├── KnowledgeGraphIngestionService.java # Neo4j gráf építés (Virtual Threads)
-│   │   ├── GraphSearchService.java          # Neo4j lekérdezések (hálózat, szál, fogalom)
+│   │   ├── EDiscoveryIngestionService.java     # Bulk-indexes emails into email_archive
+│   │   ├── EDiscoverySearchService.java        # ES bool query, highlight, filters
+│   │   ├── EDiscoveryChangeStreamListener.java # Auto re-index on MongoDB change
+│   │   ├── AttachmentProcessingService.java    # Hash-dedup → markdown conversion → attachment_archive
+│   │   ├── KnowledgeGraphIngestionService.java # Neo4j graph build (Virtual Threads)
+│   │   ├── GraphSearchService.java             # Neo4j queries (network, thread, concept)
+│   │   ├── PipelineOrchestrationService.java   # Multi-stage orchestrated run
+│   │   ├── AppSettingsService.java
 │   │   ├── PstProcessorService.java
 │   │   ├── PstFinderService.java
+│   │   ├── PstFinderSettingsService.java
 │   │   ├── SynologyApiClient.java
 │   │   ├── SynologyPstFinderService.java
+│   │   ├── SynologySettingsService.java
 │   │   ├── FileService.java
+│   │   ├── FileAccessService.java
 │   │   ├── FileUploadService.java
 │   │   ├── PdfFormFillerService.java
 │   │   ├── ProgressTracker.java
+│   │   ├── auth/                               # JWT + user details services
 │   │   └── rag/
-│   │       ├── TextExtractionService.java   # Apache Tika szövegkinyerés
-│   │       ├── EntityExtractionService.java # Ollama NER (PERSON/ORG/TOPIC/LOCATION)
-│   │       └── GraphRagChatService.java     # Neo4j kontextus → Ollama LLM chat + stream
+│   │       ├── TextExtractionService.java      # Apache Tika text extraction + reply-chain stripping
+│   │       ├── EntityExtractionService.java    # Ollama NER (PERSON/ORG/TOPIC/LOCATION)
+│   │       ├── NerExtractor.java                # Interface for test mockability
+│   │       └── GraphRagChatService.java        # Neo4j context → Ollama LLM chat + stream
 │   ├── domain/
 │   │   ├── Email.java
-│   │   ├── FailedConversion.java            # Dead-letter rekord (MongoDB)
+│   │   ├── Attachment.java
+│   │   ├── FailedConversion.java               # Dead-letter record (MongoDB)
+│   │   ├── AppSettings.java
+│   │   ├── PipelineStatus.java / StageProgress.java / StageState.java
 │   │   ├── FileInfo.java
 │   │   ├── FileEntity.java
 │   │   ├── User.java
@@ -238,16 +266,20 @@ suliweb/
 │   │   ├── Authority.java
 │   │   ├── LogEntry.java
 │   │   ├── ProgressState.java
-│   │   └── graph/                           # Neo4j @Node osztályok
+│   │   ├── PstFinderSettings.java / SynologySettings.java
+│   │   └── graph/                              # Neo4j @Node classes
 │   │       ├── PersonNode.java
 │   │       ├── OrganizationNode.java
 │   │       ├── EmailNode.java
 │   │       ├── ThreadNode.java
 │   │       ├── AttachmentNode.java
-│   │       └── ConceptNode.java
+│   │       ├── ConceptNode.java
+│   │       └── CommunicatesWithRel.java
 │   ├── repository/
-│   │   ├── FailedConversionRepository.java  # MongoDB dead-letter CRUD
-│   │   └── graph/                           # Neo4j repository-k
+│   │   ├── FailedConversionRepository.java     # MongoDB dead-letter CRUD
+│   │   ├── AttachmentRepository.java
+│   │   ├── EmailRepository.java
+│   │   └── graph/                              # Neo4j repositories
 │   │       ├── PersonNodeRepository.java
 │   │       ├── EmailNodeRepository.java
 │   │       ├── ThreadNodeRepository.java
@@ -257,13 +289,13 @@ suliweb/
 │   ├── logger/
 │   └── util/
 ├── src/test/java/hu/fmdev/backend/
-│   ├── security/SecurityFilterChainTest.java  # Biztonsági filter chain integrációs tesztek
-│   └── service/EDiscoveryFailedConversionTest.java  # Dead-letter unit tesztek
+│   ├── security/SecurityFilterChainTest.java       # Security filter chain integration tests
+│   └── service/EDiscoveryFailedConversionTest.java # Dead-letter unit tests
 ├── src/main/resources/
 │   ├── application.properties
 │   └── application-docker.properties
 ├── python-processor/                        # FastAPI sidecar
-│   ├── main.py                              # /strip-reply + /convert-attachment
+│   ├── main.py                              # /convert-attachment
 │   ├── requirements.txt
 │   └── Dockerfile
 ├── frontend/
@@ -271,28 +303,34 @@ suliweb/
 │   │   ├── pages/
 │   │   │   ├── index.astro
 │   │   │   ├── emails.astro
-│   │   │   ├── ediscovery.astro             # e-Discovery keresőoldal
-│   │   │   ├── knowledge-graph.astro        # Knowledge Graph oldal
+│   │   │   ├── ediscovery.astro             # e-Discovery search page
+│   │   │   ├── attachments.astro            # attachment browser
+│   │   │   ├── attachment-processing.astro  # attachment markdown/ES processing page
+│   │   │   ├── knowledge-graph.astro        # Knowledge Graph page
 │   │   │   ├── rag.astro
 │   │   │   ├── files.astro
-│   │   │   ├── attachments.astro
 │   │   │   ├── processing.astro
+│   │   │   ├── pipeline.astro
 │   │   │   ├── synology.astro
-│   │   │   ├── logs.astro                   # Alkalmazás log nézegető
+│   │   │   ├── settings.astro
+│   │   │   ├── logs.astro                   # Application log viewer
 │   │   │   ├── users.astro
 │   │   │   └── login.astro
 │   │   ├── components/
-│   │   │   ├── EDiscoverySearch.tsx         # ES keresőűrlap + snippet highlight
-│   │   │   ├── KnowledgeGraph.tsx           # Hálózat / szál / fogalom keresés + streaming chat
+│   │   │   ├── EDiscoverySearch.tsx         # ES search form + snippet highlighting
+│   │   │   ├── AttachmentList.tsx           # Attachment browser
+│   │   │   ├── AttachmentProcessing.tsx     # Start/stats/retry UI for attachment processing
+│   │   │   ├── KnowledgeGraph.tsx           # Network / thread / concept search + streaming chat
 │   │   │   ├── RagChat.tsx
-│   │   │   ├── RagSearch.tsx                # GraphRAG állapotpanel + navigáció
+│   │   │   ├── RagSearch.tsx                # GraphRAG status panel + navigation
 │   │   │   ├── Dashboard.tsx
 │   │   │   ├── EmailBrowser.tsx
 │   │   │   ├── FileList.tsx
-│   │   │   ├── AttachmentList.tsx
 │   │   │   ├── PstProcessing.tsx
+│   │   │   ├── PipelineView.tsx
+│   │   │   ├── AppSettings.tsx
 │   │   │   ├── SynologyPanel.tsx
-│   │   │   ├── Logs.tsx                     # Log nézegető (szűrés, rendezés, auto-refresh)
+│   │   │   ├── Logs.tsx                     # Log viewer (filter, sort, auto-refresh)
 │   │   │   └── UserManagement.tsx
 │   │   ├── layouts/Layout.astro
 │   │   ├── styles/global.css
@@ -304,243 +342,268 @@ suliweb/
 ├── pom.xml
 ├── Dockerfile
 ├── docker-compose.yml
+├── Caddyfile
 ├── .env.example
 ├── .dockerignore
 └── CLAUDE.md
 ```
 
-## API végpontok
+## API endpoints
 
-### Autentikáció
-| Végpont | Metódus | Leírás |
+### Authentication
+| Endpoint | Method | Description |
 |---------|---------|--------|
-| `/api/auth/register` | POST | Új felhasználó regisztrálása |
-| `/api/auth/login` | POST | Bejelentkezés → access + refresh token |
-| `/api/auth/refresh` | POST | Access token megújítása refresh tokennel |
-| `/api/auth/me` | GET | Bejelentkezett felhasználó adatai |
+| `/api/auth/register` | POST | Register a new user — `ROLE_ADMIN` |
+| `/api/auth/login` | POST | Log in → access + refresh token |
+| `/api/auth/refresh` | POST | Refresh the access token |
+| `/api/auth/me` | GET | Current authenticated user |
 
-### Emailek
-| Végpont | Metódus | Leírás |
+### Emails
+| Endpoint | Method | Description |
 |---------|---------|--------|
-| `/api/emails` | GET | Összes email |
-| `/api/emails/search` | GET | Keresés (subject, sender, recipient, folder, importance) |
-| `/api/emails/{id}` | GET | Email ID alapján |
-| `/api/emails/{id}` | PUT | Email módosítása |
-| `/api/emails/{id}` | DELETE | Email törlése |
+| `/api/emails` | GET | All emails |
+| `/api/emails/count` | GET | Email count |
+| `/api/emails/search` | GET | Search (subject, sender, recipient, folder, importance) |
+| `/api/emails/{id}` | GET | Get email by ID |
+| `/api/emails` | POST | Create email |
+| `/api/emails/{id}` | PUT | Update email |
+| `/api/emails/{id}` | DELETE | Delete email |
 
-### PST feldolgozás
-| Végpont | Metódus | Leírás |
+### PST processing
+| Endpoint | Method | Description |
 |---------|---------|--------|
-| `/find/pst` | GET | PST fájlok keresése → adatbázisba mentés |
-| `/find/synology` | GET | PST keresés Synology NAS-on |
-| `/find/synologyToDb` | GET | Synology PST fájlok → adatbázisba mentés |
-| `/api/synology/settings` | GET | Synology kapcsolat beállításai |
-| `/api/synology/settings` | PUT | Synology kapcsolat mentése |
-| `/pst/processFromDb` | POST | PST fájlok feldolgozása adatbázisból |
-| `/pst/pause` | POST | Feldolgozás szüneteltetése |
-| `/pst/resume` | POST | Feldolgozás folytatása |
-| `/pst/processSelected` | POST | Kijelölt PST fájlok feldolgozása |
+| `/find/pst` | GET | Search for PST files → save to DB — `ROLE_ADMIN` |
+| `/find/synology` | GET | Search for PST files on Synology NAS — `ROLE_ADMIN` |
+| `/find/synologyToDb` | GET | Synology PST files → save to DB — `ROLE_ADMIN` |
+| `/api/synology/settings` | GET / PUT | Synology connection settings |
+| `/api/pst-finder/settings` | GET / PUT | PST finder settings (PUT — `ROLE_ADMIN`) |
+| `/pst/processFromDb` | POST | Process PST files from the database — `ROLE_ADMIN` |
+| `/pst/processFromFile`, `/processFromTxt`, `/processSelected` | POST | Alternative processing entry points — `ROLE_ADMIN` |
+| `/pst/saveAttachmentsFromDb` | POST | Re-save attachments for already-processed PSTs — `ROLE_ADMIN` |
+| `/pst/pause` / `/pst/resume` | POST | Pause / resume processing — `ROLE_ADMIN` |
 
 ### e-Discovery (Elasticsearch)
-| Végpont | Metódus | Leírás |
+| Endpoint | Method | Description |
 |---------|---------|--------|
-| `/api/ediscovery/ingest` | POST | Összes email ES indexelése (reply-strip + csatolmány konverzió) — ROLE_ADMIN |
-| `/api/ediscovery/ingest/{id}` | POST | Egy email újraindexelése — ROLE_ADMIN |
-| `/api/ediscovery/retry-failed` | POST | Összes sikertelen konverzió újrafuttatása — ROLE_ADMIN |
-| `/api/ediscovery/retry-failed/{id}` | POST | Egy `FailedConversion` rekord újrafuttatása — ROLE_ADMIN |
-| `/api/ediscovery/failed` | GET | Megoldatlan konverziós hibák listája |
-| `/api/ediscovery/search` | GET | Teljes szöveges keresés (`q`, `topK`, `sender`, `pstOwner`, `pstFileName`, `dateFrom`, `dateTo`) |
-| `/api/ediscovery/status` | GET | Indexelés állapota + statisztikák (incl. `failedCount`) |
+| `/api/ediscovery/ingest` | POST | Index all emails into Elasticsearch — `ROLE_ADMIN` |
+| `/api/ediscovery/ingest/{id}` | POST | Re-index a single email — `ROLE_ADMIN` |
+| `/api/ediscovery/retry-failed` | POST | Retry all failed conversions — `ROLE_ADMIN` |
+| `/api/ediscovery/retry-failed/{id}` | POST | Retry a single `FailedConversion` record — `ROLE_ADMIN` |
+| `/api/ediscovery/failed` | GET | List unresolved conversion failures |
+| `/api/ediscovery/search` | GET | Full-text search (`q`, `topK`, `sender`, `pstOwner`, `pstFileName`, `dateFrom`, `dateTo`) |
+| `/api/ediscovery/status` | GET | Indexing status + stats (incl. `failedCount`) |
+
+### Attachment processing (Elasticsearch, separate from e-Discovery)
+| Endpoint | Method | Description |
+|---------|---------|--------|
+| `/api/attachments/processing/start` | POST | Start markdown conversion + ES indexing of all attachments — `ROLE_ADMIN` |
+| `/api/attachments/processing/status` | GET | Processing status + stats (incl. `failedCount`) |
+| `/api/attachments/processing/failed` | GET | List unresolved conversion failures |
+| `/api/attachments/processing/retry-failed` | POST | Retry all failed conversions — `ROLE_ADMIN` |
+| `/api/attachments/processing/retry-failed/{id}` | POST | Retry a single failed conversion — `ROLE_ADMIN` |
 
 ### Knowledge Graph (Neo4j)
-| Végpont | Metódus | Leírás |
+| Endpoint | Method | Description |
 |---------|---------|--------|
-| `/api/kg/ingest` | POST | Gráf építés indítása (NER entitáskinyerés + Neo4j) |
-| `/api/kg/status` | GET | Gráf építés állapota + statisztikák |
-| `/api/kg/persons/{email}/network` | GET | Kommunikációs partnerek listája |
-| `/api/kg/thread/{threadId}` | GET | Szál emailjei időrendben |
-| `/api/kg/concept/{name}` | GET | Fogalom közelségű emailek (`topK`) |
-| `/api/kg/chat` | POST | GraphRAG chat (Neo4j kontextus + Ollama LLM) |
-| `/api/kg/chat/stream` | POST | GraphRAG chat streaming (SSE) |
+| `/api/kg/ingest` | POST | Start graph build (NER extraction + Neo4j) — `ROLE_ADMIN` |
+| `/api/kg/reingest-concepts` | POST | Rebuild Concept nodes only — `ROLE_ADMIN` |
+| `/api/kg/status` | GET | Graph build status + stats |
+| `/api/kg/graph-stats` | GET | Aggregate graph statistics |
+| `/api/kg/persons/{email}/network` | GET | List of communication partners |
+| `/api/kg/thread/{threadId}` | GET | Thread emails in chronological order |
+| `/api/kg/concept/{name}` | GET | Emails near a concept (`topK`) |
+| `/api/kg/chat` | POST | GraphRAG chat (Neo4j context + Ollama LLM) |
+| `/api/kg/chat/stream` | POST | GraphRAG chat, streaming (SSE) |
+| `/api/kg/models` | GET | Available Ollama models |
 
-### RAG / GraphRAG chat
-| Végpont | Metódus | Leírás |
+### Attachments (browse / manage)
+| Endpoint | Method | Description |
 |---------|---------|--------|
-| `/api/rag/chat` | POST | GraphRAG chat (backward kompatibilis alias) |
-| `/api/rag/chat/stream` | POST | GraphRAG chat streaming (SSE) |
-| `/api/rag/health` | GET | Ollama + KG ingestion állapota |
-| `/api/rag/models` | GET | Elérhető Ollama modellek |
+| `/api/attachments` | GET | List attachments |
+| `/api/attachments/search` | GET | Search (filename, extension, size, sender, date) |
+| `/api/attachments/count` | GET | Attachment count |
+| `/api/attachments/duplicate-stats` | GET | Duplicate statistics |
+| `/api/attachments/deduplicate` | POST | Delete duplicate DB records |
+| `/api/attachments/email/{emailId}` | GET | Attachments for an email |
+| `/api/attachments/{id}/download` | GET | Download an attachment |
 
-### Csatolmányok
-| Végpont | Metódus | Leírás |
+### Pipeline orchestration
+| Endpoint | Method | Description |
 |---------|---------|--------|
-| `/api/attachments` | GET | Csatolmányok listája |
-| `/api/attachments/search` | GET | Keresés (filename, extension, size, sender, dátum) |
-| `/api/attachments/count` | GET | Csatolmányok száma |
-| `/api/attachments/duplicate-stats` | GET | Duplikátum statisztika |
-| `/api/attachments/deduplicate` | POST | Duplikált DB rekordok törlése |
-| `/api/attachments/email/{emailId}` | GET | Email csatolmányai |
-| `/api/attachments/{id}/download` | GET | Csatolmány letöltése |
+| `/api/pipeline/start` | POST | Start an orchestrated multi-stage run — `ROLE_ADMIN` |
+| `/api/pipeline/status` | GET | Status of all pipeline stages |
 
-### Felhasználók
-| Végpont | Metódus | Leírás |
+### Settings
+| Endpoint | Method | Description |
 |---------|---------|--------|
-| `/api/users` | GET | Felhasználók listája |
-| `/api/users/{id}` | GET | Felhasználó adatai |
-| `/api/users` | POST | Új felhasználó létrehozása |
-| `/api/users/{id}` | PUT | Felhasználó módosítása |
-| `/api/users/{id}` | DELETE | Felhasználó törlése |
-| `/api/users/authorities` | GET | Elérhető jogosultságok listája |
-| `/api/users/{id}/files` | GET | Felhasználó elérhető PST fájljai |
-| `/api/users/{id}/files` | PUT | Felhasználó PST hozzáférés beállítása |
+| `/api/settings` | GET | Effective runtime ingestion settings |
+| `/api/settings` | PUT | Update runtime ingestion settings — `ROLE_ADMIN` |
 
-### Egyéb
-| Végpont | Metódus | Leírás |
+### Users
+| Endpoint | Method | Description |
 |---------|---------|--------|
-| `/api/progress` | GET | Feldolgozás állapota (publikus) |
-| `/actuator/health` | GET | Alkalmazás health check (publikus) |
-| `/api/logs` | GET | Alkalmazás logok (`level`, `from`, `to`, `sort`, `limit` szűrők) |
-| `/api/file-infos` | GET | PST fájl információk |
-| `/api/file-infos/counts` | GET | PST számlálók (total/pending/processed) |
-| `/api/file-infos/duplicates` | GET | Azonos tartalmú PST fájlok csoportjai |
-| `/api/file-infos/compute-hashes` | POST | SHA-256 hash kiszámítása |
-| `/api/file-infos/deduplicate` | POST | Duplikált PST rekordok törlése |
-| `/api/files/upload` | POST | Fájl feltöltés (ZIP titkosítással) |
-| `/pdf/fill` | POST | PDF űrlap kitöltése |
+| `/api/users` | GET | List users — `ROLE_ADMIN` |
+| `/api/users/{id}` | GET | User details — `ROLE_ADMIN` |
+| `/api/users` | POST | Create a user — `ROLE_ADMIN` |
+| `/api/users/{id}` | PUT | Update a user — `ROLE_ADMIN` |
+| `/api/users/{id}` | DELETE | Delete a user — `ROLE_ADMIN` |
+| `/api/users/authorities` | GET | List available authorities — `ROLE_ADMIN` |
+| `/api/users/{id}/files` | GET / PUT | A user's accessible PST files — `ROLE_ADMIN` |
 
-## Konfiguráció
+### Other
+| Endpoint | Method | Description |
+|---------|---------|--------|
+| `/api/progress` | GET | Processing status (public) |
+| `/actuator/health` | GET | Application health check (public) |
+| `/api/logs` | GET | Application logs (`level`, `from`, `to`, `sort`, `limit` filters) |
+| `/api/file-infos` | GET | PST file information |
+| `/api/file-infos/counts` | GET | PST counters (total/pending/processed) |
+| `/api/file-infos/duplicates` | GET | Groups of identical-content PST files |
+| `/api/file-infos/compute-hashes` | POST | Compute SHA-256 hashes |
+| `/api/file-infos/deduplicate` | POST | Delete duplicate PST records |
+| `/api/files/upload` | POST | File upload (with ZIP encryption) |
+| `/pdf/fill` | POST | Fill a PDF form — `ROLE_ADMIN` |
 
-Az `application.properties` fő beállításai:
+## Configuration
+
+Key settings in `application.properties`:
 
 ```properties
-# MongoDB kapcsolat
+# MongoDB connection
 spring.data.mongodb.uri=mongodb://localhost:27017/emails?directConnection=true
 
-# Csatolmányok mentési helye
+# Attachment storage location
 attachments.directory=/app/attachments
 
-# Elasticsearch (e-Discovery)
+# Elasticsearch (e-Discovery + attachment processing)
 ediscovery.es.url=http://localhost:9200
 ediscovery.python.url=http://localhost:8001
+ediscovery.ingestion.batch-size=200
+ediscovery.ingestion.bulk-size=200
+attachment.processing.bulk-size=200
+attachment.processing.python-concurrency=24
 
 # Neo4j Knowledge Graph
 spring.neo4j.uri=${NEO4J_URI:bolt://localhost:7687}
 spring.neo4j.authentication.username=neo4j
 spring.neo4j.authentication.password=${NEO4J_PASSWORD}
 
-# Knowledge Graph ingestion hangolás
+# Knowledge Graph ingestion tuning (defaults; can be overridden at runtime via /api/settings)
 kg.ingestion.batch-size=100
 kg.ingestion.max-concurrent-writes=4
 
-# Ollama (a gazdagépen fut, nem Dockerben)
+# Ollama (runs on the host, not in Docker)
 rag.ollama-base-url=http://localhost:11434
 rag.chat-model=llama3.2
 rag.chat-context-top-k=8
 
-# Synology NAS (opcionális)
+# Synology NAS (optional)
 synology.host=
 synology.username=
 synology.local-mount-prefix=/mnt/nas
 synology.search-extensions=pst,ost
 
-# Actuator (csak health publikus)
+# Actuator (only health is public)
 management.endpoints.web.exposure.include=health
 management.endpoint.health.show-details=never
 ```
 
-## Technológiai stack
+## Tech stack
 
 **Backend:**
 - Java 25 (Eclipse Temurin) + Spring Boot 4.0 (Spring Framework 7, Jakarta EE 11)
 - Spring Web, WebFlux, Data MongoDB, Data Neo4j, Security
-- java-libpst – PST fájl feldolgozás
-- Apache Tika – Szövegkinyerés (PDF, DOC, XLS, PPT, stb.)
-- Elasticsearch Java API Client 8.17.0 – e-Discovery full-text indexelés
-- iText PDF 8 + Apache PDFBox 3 – PDF kezelés
-- zip4j – ZIP tömörítés/titkosítás
+- java-libpst – PST file processing
+- Apache Tika – Text extraction (PDF, DOC, XLS, PPT, etc.)
+- Elasticsearch Java API Client 9.4.2 – e-Discovery and attachment full-text indexing
+- iText PDF 8 + Apache PDFBox 3 – PDF handling
+- zip4j – ZIP compression/encryption
 - Lombok, ModelMapper
 
 **Python sidecar (`python-processor/`):**
-- FastAPI + uvicorn – `/strip-reply` (email-reply-parser), `/convert-attachment` (markitdown)
-- Soft-fail szemantika: hiba esetén üres string, nem abort; csatolmány konverzióra nincs karakterkorlát
+- FastAPI + uvicorn – `/convert-attachment` (markitdown)
+- Soft-fail semantics: errors return an empty result rather than aborting; failures are logged for retry
 
 **Frontend:**
-- Astro 5 – Statikus oldal generálás (Vite 6)
-- React 19.2 – Interaktív komponensek
-- Tailwind CSS 4 – Stílusok
+- Astro 5 – Static site generation (Vite 6)
+- React 19.2 – Interactive components
+- Tailwind CSS 4 – Styling
 
-**Adatbázisok és külső szolgáltatások:**
-- MongoDB 8 – Email metaadatok, auth, progress tracking
-- Elasticsearch 8.17.0 – e-Discovery full-text index (magyar szövegelemzés: `hungarian_stemmed` Snowball + `hungarian_ascii` asciifolding analyzer, `.ascii` subfield ékezet-insenzitív kereséshez)
-- Neo4j 5.26 Community + APOC – Knowledge Graph (Person, Thread, Concept, Attachment csúcsok)
-- Ollama – NER entitáskinyerés és GraphRAG LLM chat (gazdagépen fut, `host.docker.internal:11434`)
+**Databases and external services:**
+- MongoDB 8 – Email metadata, auth, progress tracking
+- Elasticsearch 9.4.2 – e-Discovery (`email_archive`) and attachment (`attachment_archive`) full-text indices; Hungarian text analysis (`hungarian_stemmed` Snowball stemmer + `hungarian_ascii` asciifolding analyzer, `.ascii` subfield for accent-insensitive search)
+- Neo4j 5.26 Community + APOC – Knowledge Graph (Person, Thread, Concept, Attachment nodes)
+- Ollama – NER entity extraction and GraphRAG LLM chat (runs on the host, `host.docker.internal:11434`)
 
-**Infrastruktúra:**
-- Docker + Docker Compose – 6 szolgáltatás, multi-stage build, health check-ek
-- nginx – Frontend szervírozás + API reverse proxy
+**Infrastructure:**
+- Docker + Docker Compose – 6 services, multi-stage builds, health checks
+- Caddy – TLS-terminating reverse proxy in front of the stack (HTTPS, health-checked upstreams)
+- nginx – Frontend asset serving + API reverse proxy inside the frontend container
 - Java 25 LTS (Eclipse Temurin)
 
-**CI/DevSecOps (`.github/workflows/ci.yml`):**
-- JaCoCo 0.8.15 – kód lefedettség (Java 26 kompatibilis)
-- Trivy – függőség CVE scan (HIGH/CRITICAL → build fail) + container scan + SBOM (CycloneDX)
-- Gitleaks – titkos adat szivárgás detektálás
-- SpotBugs – SAST statikus elemzés (SARIF → GitHub Security tab)
-- OWASP Dependency-Check – SCA sebezhetőség-elemzés (NVD adatbázis)
+**CI/DevSecOps (`.github/workflows/`):**
+- JaCoCo – code coverage
+- Trivy – dependency CVE scan (HIGH/CRITICAL → build fail) + container scan + SBOM (CycloneDX)
+- Gitleaks – secret-leak detection
+- SpotBugs – SAST static analysis (SARIF → GitHub Security tab)
+- OWASP Dependency-Check – SCA vulnerability analysis (NVD database)
 - Hadolint – Dockerfile lint
+- CodeQL – SAST for Java and JavaScript/TypeScript
+- Dependency Review – license/vulnerability gate on pull requests
 
-## Fejlesztés
+## Development
 
 ```bash
-# Tesztek futtatása
+# Run tests
 mvn test
 
-# Egy adott teszt futtatása
+# Run a single test
 mvn test -Dtest=TextExtractionServiceTest
 
-# Frontend fejlesztői szerver
+# Frontend dev server
 cd frontend && npm run dev
 
 # Frontend build
 cd frontend && npm run build
 
-# Csak az adatbázisok indítása (lokális fejlesztéshez)
-docker compose up -d mongo suliweb-elasticsearch suliweb-neo4j python-processor
+# Start only the databases (for local development)
+docker compose up -d suliweb-mongo suliweb-elasticsearch suliweb-neo4j python-processor
 ```
 
-## Docker Compose szolgáltatások
+## Docker Compose services
 
-| Szolgáltatás | Restart | Health check | Leírás |
+| Service | Restart | Health check | Description |
 |---|---|---|---|
 | `suliweb-frontend` | unless-stopped | backend healthy | Astro 5 → nginx (:80) |
 | `suliweb-backend` | unless-stopped | `/actuator/health` curl | Spring Boot (:8080) |
 | `suliweb-mongo` | unless-stopped | `mongosh ping` | MongoDB 8 (:27017) |
-| `suliweb-elasticsearch` | unless-stopped | `/_cluster/health` curl | Elasticsearch 8.17.0 (:9200) |
+| `suliweb-elasticsearch` | unless-stopped | `/_cluster/health` curl | Elasticsearch 9.4.2 (:9200) |
 | `suliweb-neo4j` | unless-stopped | `:7474` wget | Neo4j 5.26 Community (:7474/:7687) |
 | `python-processor` | unless-stopped | `/health` curl | FastAPI sidecar (:8001) |
 
-**Környezeti változók** – `.env` fájlból olvasva (lásd `.env.example`):
+**Environment variables** – read from a `.env` file (see `.env.example`):
 
 ```bash
 cp .env.example .env
-# Szerkesztés: NEO4J_PASSWORD, JWT_SECRET, Synology adatok stb.
+# Edit: NEO4J_PASSWORD, JWT_SECRET, Synology credentials, etc.
 ```
 
-## Biztonság
+## Security
 
-Fail-secure explicit allowlist — minden végpont alapból tiltott, kivéve az alábbiakat:
+Fail-secure explicit allowlist — every endpoint is denied by default except the ones below:
 
-| Útvonal | Hozzáférés |
+| Path | Access |
 |---------|-----------|
-| `POST /api/auth/login`, `POST /api/auth/refresh` | Publikus |
-| `GET /api/progress`, `GET /actuator/health` | Publikus |
+| `POST /api/auth/login`, `POST /api/auth/refresh` | Public |
+| `GET /api/progress`, `GET /actuator/health` | Public |
 | `/pst/**`, `/find/**`, `/pdf/**` | `ROLE_ADMIN` |
 | `POST /api/ediscovery/ingest`, `/retry-failed` | `ROLE_ADMIN` |
 | `POST /api/kg/ingest` | `ROLE_ADMIN` |
 | `POST /api/auth/register`, `POST /api/users`, `DELETE /api/users/**` | `ROLE_ADMIN` |
-| Minden más `/api/**` | Bejelentkezett felhasználó (`authenticated`) |
+| Every other `/api/**` route | Authenticated user (`authenticated`) |
 
-`@EnableMethodSecurity` + `@PreAuthorize("hasAuthority('ROLE_ADMIN')")` annotáció a kritikus controllereken (dupla védelem).
+`@EnableMethodSecurity` + `@PreAuthorize("hasAuthority('ROLE_ADMIN')")` annotations on the relevant controllers provide a second layer of defense.
 
-## Licenc
+## License
 
-Privát projekt.
+Private project.

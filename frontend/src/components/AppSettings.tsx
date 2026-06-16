@@ -1,7 +1,10 @@
+import '../lib/i18n';
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api, type AppSettingsDto } from '../lib/api';
 
 export default function AppSettings() {
+  const { t } = useTranslation();
   const [settings, setSettings] = useState<AppSettingsDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -29,11 +32,11 @@ export default function AppSettings() {
         });
       })
       .catch(() => {
-        setMessage('Beállítások betöltése sikertelen.');
+        setMessage(t('appSettings.loadFailed'));
         setIsError(true);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [t]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -48,10 +51,10 @@ export default function AppSettings() {
       };
       const saved = await api.saveSettings(payload);
       setSettings(saved);
-      setMessage('Beállítások mentve.');
+      setMessage(t('appSettings.saved'));
       setIsError(false);
     } catch {
-      setMessage('Mentés sikertelen.');
+      setMessage(t('appSettings.saveFailed'));
       setIsError(true);
     } finally {
       setSaving(false);
@@ -72,7 +75,7 @@ export default function AppSettings() {
   );
 
   if (loading) {
-    return <div className="text-gray-500 text-sm">Betöltés...</div>;
+    return <div className="text-gray-500 text-sm">{t('common.loading')}</div>;
   }
 
   return (
@@ -85,28 +88,28 @@ export default function AppSettings() {
           <p className="text-sm font-mono bg-gray-50 rounded px-3 py-2 text-gray-700 border border-gray-200">
             {settings?.ollamaBaseUrl ?? '—'}
           </p>
-          <p className="text-xs text-gray-400 mt-1">Az Ollama URL az indítási konfigurációban állítható (application.properties).</p>
+          <p className="text-xs text-gray-400 mt-1">{t('appSettings.ollamaUrlHint')}</p>
         </div>
       </section>
 
       {/* LLM settings */}
       <section className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
-        <h2 className="text-base font-semibold text-gray-800">LLM modellek</h2>
-        {field('Chat modell', 'chatModel', 'RAG chat és GraphRAG válaszgeneráláshoz (pl. llama3.1:8b, qwen2.5:14b)')}
-        {field('NER modell', 'nerModel', 'Entitáskinyeréshez — elhagyható, alapértelmezetten a chat modell')}
+        <h2 className="text-base font-semibold text-gray-800">{t('appSettings.llmModels')}</h2>
+        {field(t('appSettings.chatModel'), 'chatModel', t('appSettings.chatModelHint'))}
+        {field(t('appSettings.nerModel'), 'nerModel', t('appSettings.nerModelHint'))}
       </section>
 
       {/* RAG settings */}
       <section className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
-        <h2 className="text-base font-semibold text-gray-800">RAG beállítások</h2>
-        {field('Előzménykörök (chatMaxHistoryTurns)', 'chatMaxHistoryTurns', 'Hány user+assistant pár kerül a kontextusba (alapért.: 6)')}
+        <h2 className="text-base font-semibold text-gray-800">{t('appSettings.ragSettings')}</h2>
+        {field(t('appSettings.historyTurns'), 'chatMaxHistoryTurns', t('appSettings.historyTurnsHint'))}
       </section>
 
       {/* KG settings */}
       <section className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
-        <h2 className="text-base font-semibold text-gray-800">Knowledge Graph ingestion</h2>
-        {field('Kötegméret (kgBatchSize)', 'kgBatchSize', 'Emailek száma egy batch-ben (alapért.: 100)')}
-        {field('Párhuzamos írók (kgMaxConcurrentWrites)', 'kgMaxConcurrentWrites', 'Neo4j írási szálak száma (alapért.: 4)')}
+        <h2 className="text-base font-semibold text-gray-800">{t('appSettings.kgIngestion')}</h2>
+        {field(t('appSettings.batchSize'), 'kgBatchSize', t('appSettings.batchSizeHint'))}
+        {field(t('appSettings.concurrentWrites'), 'kgMaxConcurrentWrites', t('appSettings.concurrentWritesHint'))}
       </section>
 
       {/* Actions */}
@@ -116,7 +119,7 @@ export default function AppSettings() {
           disabled={saving}
           className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
         >
-          {saving ? 'Mentés...' : 'Mentés'}
+          {saving ? t('common.starting') : t('common.save')}
         </button>
         {message && (
           <span className={`text-sm ${isError ? 'text-red-600' : 'text-green-600'}`}>

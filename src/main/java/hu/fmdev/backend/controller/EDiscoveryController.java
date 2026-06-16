@@ -4,6 +4,7 @@ import hu.fmdev.backend.domain.FailedConversion;
 import hu.fmdev.backend.service.EDiscoveryIngestionService;
 import hu.fmdev.backend.service.EDiscoverySearchService;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -39,7 +40,7 @@ public class EDiscoveryController {
     @PostMapping("/ingest/{mongoEmailId}")
     public ResponseEntity<String> reIngest(@PathVariable String mongoEmailId) {
         Thread.startVirtualThread(() -> ingestionService.reIngest(mongoEmailId));
-        return ResponseEntity.ok("Újraindexelés elindítva: " + mongoEmailId);
+        return ResponseEntity.ok().contentType(MediaType.TEXT_PLAIN).body("Újraindexelés elindítva: " + mongoEmailId);
     }
 
     @GetMapping("/search")
@@ -65,7 +66,7 @@ public class EDiscoveryController {
     @PostMapping("/retry-failed/{id}")
     public ResponseEntity<String> retryFailed(@PathVariable String id) {
         ingestionService.retryFailed(id);
-        return ResponseEntity.ok("Retry elindítva: " + id);
+        return ResponseEntity.ok().contentType(MediaType.TEXT_PLAIN).body("Retry elindítva: " + id);
     }
 
     @GetMapping("/failed")

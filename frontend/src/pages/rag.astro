@@ -4,22 +4,22 @@ import RagSearch from '../components/RagSearch.tsx';
 import RagChat from '../components/RagChat.tsx';
 ---
 
-<Layout title="RAG – Levelezési asszisztens" activePage="/rag">
+<Layout title="pages.rag" activePage="/rag">
   <!-- Tab nav -->
   <div class="mb-6">
     <div id="tab-bar" class="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit">
       <button
         id="tab-chat"
         class="tab-btn hidden px-5 py-2 text-sm font-medium rounded-lg transition-all"
-      >💬 Chat</button>
+      >💬 <span id="tab-chat-label"></span></button>
       <button
         id="tab-search"
         class="tab-btn px-5 py-2 text-sm font-medium rounded-lg transition-all text-gray-600 hover:text-gray-900"
-      >🔍 Szemantikus keresés</button>
+      >🔍 <span id="tab-search-label"></span></button>
       <button
         id="tab-manage"
         class="tab-btn px-5 py-2 text-sm font-medium rounded-lg transition-all text-gray-600 hover:text-gray-900"
-      >⚙️ Kezelés</button>
+      >⚙️ <span id="tab-manage-label"></span></button>
     </div>
   </div>
 
@@ -39,8 +39,20 @@ import RagChat from '../components/RagChat.tsx';
 
 <script>
   import { api } from '../lib/api';
+  import i18n from '../lib/i18n';
 
   const VALID_TABS = ['chat', 'search', 'manage'];
+
+  function applyLabels() {
+    const chat = document.getElementById('tab-chat-label');
+    const search = document.getElementById('tab-search-label');
+    const manage = document.getElementById('tab-manage-label');
+    if (chat) chat.textContent = i18n.t('rag.tabChat');
+    if (search) search.textContent = i18n.t('rag.tabSearch');
+    if (manage) manage.textContent = i18n.t('rag.tabManage');
+  }
+  applyLabels();
+  i18n.on('languageChanged', applyLabels);
 
   function switchTab(tab: string) {
     VALID_TABS.forEach(p => {

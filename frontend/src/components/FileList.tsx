@@ -1,13 +1,22 @@
+import '../lib/i18n';
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api, type FileInfo } from '../lib/api';
 
 type SortField = keyof FileInfo;
 type ActiveTab = 'files' | 'duplicates';
 
+function isErrorMessage(msg: string) {
+  const lower = msg.toLowerCase();
+  return lower.startsWith('hiba') || lower.startsWith('error');
+}
+
 export default function FileList() {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language === 'en' ? 'en-US' : 'hu-HU';
   const [activeTab, setActiveTab] = useState<ActiveTab>('files');
 
-  // --- Fájlok tab ---
+  // --- Files tab ---
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
@@ -23,7 +32,7 @@ export default function FileList() {
   const [sortField, setSortField] = useState<SortField>('lastModified');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
-  // --- Duplikációk tab ---
+  // --- Duplicates tab ---
   const [duplicates, setDuplicates] = useState<FileInfo[][] | null>(null);
   const [dupLoading, setDupLoading] = useState(false);
   const [dupMessage, setDupMessage] = useState('');
@@ -37,7 +46,7 @@ export default function FileList() {
       setFiles(data);
       setSelected(new Map());
     } catch (e) {
-      console.error('Fájl betöltési hiba:', e);
+      console.error('File load error:', e);
     } finally {
       setLoading(false);
     }
@@ -48,10 +57,10 @@ export default function FileList() {
     try {
       const data = await api.getDuplicates();
       setDuplicates(data);
-      if (data.length === 0) setDupMessage('Nincs duplikált fájl (vagy még nem számítottak hash-t).');
+      if (data.length === 0) setDupMessage(t('fileList.noDuplicates'));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
-      setDupMessage('Hiba: ' + e.message);
+      setDupMessage(t('common.error') + ': ' + e.message);
     } finally {
       setDupLoading(false);
     }
@@ -66,7 +75,7 @@ export default function FileList() {
       await loadFiles();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
-      setDupMessage('Hiba: ' + e.message);
+      setDupMessage(t('common.error') + ': ' + e.message);
     } finally {
       setDupLoading(false);
     }
@@ -80,7 +89,7 @@ export default function FileList() {
       await loadDuplicates();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
-      setDupMessage('Hiba: ' + e.message);
+      setDupMessage(t('common.error') + ': ' + e.message);
     } finally {
       setDupLoading(false);
     }
@@ -118,12 +127,12 @@ export default function FileList() {
         const diff = Number(a.size) - Number(b.size);
         return sortDir === 'asc' ? diff : -diff;
       }
-      const cmp = String(a[sortField] ?? '').localeCompare(String(b[sortField] ?? ''), 'hu');
+      const cmp = String(a[sortField] ?? '').localeCompare(String(b[sortField] ?? ''), locale);
       return sortDir === 'asc' ? cmp : -cmp;
     });
 
     return result;
-  }, [files, search, colFilters, statusFilter, sortField, sortDir]);
+  }, [files, search, colFilters, statusFilter, sortField, sortDir, locale]);
 
   const dupSummary = useMemo(() => {
     if (!duplicates || duplicates.length === 0) return null;
@@ -177,14 +186,14 @@ export default function FileList() {
   async function handleProcessSelected() {
     const requests = Array.from(selected.entries()).map(([id, saveAttachments]) => ({ id, saveAttachments }));
     setProcessing(true);
-    setMessage('Feldolgozás indítása...');
+    setMessage(t('fileList.startingProcessing'));
     try {
       const result = await api.processSelected(requests);
       setMessage(result);
       await loadFiles();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
-      setMessage('Hiba: ' + e.message);
+      setMessage(t('common.error') + ': ' + e.message);
     } finally {
       setProcessing(false);
     }
@@ -197,14 +206,14 @@ export default function FileList() {
     return <span className="text-blue-500 ml-1">{sortDir === 'asc' ? '↑' : '↓'}</span>;
   }
 
-  if (loading) return <div className="text-gray-500 p-8">Betöltés...</div>;
+  if (loading) return <div className="text-gray-500 p-8">{t('common.loading')}</div>;
 
   return (
     <div className="space-y-4">
       {/* Tab strip */}
       <div className="border-b border-gray-200">
         <nav className="flex gap-1">
-          {([['files', 'Fájlok'], ['duplicates', 'Duplikációk']] as [ActiveTab, string][]).map(([tab, label]) => (
+          {([['files', t('fileList.tabFiles')], ['duplicates', t('fileList.tabDuplicates')]] as [ActiveTab, string][]).map(([tab, label]) => (
             <button
               key={tab}
               onClick={() => { setActiveTab(tab); if (tab === 'duplicates' && duplicates === null) loadDuplicates(); }}
@@ -220,26 +229,26 @@ export default function FileList() {
         </nav>
       </div>
 
-      {/* === Fájlok tab === */}
+      {/* === Files tab === */}
       {activeTab === 'files' && (
         <>
       {/* Selection action bar */}
       {selected.size > 0 && (
         <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
-          <span className="text-sm text-blue-700 font-medium">{selected.size} fájl kijelölve</span>
+          <span className="text-sm text-blue-700 font-medium">{t('fileList.filesSelected', { count: selected.size })}</span>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSelected(new Map())}
               className="text-sm text-blue-600 hover:text-blue-800"
             >
-              Kijelölés törlése
+              {t('fileList.clearSelection')}
             </button>
             <button
               onClick={handleProcessSelected}
               disabled={processing}
               className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
-              {processing ? 'Feldolgozás...' : 'Kijelöltek feldolgozása'}
+              {processing ? t('attachmentProcessing.processing') : t('fileList.processSelected')}
             </button>
           </div>
         </div>
@@ -248,7 +257,7 @@ export default function FileList() {
       {/* Message */}
       {message && (
         <div className={`rounded-lg px-4 py-3 text-sm ${
-          message.startsWith('Hiba') ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'
+          isErrorMessage(message) ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'
         }`}>
           {message}
         </div>
@@ -267,47 +276,47 @@ export default function FileList() {
                     checked={allVisibleSelected}
                     onChange={toggleSelectAll}
                     className="rounded border-gray-300"
-                    title="Összes ki/be"
+                    title={t('fileList.toggleAll')}
                   />
                 </th>
-                {/* Csatolmány */}
+                {/* Attachment */}
                 <th className="px-2 py-3 w-24 text-center">
-                  <span className="font-semibold text-xs text-gray-600 uppercase tracking-wider">Csatolmány</span>
+                  <span className="font-semibold text-xs text-gray-600 uppercase tracking-wider">{t('fileList.attachment')}</span>
                 </th>
-                {/* Fájlnév */}
+                {/* Filename */}
                 <th className="text-left px-4 py-3">
                   <button className="flex items-center font-semibold text-xs text-gray-600 uppercase tracking-wider mb-1.5" onClick={() => toggleSort('fileName')}>
-                    Fájlnév <SortIcon field="fileName" />
+                    {t('fileList.fileName')} <SortIcon field="fileName" />
                   </button>
-                  <input type="text" placeholder="Szűrés..." className="w-full text-xs border border-gray-300 rounded px-2 py-1 font-normal" value={colFilters['fileName'] || ''} onChange={e => setColFilters(p => ({ ...p, fileName: e.target.value }))} />
+                  <input type="text" placeholder={t('emailBrowser.filterPlaceholder')} className="w-full text-xs border border-gray-300 rounded px-2 py-1 font-normal" value={colFilters['fileName'] || ''} onChange={e => setColFilters(p => ({ ...p, fileName: e.target.value }))} />
                 </th>
-                {/* Útvonal */}
+                {/* Path */}
                 <th className="text-left px-4 py-3">
                   <button className="flex items-center font-semibold text-xs text-gray-600 uppercase tracking-wider mb-1.5" onClick={() => toggleSort('path')}>
-                    Útvonal <SortIcon field="path" />
+                    {t('fileList.path')} <SortIcon field="path" />
                   </button>
-                  <input type="text" placeholder="Szűrés..." className="w-full text-xs border border-gray-300 rounded px-2 py-1 font-normal" value={colFilters['path'] || ''} onChange={e => setColFilters(p => ({ ...p, path: e.target.value }))} />
+                  <input type="text" placeholder={t('emailBrowser.filterPlaceholder')} className="w-full text-xs border border-gray-300 rounded px-2 py-1 font-normal" value={colFilters['path'] || ''} onChange={e => setColFilters(p => ({ ...p, path: e.target.value }))} />
                 </th>
-                {/* Méret */}
+                {/* Size */}
                 <th className="text-right px-4 py-3">
                   <button className="flex items-center justify-end font-semibold text-xs text-gray-600 uppercase tracking-wider mb-1.5 w-full" onClick={() => toggleSort('size')}>
-                    Méret <SortIcon field="size" />
+                    {t('fileList.size')} <SortIcon field="size" />
                   </button>
                   <div className="h-[26px]" />
                 </th>
-                {/* Módosítva */}
+                {/* Modified */}
                 <th className="text-left px-4 py-3">
                   <button className="flex items-center font-semibold text-xs text-gray-600 uppercase tracking-wider mb-1.5" onClick={() => toggleSort('lastModified')}>
-                    Módosítva <SortIcon field="lastModified" />
+                    {t('fileList.modified')} <SortIcon field="lastModified" />
                   </button>
                   <div className="h-[26px]" />
                 </th>
-                {/* Státusz */}
+                {/* Status */}
                 <th className="text-left px-4 py-3">
                   <button className="flex items-center font-semibold text-xs text-gray-600 uppercase tracking-wider mb-1.5" onClick={() => toggleSort('status')}>
-                    Státusz <SortIcon field="status" />
+                    {t('common.status')} <SortIcon field="status" />
                   </button>
-                  <input type="text" placeholder="Szűrés..." className="w-28 text-xs border border-gray-300 rounded px-2 py-1 font-normal" value={colFilters['status'] || ''} onChange={e => setColFilters(p => ({ ...p, status: e.target.value }))} />
+                  <input type="text" placeholder={t('emailBrowser.filterPlaceholder')} className="w-28 text-xs border border-gray-300 rounded px-2 py-1 font-normal" value={colFilters['status'] || ''} onChange={e => setColFilters(p => ({ ...p, status: e.target.value }))} />
                 </th>
               </tr>
             </thead>
@@ -332,7 +341,7 @@ export default function FileList() {
                           checked={saveAtts}
                           onChange={() => toggleSaveAttachments(file.id)}
                           className="rounded border-gray-300"
-                          title="Csatolmányok mentése"
+                          title={t('fileList.saveAttachments')}
                         />
                       ) : (
                         <AttachmentsSavedBadge saved={file.attachmentsSaved} status={file.status} />
@@ -341,13 +350,13 @@ export default function FileList() {
                     <td className="px-4 py-3 font-medium text-gray-900">{file.fileName}</td>
                     <td className="px-4 py-3 text-gray-500 text-xs max-w-xs truncate" title={file.path}>{file.path}</td>
                     <td className="px-4 py-3 text-right text-gray-600 whitespace-nowrap">{formatSize(file.size)}</td>
-                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{formatDate(file.lastModified)}</td>
+                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{formatDate(file.lastModified, locale)}</td>
                     <td className="px-4 py-3"><StatusBadge status={file.status} /></td>
                   </tr>
                 );
               })}
               {visible.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 italic">Nincs a szűrésnek megfelelő fájl.</td></tr>
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 italic">{t('fileList.noFilesForFilter')}</td></tr>
               )}
             </tbody>
           </table>
@@ -356,30 +365,30 @@ export default function FileList() {
         </>
       )}
 
-      {/* === Duplikációk tab === */}
+      {/* === Duplicates tab === */}
       {activeTab === 'duplicates' && (
         <div className="space-y-4">
           <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-wrap items-center gap-4">
             <button onClick={handleComputeHashes} disabled={dupLoading} className="px-4 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors">
-              {dupLoading ? 'Feldolgozás...' : 'Hash kiszámítása + duplikációk keresése'}
+              {dupLoading ? t('attachmentProcessing.processing') : t('fileList.computeHashes')}
             </button>
             <button onClick={handleDeduplicate} disabled={dupLoading} className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors">
-              Duplikátumok törlése az adatbázisból
+              {t('fileList.deleteDuplicates')}
             </button>
             <button onClick={loadDuplicates} disabled={dupLoading} className="px-4 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors">
-              Frissítés
+              {t('common.refresh')}
             </button>
-            {dupMessage && <span className={`text-sm ${dupMessage.startsWith('Hiba') ? 'text-red-600' : 'text-gray-600'}`}>{dupMessage}</span>}
+            {dupMessage && <span className={`text-sm ${isErrorMessage(dupMessage) ? 'text-red-600' : 'text-gray-600'}`}>{dupMessage}</span>}
           </div>
 
           {dupSummary && (
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-white rounded-xl border border-amber-100 p-4">
-                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Duplikált csoport</p>
-                <p className="text-2xl font-bold text-amber-600">{dupSummary.groups} db</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('fileList.duplicateGroups')}</p>
+                <p className="text-2xl font-bold text-amber-600">{t('fileList.groupCount', { count: dupSummary.groups })}</p>
               </div>
               <div className="bg-white rounded-xl border border-red-100 p-4">
-                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Fölösleges tárhely</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('fileList.wastedSpace')}</p>
                 <p className="text-2xl font-bold text-red-600">{dupSummary.wastedGB} GB</p>
               </div>
             </div>
@@ -388,7 +397,7 @@ export default function FileList() {
           {duplicates && duplicates.length > 0 && duplicates.map((group, gi) => (
             <div key={gi} className="bg-white rounded-xl border border-amber-200 overflow-hidden">
               <div className="bg-amber-50 px-4 py-2.5 flex items-center justify-between border-b border-amber-200">
-                <span className="text-sm font-semibold text-amber-800">{group.length} azonos fájl — {formatSize(group[0].size)}</span>
+                <span className="text-sm font-semibold text-amber-800">{t('fileList.identicalFiles', { count: group.length, size: formatSize(group[0].size) })}</span>
                 <span className="text-xs text-amber-600 font-mono">{group[0].contentHash?.slice(0, 12)}…</span>
               </div>
               <div className="overflow-x-auto">
@@ -397,11 +406,11 @@ export default function FileList() {
                     {group.map((file, fi) => (
                       <tr key={file.id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${fi === 0 ? 'bg-green-50' : ''}`}>
                         <td className="px-4 py-2.5 font-medium text-gray-900 whitespace-nowrap">
-                          {fi === 0 && <span className="mr-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">eredeti</span>}
+                          {fi === 0 && <span className="mr-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">{t('fileList.original')}</span>}
                           {file.fileName}
                         </td>
                         <td className="px-4 py-2.5 text-gray-500 text-xs font-mono max-w-xs truncate" title={file.path}>{file.path}</td>
-                        <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{formatDate(file.lastModified)}</td>
+                        <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{formatDate(file.lastModified, locale)}</td>
                         <td className="px-4 py-2.5"><StatusBadge status={file.status} /></td>
                       </tr>
                     ))}
@@ -413,7 +422,7 @@ export default function FileList() {
 
           {duplicates && duplicates.length === 0 && !dupMessage && (
             <div className="bg-white rounded-xl border border-gray-200 px-4 py-10 text-center text-gray-400 italic">
-              Nem található duplikált PST fájl.
+              {t('fileList.noDuplicatePstFiles')}
             </div>
           )}
         </div>
@@ -423,10 +432,11 @@ export default function FileList() {
 }
 
 function AttachmentsSavedBadge({ saved, status }: { saved: boolean; status: string }) {
+  const { t } = useTranslation();
   if (status !== 'Processed') return null;
   return saved
-    ? <span className="text-xs text-green-600 font-medium">✓ mentve</span>
-    : <span className="text-xs text-amber-600 font-medium">– hiányzik</span>;
+    ? <span className="text-xs text-green-600 font-medium">✓ {t('fileList.saved')}</span>
+    : <span className="text-xs text-amber-600 font-medium">– {t('fileList.missing')}</span>;
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -461,9 +471,9 @@ function formatSize(bytes: number): string {
   return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
 }
 
-function formatDate(dateStr: string | null) {
+function formatDate(dateStr: string | null, locale: string) {
   if (!dateStr) return '-';
   try {
-    return new Date(dateStr).toLocaleString('hu-HU', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    return new Date(dateStr).toLocaleString(locale, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
   } catch { return dateStr; }
 }

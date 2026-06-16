@@ -1,34 +1,37 @@
+import '../lib/i18n';
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api, type KgPersonNode, type KgEmailNode, type KgStatus, type ChatMessage } from '../lib/api';
 
 type KgTab = 'status' | 'network' | 'thread' | 'concept' | 'chat';
 
-function formatDate(dateStr: string | null | undefined) {
+function formatDate(dateStr: string | null | undefined, locale: string) {
   if (!dateStr) return '-';
   try {
-    return new Date(dateStr).toLocaleDateString('hu-HU', {
+    return new Date(dateStr).toLocaleDateString(locale, {
       year: 'numeric', month: '2-digit', day: '2-digit',
     });
   } catch { return dateStr; }
 }
 
-function formatEta(seconds: number | null | undefined): string {
+function formatEta(seconds: number | null | undefined, tFn: (key: string, opts?: Record<string, unknown>) => string): string {
   if (seconds == null || seconds < 0) return '...';
-  if (seconds < 60) return `${Math.round(seconds)} mp`;
-  if (seconds < 3600) return `${Math.round(seconds / 60)} perc`;
-  return `${Math.floor(seconds / 3600)} ó ${Math.round((seconds % 3600) / 60)} perc`;
+  if (seconds < 60) return tFn('knowledgeGraph.etaSeconds', { s: Math.round(seconds) });
+  if (seconds < 3600) return tFn('knowledgeGraph.etaMinutes', { m: Math.round(seconds / 60) });
+  return tFn('knowledgeGraph.etaHoursMinutes', { h: Math.floor(seconds / 3600), m: Math.round((seconds % 3600) / 60) });
 }
 
-function EmailList({ items }: { items: KgEmailNode[] }) {
+function EmailList({ items, locale }: { items: KgEmailNode[]; locale: string }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-3">
       {items.map((e, i) => (
         <div key={i} className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <p className="font-medium text-gray-900 truncate">{e.subject || '(nincs tárgy)'}</p>
+              <p className="font-medium text-gray-900 truncate">{e.subject || t('emailBrowser.noSubject')}</p>
               <p className="text-xs text-gray-500 mt-0.5">
-                {formatDate(e.date)}
+                {formatDate(e.date, locale)}
                 {e.pstFileName && <span className="ml-2 text-gray-400">{e.pstFileName}</span>}
                 {e.pstOwner && <span className="ml-2 text-gray-400">({e.pstOwner})</span>}
               </p>
@@ -45,6 +48,8 @@ function EmailList({ items }: { items: KgEmailNode[] }) {
 }
 
 export default function KnowledgeGraph() {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language === 'en' ? 'en-US' : 'hu-HU';
   const [tab, setTab] = useState<KgTab>('status');
   const [kgStatus, setKgStatus] = useState<KgStatus | null>(null);
   const [ingesting, setIngesting] = useState(false);
@@ -109,7 +114,7 @@ export default function KnowledgeGraph() {
       loadStatus();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
-      setIngestMsg('Hiba: ' + e.message);
+      setIngestMsg(t('common.error') + ': ' + e.message);
     } finally {
       setIngesting(false);
     }
@@ -124,7 +129,7 @@ export default function KnowledgeGraph() {
       loadStatus();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
-      setReingestMsg('Hiba: ' + e.message);
+      setReingestMsg(t('common.error') + ': ' + e.message);
     } finally {
       setIngesting(false);
     }
@@ -140,7 +145,7 @@ export default function KnowledgeGraph() {
       setNetworkSearched(true);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
-      setNetworkError('Hiba: ' + e.message);
+      setNetworkError(t('common.error') + ': ' + e.message);
     } finally {
       setNetworkLoading(false);
     }
@@ -156,7 +161,7 @@ export default function KnowledgeGraph() {
       setThreadSearched(true);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
-      setThreadError('Hiba: ' + e.message);
+      setThreadError(t('common.error') + ': ' + e.message);
     } finally {
       setThreadLoading(false);
     }
@@ -172,7 +177,7 @@ export default function KnowledgeGraph() {
       setConceptSearched(true);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
-      setConceptError('Hiba: ' + e.message);
+      setConceptError(t('common.error') + ': ' + e.message);
     } finally {
       setConceptLoading(false);
     }
@@ -213,7 +218,7 @@ export default function KnowledgeGraph() {
       });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
-      setChatError('Nem sikerült választ kapni: ' + err.message);
+      setChatError(t('ragChat.responseFailed') + ': ' + err.message);
       setChatMessages(prev => prev.slice(0, -1));
     } finally {
       setChatLoading(false);
@@ -223,10 +228,10 @@ export default function KnowledgeGraph() {
   const stats = kgStatus?.stats;
 
   const tabs: { id: KgTab; label: string }[] = [
-    { id: 'status', label: 'Állapot & Építés' },
-    { id: 'network', label: 'Hálózat' },
-    { id: 'thread', label: 'Szál bejárás' },
-    { id: 'concept', label: 'Fogalom közelség' },
+    { id: 'status', label: t('knowledgeGraph.tabStatus') },
+    { id: 'network', label: t('knowledgeGraph.tabNetwork') },
+    { id: 'thread', label: t('knowledgeGraph.tabThread') },
+    { id: 'concept', label: t('knowledgeGraph.tabConcept') },
     { id: 'chat', label: '💬 Chat' },
   ];
 
@@ -235,30 +240,30 @@ export default function KnowledgeGraph() {
       {/* Stats overview */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className={`rounded-xl border p-4 ${kgStatus?.running ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-200'}`}>
-          <p className="text-xs font-medium text-gray-500">Állapot</p>
+          <p className="text-xs font-medium text-gray-500">{t('common.status')}</p>
           <p className={`text-base font-bold ${kgStatus?.running ? 'text-amber-700' : 'text-gray-700'}`}>
-            {kgStatus?.running ? 'Épül...' : 'Kész'}
+            {kgStatus?.running ? t('knowledgeGraph.building') : t('common.done')}
           </p>
         </div>
         <div className="rounded-xl border p-4 bg-gray-50 border-gray-200">
-          <p className="text-xs font-medium text-gray-500">Összes email</p>
-          <p className="text-lg font-bold text-gray-700">{stats?.totalEmails?.toLocaleString('hu-HU') ?? '-'}</p>
+          <p className="text-xs font-medium text-gray-500">{t('dashboard.totalEmails')}</p>
+          <p className="text-lg font-bold text-gray-700">{stats?.totalEmails?.toLocaleString(locale) ?? '-'}</p>
         </div>
         <div className="rounded-xl border p-4 bg-indigo-50 border-indigo-200">
-          <p className="text-xs font-medium text-indigo-600">Feldolgozva</p>
-          <p className="text-lg font-bold text-indigo-700">{stats?.processed?.toLocaleString('hu-HU') ?? '-'}</p>
+          <p className="text-xs font-medium text-indigo-600">{t('knowledgeGraph.processed')}</p>
+          <p className="text-lg font-bold text-indigo-700">{stats?.processed?.toLocaleString(locale) ?? '-'}</p>
         </div>
         <div className="rounded-xl border p-4 bg-red-50 border-red-200">
-          <p className="text-xs font-medium text-red-600">Hiba</p>
-          <p className="text-lg font-bold text-red-700">{stats?.failed?.toLocaleString('hu-HU') ?? '-'}</p>
+          <p className="text-xs font-medium text-red-600">{t('common.failed')}</p>
+          <p className="text-lg font-bold text-red-700">{stats?.failed?.toLocaleString(locale) ?? '-'}</p>
         </div>
       </div>
 
-      {/* Progress bar — csak futás közben */}
+      {/* Progress bar — only while running */}
       {kgStatus?.running && stats && stats.totalEmails > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
           <div className="flex justify-between text-xs text-amber-700 font-medium">
-            <span>{stats.processed.toLocaleString('hu-HU')} / {stats.totalEmails.toLocaleString('hu-HU')} email</span>
+            <span>{stats.processed.toLocaleString(locale)} / {stats.totalEmails.toLocaleString(locale)} {t('knowledgeGraph.emails')}</span>
             <span>{Math.round(stats.processed / stats.totalEmails * 100)}%</span>
           </div>
           <div className="w-full bg-amber-200 rounded-full h-2">
@@ -269,10 +274,10 @@ export default function KnowledgeGraph() {
           </div>
           <div className="flex gap-4 text-xs text-amber-600">
             {stats.ratePerMin > 0 && (
-              <span>{stats.ratePerMin.toFixed(1)} email/perc</span>
+              <span>{t('knowledgeGraph.emailsPerMinute', { rate: stats.ratePerMin.toFixed(1) })}</span>
             )}
             {stats.etaSeconds != null && (
-              <span>Várható befejezés: {formatEta(stats.etaSeconds)}</span>
+              <span>{t('knowledgeGraph.expectedCompletion')}: {formatEta(stats.etaSeconds, t)}</span>
             )}
           </div>
         </div>
@@ -280,17 +285,17 @@ export default function KnowledgeGraph() {
 
       {/* Tab bar */}
       <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit flex-wrap">
-        {tabs.map(t => (
+        {tabs.map(tabItem => (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
+            key={tabItem.id}
+            onClick={() => setTab(tabItem.id)}
             className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-              tab === t.id
+              tab === tabItem.id
                 ? 'bg-white shadow text-indigo-700'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            {t.label}
+            {tabItem.label}
           </button>
         ))}
       </div>
@@ -298,17 +303,16 @@ export default function KnowledgeGraph() {
       {/* Status & Ingest */}
       {tab === 'status' && (
         <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="text-sm font-semibold text-gray-700 mb-2">Knowledge Graph Építés</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-2">{t('knowledgeGraph.buildTitle')}</h3>
           <p className="text-xs text-gray-500 mb-4">
-            Kommunikációs hálózat, entitás-kapcsolatok, szálgráf és dokumentum-tudásgráf Neo4j-ban.
-            Entitáskinyerés Ollama (NER) segítségével.
+            {t('knowledgeGraph.buildDescription')}
           </p>
           <button
             onClick={handleIngest}
             disabled={ingesting || kgStatus?.running}
             className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
           >
-            {kgStatus?.running ? 'Gráf építése folyamatban...' : ingesting ? 'Indítás...' : 'Knowledge Graph építése'}
+            {kgStatus?.running ? t('knowledgeGraph.buildInProgress') : ingesting ? t('common.starting') : t('knowledgeGraph.buildButton')}
           </button>
           {ingestMsg && (
             <div className={`text-sm mt-3 p-3 rounded-lg flex items-start gap-2 ${
@@ -325,7 +329,7 @@ export default function KnowledgeGraph() {
             disabled={ingesting || kgStatus?.running}
             className="mt-2 px-4 py-2 bg-violet-600 text-white text-sm rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors"
           >
-            {kgStatus?.running ? 'Folyamatban...' : ingesting ? 'Indítás...' : 'Koncepciók újraépítése'}
+            {kgStatus?.running ? t('common.running') : ingesting ? t('common.starting') : t('knowledgeGraph.rebuildConcepts')}
           </button>
           {reingestMsg && (
             <div className={`text-sm mt-3 p-3 rounded-lg flex items-start gap-2 ${
@@ -344,13 +348,13 @@ export default function KnowledgeGraph() {
       {tab === 'network' && (
         <div className="space-y-4">
           <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Kommunikációs Hálózat</h3>
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">{t('knowledgeGraph.communicationNetwork')}</h3>
             <form onSubmit={handleNetworkSearch} className="flex gap-3">
               <input
                 type="text"
                 value={networkEmail}
                 onChange={e => setNetworkEmail(e.target.value)}
-                placeholder="E-mail cím, pl. kovacs@pelda.hu"
+                placeholder={t('knowledgeGraph.emailAddressPlaceholder')}
                 className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
               <button
@@ -358,14 +362,14 @@ export default function KnowledgeGraph() {
                 disabled={networkLoading || !networkEmail.trim()}
                 className="px-5 py-2.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
               >
-                {networkLoading ? 'Keresés...' : 'Keresés'}
+                {networkLoading ? t('common.search') + '...' : t('common.search')}
               </button>
             </form>
           </div>
           {networkError && <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-200">{networkError}</p>}
           {networkResults.length > 0 && (
             <div className="space-y-2">
-              <h4 className="text-sm font-semibold text-gray-600">{networkResults.length} kommunikációs partner</h4>
+              <h4 className="text-sm font-semibold text-gray-600">{t('knowledgeGraph.communicationPartners', { count: networkResults.length })}</h4>
               {networkResults.map((p, i) => (
                 <div key={i} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-4">
                   <span className="w-9 h-9 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-sm font-medium shrink-0">
@@ -381,7 +385,7 @@ export default function KnowledgeGraph() {
             </div>
           )}
           {!networkLoading && networkSearched && networkResults.length === 0 && (
-            <p className="text-center py-8 text-gray-400 text-sm">Nincs találat</p>
+            <p className="text-center py-8 text-gray-400 text-sm">{t('common.noResults')}</p>
           )}
         </div>
       )}
@@ -390,13 +394,13 @@ export default function KnowledgeGraph() {
       {tab === 'thread' && (
         <div className="space-y-4">
           <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Szál Bejárás</h3>
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">{t('knowledgeGraph.threadTraversal')}</h3>
             <form onSubmit={handleThreadSearch} className="flex gap-3">
               <input
                 type="text"
                 value={threadId}
                 onChange={e => setThreadId(e.target.value)}
-                placeholder="Szál azonosítója (threadId / conversationTopic)"
+                placeholder={t('knowledgeGraph.threadIdPlaceholder')}
                 className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
               <button
@@ -404,19 +408,19 @@ export default function KnowledgeGraph() {
                 disabled={threadLoading || !threadId.trim()}
                 className="px-5 py-2.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
               >
-                {threadLoading ? 'Betöltés...' : 'Betöltés'}
+                {threadLoading ? t('common.loading') : t('knowledgeGraph.load')}
               </button>
             </form>
           </div>
           {threadError && <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-200">{threadError}</p>}
           {threadResults.length > 0 && (
             <>
-              <h4 className="text-sm font-semibold text-gray-600">{threadResults.length} email a szálban</h4>
-              <EmailList items={threadResults} />
+              <h4 className="text-sm font-semibold text-gray-600">{t('knowledgeGraph.emailsInThread', { count: threadResults.length })}</h4>
+              <EmailList items={threadResults} locale={locale} />
             </>
           )}
           {!threadLoading && threadSearched && threadResults.length === 0 && (
-            <p className="text-center py-8 text-gray-400 text-sm">Nincs találat</p>
+            <p className="text-center py-8 text-gray-400 text-sm">{t('common.noResults')}</p>
           )}
         </div>
       )}
@@ -425,13 +429,13 @@ export default function KnowledgeGraph() {
       {tab === 'concept' && (
         <div className="space-y-4">
           <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Fogalom Közelség</h3>
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">{t('knowledgeGraph.conceptProximity')}</h3>
             <form onSubmit={handleConceptSearch} className="flex gap-3">
               <input
                 type="text"
                 value={conceptName}
                 onChange={e => setConceptName(e.target.value)}
-                placeholder="Fogalom neve, pl. szállítási szerződés"
+                placeholder={t('knowledgeGraph.conceptNamePlaceholder')}
                 className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
               <select
@@ -446,19 +450,19 @@ export default function KnowledgeGraph() {
                 disabled={conceptLoading || !conceptName.trim()}
                 className="px-5 py-2.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
               >
-                {conceptLoading ? 'Keresés...' : 'Keresés'}
+                {conceptLoading ? t('common.search') + '...' : t('common.search')}
               </button>
             </form>
           </div>
           {conceptError && <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-200">{conceptError}</p>}
           {conceptResults.length > 0 && (
             <>
-              <h4 className="text-sm font-semibold text-gray-600">{conceptResults.length} kapcsolódó email</h4>
-              <EmailList items={conceptResults} />
+              <h4 className="text-sm font-semibold text-gray-600">{t('knowledgeGraph.relatedEmails', { count: conceptResults.length })}</h4>
+              <EmailList items={conceptResults} locale={locale} />
             </>
           )}
           {!conceptLoading && conceptSearched && conceptResults.length === 0 && (
-            <p className="text-center py-8 text-gray-400 text-sm">Nincs találat</p>
+            <p className="text-center py-8 text-gray-400 text-sm">{t('common.noResults')}</p>
           )}
         </div>
       )}
@@ -467,9 +471,9 @@ export default function KnowledgeGraph() {
       {tab === 'chat' && (
         <div className="flex flex-col h-[60vh] min-h-[400px]">
           <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-100">
-            <span className="text-xs font-medium text-gray-500">Modell:</span>
+            <span className="text-xs font-medium text-gray-500">{t('ragChat.model')}:</span>
             {chatModels.length === 0 ? (
-              <span className="text-xs text-red-400">Ollama nem elérhető</span>
+              <span className="text-xs text-red-400">{t('ragChat.ollamaUnavailable')}</span>
             ) : (
               <select
                 value={chatModel}
@@ -482,7 +486,7 @@ export default function KnowledgeGraph() {
             )}
             {chatMessages.length > 0 && (
               <button onClick={() => setChatMessages([])} className="ml-auto text-xs text-gray-400 hover:text-red-500 transition-colors">
-                Törlés
+                {t('common.delete')}
               </button>
             )}
           </div>
@@ -490,7 +494,7 @@ export default function KnowledgeGraph() {
           <div className="flex-1 overflow-y-auto space-y-4 pr-1">
             {chatMessages.length === 0 && !chatLoading && (
               <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-                Kérdezz a levelezési hálózatról…
+                {t('knowledgeGraph.askAboutNetwork')}
               </div>
             )}
             {chatMessages.map((msg, idx) => (
@@ -503,7 +507,7 @@ export default function KnowledgeGraph() {
                   <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                   {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && (
                     <p className="text-xs mt-2 pt-2 border-t border-gray-100 text-gray-400">
-                      {msg.sources.length} forrás e-mail
+                      {t('knowledgeGraph.sourceEmailCount', { count: msg.sources.length })}
                     </p>
                   )}
                 </div>
@@ -531,7 +535,7 @@ export default function KnowledgeGraph() {
               type="text"
               value={chatInput}
               onChange={e => setChatInput(e.target.value)}
-              placeholder="Kérdezz a levelezési hálózatról…"
+              placeholder={t('knowledgeGraph.askAboutNetwork')}
               disabled={chatLoading}
               className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 bg-white"
             />
@@ -540,7 +544,7 @@ export default function KnowledgeGraph() {
               disabled={chatLoading || !chatInput.trim()}
               className="px-5 py-3 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors whitespace-nowrap"
             >
-              {chatLoading ? 'Küldés…' : '↑ Küldés'}
+              {chatLoading ? t('ragChat.sending') : '↑ ' + t('ragChat.send')}
             </button>
           </form>
         </div>

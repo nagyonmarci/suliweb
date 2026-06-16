@@ -1,4 +1,6 @@
+import '../lib/i18n';
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api, type UserDto, type AuthorityDto, type FileInfo } from '../lib/api';
 
 type ModalMode = 'create' | 'edit' | 'files' | null;
@@ -13,6 +15,7 @@ interface FormState {
 const emptyForm: FormState = { username: '', email: '', password: '', authorityIds: [] };
 
 export default function UserManagement() {
+  const { t } = useTranslation();
   const [users, setUsers] = useState<UserDto[]>([]);
   const [authorities, setAuthorities] = useState<AuthorityDto[]>([]);
   const [allFiles, setAllFiles] = useState<FileInfo[]>([]);
@@ -28,6 +31,7 @@ export default function UserManagement() {
 
   useEffect(() => {
     loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadAll() {
@@ -43,7 +47,7 @@ export default function UserManagement() {
       setAllFiles(filesData);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
-      setError(e.message ?? 'Betöltési hiba');
+      setError(e.message ?? t('userManagement.loadError'));
     } finally {
       setLoading(false);
     }
@@ -96,7 +100,7 @@ export default function UserManagement() {
     try {
       if (modalMode === 'create') {
         if (!form.username.trim() || !form.password.trim()) {
-          setError('Felhasználónév és jelszó megadása kötelező');
+          setError(t('userManagement.usernamePasswordRequired'));
           return;
         }
         await api.createUser({ username: form.username, password: form.password, email: form.email, authorityIds: form.authorityIds });
@@ -111,7 +115,7 @@ export default function UserManagement() {
       await loadAll();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
-      setError(e.message ?? 'Mentési hiba');
+      setError(e.message ?? t('userManagement.saveError'));
     } finally {
       setSaving(false);
     }
@@ -126,7 +130,7 @@ export default function UserManagement() {
       await loadAll();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
-      setError(e.message ?? 'Mentési hiba');
+      setError(e.message ?? t('userManagement.saveError'));
     } finally {
       setSaving(false);
     }
@@ -139,7 +143,7 @@ export default function UserManagement() {
       await loadAll();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
-      setError(e.message ?? 'Törlési hiba');
+      setError(e.message ?? t('userManagement.deleteError'));
     }
   }
 
@@ -154,7 +158,7 @@ export default function UserManagement() {
       <div className="flex items-center justify-center h-48 text-gray-500">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-          <p className="text-sm">Betöltés...</p>
+          <p className="text-sm">{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -170,12 +174,12 @@ export default function UserManagement() {
       )}
 
       <div className="flex justify-between items-center">
-        <p className="text-sm text-gray-500">{users.length} felhasználó</p>
+        <p className="text-sm text-gray-500">{t('userManagement.userCount', { count: users.length })}</p>
         <button
           onClick={openCreate}
           className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
         >
-          + Új felhasználó
+          + {t('userManagement.newUser')}
         </button>
       </div>
 
@@ -183,10 +187,10 @@ export default function UserManagement() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Felhasználónév</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600">{t('login.username')}</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">E-mail</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Jogosultságok</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">PST hozzáférés</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600">{t('userManagement.authorities')}</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600">{t('userManagement.pstAccess')}</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -194,7 +198,7 @@ export default function UserManagement() {
             {users.length === 0 ? (
               <tr>
                 <td colSpan={5} className="text-center py-8 text-gray-400">
-                  Nincsenek felhasználók
+                  {t('userManagement.noUsers')}
                 </td>
               </tr>
             ) : users.map(user => {
@@ -230,7 +234,7 @@ export default function UserManagement() {
                           : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
                       }`}
                     >
-                      {isAllFiles ? '✓ Összes fájl' : `${fileCount} fájl`}
+                      {isAllFiles ? '✓ ' + t('userManagement.allFiles') : t('userManagement.fileCount', { count: fileCount })}
                     </button>
                   </td>
                   <td className="px-4 py-3">
@@ -239,13 +243,13 @@ export default function UserManagement() {
                         onClick={() => openEdit(user)}
                         className="text-blue-600 hover:text-blue-800 text-xs font-medium px-2 py-1 rounded hover:bg-blue-50 transition-colors"
                       >
-                        Szerkesztés
+                        {t('common.edit')}
                       </button>
                       <button
                         onClick={() => setDeleteConfirm(user)}
                         className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1 rounded hover:bg-red-50 transition-colors"
                       >
-                        Törlés
+                        {t('common.delete')}
                       </button>
                     </div>
                   </td>
@@ -262,19 +266,19 @@ export default function UserManagement() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="font-semibold text-gray-800">
-                {modalMode === 'create' ? 'Új felhasználó létrehozása' : 'Felhasználó szerkesztése'}
+                {modalMode === 'create' ? t('userManagement.createUser') : t('userManagement.editUser')}
               </h3>
             </div>
             <div className="px-6 py-4 space-y-4">
               {modalMode === 'create' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Felhasználónév *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('login.username')} *</label>
                   <input
                     type="text"
                     value={form.username}
                     onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="pl. janos.kovacs"
+                    placeholder="e.g. john.doe"
                   />
                 </div>
               )}
@@ -285,25 +289,25 @@ export default function UserManagement() {
                   value={form.email}
                   onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="pl. janos@example.com"
+                  placeholder="e.g. john@example.com"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {modalMode === 'create' ? 'Jelszó *' : 'Új jelszó (üresen hagyva nem változik)'}
+                  {modalMode === 'create' ? t('login.password') + ' *' : t('userManagement.newPasswordHint')}
                 </label>
                 <input
                   type="password"
                   value={form.password}
                   onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder={modalMode === 'create' ? 'Jelszó' : 'Üresen hagyva nem változik'}
+                  placeholder={modalMode === 'create' ? t('login.password') : t('userManagement.leaveBlankNoChange')}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Jogosultságok</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('userManagement.authorities')}</label>
                 <div className="space-y-1 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2">
-                  {authorities.length === 0 && <p className="text-xs text-gray-400">Nincsenek elérhető jogosultságok</p>}
+                  {authorities.length === 0 && <p className="text-xs text-gray-400">{t('userManagement.noAuthorities')}</p>}
                   {authorities.map(a => (
                     <label key={a.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded">
                       <input
@@ -322,10 +326,10 @@ export default function UserManagement() {
             </div>
             <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
               <button onClick={closeModal} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                Mégse
+                {t('common.cancel')}
               </button>
               <button onClick={handleSave} disabled={saving} className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50">
-                {saving ? 'Mentés...' : 'Mentés'}
+                {saving ? t('common.starting') : t('common.save')}
               </button>
             </div>
           </div>
@@ -337,9 +341,9 @@ export default function UserManagement() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg flex flex-col max-h-[85vh]">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="font-semibold text-gray-800">PST fájl-hozzáférés — {editingUser.username}</h3>
+              <h3 className="font-semibold text-gray-800">{t('userManagement.pstAccessFor', { username: editingUser.username })}</h3>
               <p className="text-xs text-gray-500 mt-1">
-                Ha nem jelölsz ki egyet sem, a felhasználó <strong>minden</strong> fájlhoz hozzáfér.
+                {t('userManagement.noSelectionMeansAllAccess')}
               </p>
             </div>
 
@@ -349,34 +353,34 @@ export default function UserManagement() {
                   type="text"
                   value={fileSearch}
                   onChange={e => setFileSearch(e.target.value)}
-                  placeholder="Keresés fájlnév vagy útvonal alapján..."
+                  placeholder={t('userManagement.searchByFilenameOrPath')}
                   className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <span className="text-xs text-gray-400 whitespace-nowrap">{selectedFileIds.length} kijelölve</span>
+                <span className="text-xs text-gray-400 whitespace-nowrap">{t('userManagement.selectedCount', { count: selectedFileIds.length })}</span>
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => setSelectedFileIds(allFiles.map(f => f.id))}
                   className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
                 >
-                  Összes kijelölése
+                  {t('userManagement.selectAll')}
                 </button>
                 <span className="text-gray-300">|</span>
                 <button
                   onClick={() => setSelectedFileIds([])}
                   className="text-xs text-gray-500 hover:text-gray-700 hover:underline"
                 >
-                  Kijelölés törlése
+                  {t('fileList.clearSelection')}
                 </button>
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-2 space-y-1">
               {allFiles.length === 0 && (
-                <p className="text-sm text-gray-400 text-center py-8">Nincsenek PST fájlok az adatbázisban</p>
+                <p className="text-sm text-gray-400 text-center py-8">{t('userManagement.noPstFilesInDb')}</p>
               )}
               {filteredFiles.length === 0 && allFiles.length > 0 && (
-                <p className="text-sm text-gray-400 text-center py-4">Nincs találat</p>
+                <p className="text-sm text-gray-400 text-center py-4">{t('common.noResults')}</p>
               )}
               {filteredFiles.map(f => (
                 <label key={f.id} className={`flex items-start gap-3 cursor-pointer px-3 py-2.5 rounded-lg border transition-colors ${
@@ -407,10 +411,10 @@ export default function UserManagement() {
 
             <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
               <button onClick={closeModal} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                Mégse
+                {t('common.cancel')}
               </button>
               <button onClick={handleSaveFiles} disabled={saving} className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50">
-                {saving ? 'Mentés...' : 'Mentés'}
+                {saving ? t('common.starting') : t('common.save')}
               </button>
             </div>
           </div>
@@ -422,19 +426,19 @@ export default function UserManagement() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="font-semibold text-gray-800">Felhasználó törlése</h3>
+              <h3 className="font-semibold text-gray-800">{t('userManagement.deleteUserTitle')}</h3>
             </div>
             <div className="px-6 py-4">
               <p className="text-sm text-gray-600">
-                Biztosan törölni szeretnéd <strong>{deleteConfirm.username}</strong> felhasználót? Ez a művelet nem vonható vissza.
+                {t('userManagement.deleteUserConfirm', { username: deleteConfirm.username })}
               </p>
             </div>
             <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
               <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                Mégse
+                {t('common.cancel')}
               </button>
               <button onClick={() => handleDelete(deleteConfirm)} className="px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
-                Törlés
+                {t('common.delete')}
               </button>
             </div>
           </div>
