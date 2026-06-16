@@ -80,7 +80,7 @@ services:
       start_period: 30s
 
   suliweb-elasticsearch:
-    image: elasticsearch:8.17.0
+    image: elasticsearch:9.4.2
     container_name: suliweb-elasticsearch
     restart: unless-stopped
     environment:
