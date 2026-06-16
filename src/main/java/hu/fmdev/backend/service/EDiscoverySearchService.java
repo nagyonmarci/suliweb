@@ -49,13 +49,16 @@ public class EDiscoverySearchService {
                 })));
             }
 
-            // Stemmelt + ascii alfeld egyszerre: ragozott és ékezet nélküli keresés is működik
+            // Stemmelt + ascii alfeld egyszerre: ragozott és ékezet nélküli keresés is működik.
+            // Fuzziness: elgépelt keresőszavak is találnak (pl. "kontrakt" -> "kontraktus").
             Query multiMatch = Query.of(q -> q.multiMatch(mm -> mm
                     .query(query)
                     .fields("subject^3", "subject.ascii^2",
                             "bodyDelta^2", "bodyDelta.ascii",
                             "senderName", "senderName.ascii")
-                    .type(TextQueryType.BestFields)));
+                    .type(TextQueryType.BestFields)
+                    .fuzziness("AUTO")
+                    .prefixLength(2)));
 
             Query finalQuery = filters.isEmpty()
                     ? multiMatch

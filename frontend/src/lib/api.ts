@@ -407,6 +407,7 @@ export interface AppSettingsDto {
   chatModel: string;
   nerModel: string;
   chatMaxHistoryTurns: number;
+  chatContextTopK: number;
   kgBatchSize: number;
   kgMaxConcurrentWrites: number;
 }

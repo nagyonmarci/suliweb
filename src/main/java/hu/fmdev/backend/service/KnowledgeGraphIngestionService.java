@@ -17,6 +17,8 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 @Service
 public class KnowledgeGraphIngestionService {
@@ -92,67 +94,12 @@ public class KnowledgeGraphIngestionService {
         startedAt = Instant.now();
         totalEmails.set(0); processedCount.set(0); failedCount.set(0);
         try {
-            long total = emailRepository.count();
-            totalEmails.set(total);
-            progressTracker.startOperation("Knowledge Graph építés", (int) total);
-            CentralLogger.logInfo("KG ingestion start. Emails: " + total
-                    + " batchSize=" + appSettingsService.getEffectiveKgBatchSize()
+            CentralLogger.logInfo("KG ingestion start. batchSize=" + appSettingsService.getEffectiveKgBatchSize()
                     + " maxConcurrentWrites=" + appSettingsService.getEffectiveKgMaxConcurrentWrites());
 
-            int page = 0;
-            // Virtual threads for I/O-bound NER calls
-            ExecutorService nerExec = Executors.newVirtualThreadPerTaskExecutor();
-            // Fixed pool limits concurrent Neo4j writers
-            ExecutorService writeExec = Executors.newFixedThreadPool(appSettingsService.getEffectiveKgMaxConcurrentWrites());
-            try {
-                while (true) {
-                    var emailPage = emailRepository.findAll(PageRequest.of(page, appSettingsService.getEffectiveKgBatchSize()));
-                    if (emailPage.isEmpty()) break;
-
-                    // Phase 1: NER extraction (parallel, I/O-bound — no DB writes)
-                    List<Callable<NerResult>> nerTasks = emailPage.stream()
-                            .map(email -> (Callable<NerResult>) () -> extractNer(email))
-                            .toList();
-
-                    List<NerResult> nerResults = new ArrayList<>();
-                    try {
-                        for (var f : nerExec.invokeAll(nerTasks)) {
-                            try {
-                                NerResult r = f.get();
-                                if (r != null) nerResults.add(r);
-                            } catch (ExecutionException e) {
-                                CentralLogger.logError("NER extraction hiba", e.getCause());
-                            }
-                        }
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        CentralLogger.logError("KG ingestion megszakítva (NER fázis)", e);
-                        break;
-                    }
-
-                    // Phase 2: Neo4j writes (concurrency limited by fixed thread pool)
-                    List<Callable<Void>> writeTasks = nerResults.stream()
-                            .map(r -> (Callable<Void>) () -> {
-                                writeEmailToGraph(r.email(), r.entities());
-                                return null;
-                            })
-                            .toList();
-
-                    try {
-                        writeExec.invokeAll(writeTasks);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        CentralLogger.logError("KG ingestion megszakítva (write fázis)", e);
-                        break;
-                    }
-
-                    if (!emailPage.hasNext()) break;
-                    page++;
-                }
-            } finally {
-                nerExec.shutdown();
-                writeExec.shutdown();
-            }
+            runBatchedPipeline("Knowledge Graph építés",
+                    this::extractNer,
+                    r -> writeEmailToGraph(r.email(), r.entities()));
 
             progressTracker.stopOperation();
             CentralLogger.logInfo("KG ingestion done. Processed: " + processedCount
@@ -171,75 +118,81 @@ public class KnowledgeGraphIngestionService {
         startedAt = Instant.now();
         totalEmails.set(0); processedCount.set(0); failedCount.set(0);
         try {
-            long total = emailRepository.count();
-            totalEmails.set(total);
-            progressTracker.startOperation("Koncepciók újraépítése", (int) total);
-            CentralLogger.logInfo("KG concept re-ingestion start. Emails: " + total);
+            CentralLogger.logInfo("KG concept re-ingestion start.");
 
-            int batchSize = appSettingsService.getEffectiveKgBatchSize();
-            ExecutorService nerExec   = Executors.newVirtualThreadPerTaskExecutor();
-            ExecutorService writeExec = Executors.newFixedThreadPool(
-                    appSettingsService.getEffectiveKgMaxConcurrentWrites());
-            try {
-                int page = 0;
-                while (true) {
-                    var emailPage = emailRepository.findAll(PageRequest.of(page, batchSize));
-                    if (emailPage.isEmpty()) break;
+            runBatchedPipeline("Koncepciók újraépítése",
+                    this::extractNerForExistingNode,
+                    this::writeConceptsForEmail);
 
-                    // Only process emails that already have an Email node in Neo4j
-                    record EmailNer(Email email, List<NerExtractor.ExtractedEntity> entities) {}
-                    List<Callable<EmailNer>> nerTasks = emailPage.stream()
-                            .map(email -> (Callable<EmailNer>) () -> {
-                                progressTracker.increment();
-                                if (!emailNodeRepo.existsByMessageId(resolveMessageId(email))) return null;
-                                String text = email.getStrippedBody() != null
-                                        ? email.getStrippedBody()
-                                        : textExtraction.getEmailTextContent(email.getBody(), email.getHtmlContent());
-                                List<NerExtractor.ExtractedEntity> entities = entityExtraction.extract(text);
-                                return entities.isEmpty() ? null : new EmailNer(email, entities);
-                            })
-                            .toList();
-
-                    List<EmailNer> nerResults = new ArrayList<>();
-                    for (var f : nerExec.invokeAll(nerTasks)) {
-                        try {
-                            EmailNer r = f.get();
-                            if (r != null) nerResults.add(r);
-                        } catch (ExecutionException e) {
-                            CentralLogger.logError("Concept re-ingest NER hiba", e.getCause());
-                        }
-                    }
-
-                    writeExec.invokeAll(nerResults.stream()
-                            .map(r -> (Callable<Void>) () -> {
-                                List<Map<String, String>> conceptMaps = r.entities().stream()
-                                        .map(e -> Map.of("name", e.name(), "type", e.type()))
-                                        .toList();
-                                try {
-                                    writeWithRetry(r.email().getId(), conceptMaps);
-                                    processedCount.incrementAndGet();
-                                } catch (Exception e) {
-                                    failedCount.incrementAndGet();
-                                    CentralLogger.logWarn("Concept write hiba ["
-                                            + r.email().getId() + "]: " + e.getMessage());
-                                }
-                                return null;
-                            }).toList());
-
-                    if (!emailPage.hasNext()) break;
-                    page++;
-                }
-            } finally {
-                nerExec.shutdown();
-                writeExec.shutdown();
-            }
             progressTracker.stopOperation();
             CentralLogger.logInfo("KG concept re-ingest done. Processed: "
                     + processedCount + " Failed: " + failedCount);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
         } finally {
             running = false;
+        }
+    }
+
+    /**
+     * Shared two-phase pipeline used by both ingestAll() and ingestConceptsOnly():
+     * pages through every email, runs {@code nerStep} on virtual threads (I/O-bound,
+     * unbounded concurrency), then runs {@code writeStep} on a fixed-size pool (bounds
+     * concurrent Neo4j writers). A null result from {@code nerStep} skips that email.
+     */
+    private <R> void runBatchedPipeline(String operationLabel, Function<Email, R> nerStep, Consumer<R> writeStep) {
+        long total = emailRepository.count();
+        totalEmails.set(total);
+        progressTracker.startOperation(operationLabel, (int) total);
+
+        int batchSize = appSettingsService.getEffectiveKgBatchSize();
+        ExecutorService nerExec = Executors.newVirtualThreadPerTaskExecutor();
+        ExecutorService writeExec = Executors.newFixedThreadPool(appSettingsService.getEffectiveKgMaxConcurrentWrites());
+        try {
+            int page = 0;
+            while (true) {
+                var emailPage = emailRepository.findAll(PageRequest.of(page, batchSize));
+                if (emailPage.isEmpty()) break;
+
+                List<Callable<R>> nerTasks = emailPage.stream()
+                        .map(email -> (Callable<R>) () -> nerStep.apply(email))
+                        .toList();
+
+                List<R> nerResults = new ArrayList<>();
+                try {
+                    for (var f : nerExec.invokeAll(nerTasks)) {
+                        try {
+                            R r = f.get();
+                            if (r != null) nerResults.add(r);
+                        } catch (ExecutionException e) {
+                            CentralLogger.logError("NER extraction hiba", e.getCause());
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    CentralLogger.logError("KG ingestion megszakítva (NER fázis)", e);
+                    break;
+                }
+
+                List<Callable<Void>> writeTasks = nerResults.stream()
+                        .map(r -> (Callable<Void>) () -> {
+                            writeStep.accept(r);
+                            return null;
+                        })
+                        .toList();
+
+                try {
+                    writeExec.invokeAll(writeTasks);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    CentralLogger.logError("KG ingestion megszakítva (write fázis)", e);
+                    break;
+                }
+
+                if (!emailPage.hasNext()) break;
+                page++;
+            }
+        } finally {
+            nerExec.shutdown();
+            writeExec.shutdown();
         }
     }
 
@@ -251,6 +204,30 @@ public class KnowledgeGraphIngestionService {
                 : textExtraction.getEmailTextContent(email.getBody(), email.getHtmlContent());
         List<NerExtractor.ExtractedEntity> entities = entityExtraction.extract(bodyText);
         return new NerResult(email, entities);
+    }
+
+    /** Only re-extracts entities for emails that already have an Email node in Neo4j. */
+    private NerResult extractNerForExistingNode(Email email) {
+        progressTracker.increment();
+        if (!emailNodeRepo.existsByMessageId(resolveMessageId(email))) return null;
+        String text = email.getStrippedBody() != null
+                ? email.getStrippedBody()
+                : textExtraction.getEmailTextContent(email.getBody(), email.getHtmlContent());
+        List<NerExtractor.ExtractedEntity> entities = entityExtraction.extract(text);
+        return entities.isEmpty() ? null : new NerResult(email, entities);
+    }
+
+    private void writeConceptsForEmail(NerResult r) {
+        List<Map<String, String>> conceptMaps = r.entities().stream()
+                .map(e -> Map.of("name", e.name(), "type", e.type()))
+                .toList();
+        try {
+            writeWithRetry(r.email().getId(), conceptMaps);
+            processedCount.incrementAndGet();
+        } catch (Exception e) {
+            failedCount.incrementAndGet();
+            CentralLogger.logWarn("Concept write hiba [" + r.email().getId() + "]: " + e.getMessage());
+        }
     }
 
     private void writeEmailToGraph(Email email, List<NerExtractor.ExtractedEntity> entities) {
