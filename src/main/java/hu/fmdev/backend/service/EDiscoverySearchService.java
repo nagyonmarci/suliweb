@@ -6,6 +6,7 @@ import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.core.search.HighlightField;
+import co.elastic.clients.util.NamedValue;
 import hu.fmdev.backend.logger.CentralLogger;
 import org.springframework.stereotype.Service;
 
@@ -68,9 +69,9 @@ public class EDiscoverySearchService {
                     .query(finalQuery)
                     .size(topK)
                     .highlight(h -> h
-                            .fields("bodyDelta", HighlightField.of(f -> f
+                            .fields(NamedValue.of("bodyDelta", HighlightField.of(f -> f
                                     .numberOfFragments(1)
-                                    .fragmentSize(200))))),
+                                    .fragmentSize(200)))))),
                     mapClass);
 
             List<SearchResult> results = new ArrayList<>();
