@@ -1,4 +1,6 @@
+import '../lib/i18n';
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api, type ProgressState, type RagHealth, type KgGraphStats } from '../lib/api';
 
 interface Stats {
@@ -9,6 +11,8 @@ interface Stats {
 }
 
 export default function Dashboard() {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language === 'en' ? 'en-US' : 'hu-HU';
   const [stats, setStats] = useState<Stats>({ totalEmails: 0, totalFiles: 0, newFiles: 0, processedFiles: 0 });
   const [progress, setProgress] = useState<ProgressState | null>(null);
   const [ragHealth, setRagHealth] = useState<RagHealth | null>(null);
@@ -22,6 +26,7 @@ export default function Dashboard() {
     loadKgStats();
     const interval = setInterval(loadProgress, 2000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadStats() {
@@ -38,8 +43,8 @@ export default function Dashboard() {
         processedFiles: fileCounts.processed,
       });
     } catch (e) {
-      console.error('Stats betöltési hiba:', e);
-      setStatsError('A statisztikák betöltése sikertelen. Ellenőrizd, hogy a backend fut-e.');
+      console.error('Stats load error:', e);
+      setStatsError(t('dashboard.statsLoadError'));
     } finally {
       setLoading(false);
     }
@@ -73,7 +78,7 @@ export default function Dashboard() {
   }
 
   if (loading) {
-    return <div className="text-gray-500">Betöltés...</div>;
+    return <div className="text-gray-500">{t('common.loading')}</div>;
   }
 
   return (
@@ -91,23 +96,23 @@ export default function Dashboard() {
             onClick={loadStats}
             className="text-sm text-red-600 hover:text-red-800 font-medium underline shrink-0"
           >
-            Újrapróbál
+            {t('dashboard.retry')}
           </button>
         </div>
       )}
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard label="Összes email" value={stats.totalEmails} color="blue" />
-        <StatCard label="Összes fájl" value={stats.totalFiles} color="gray" />
-        <StatCard label="Feldolgozandó" value={stats.newFiles} color="amber" />
-        <StatCard label="Feldolgozott" value={stats.processedFiles} color="green" />
+        <StatCard label={t('dashboard.totalEmails')} value={stats.totalEmails} color="blue" locale={locale} />
+        <StatCard label={t('dashboard.totalFiles')} value={stats.totalFiles} color="gray" locale={locale} />
+        <StatCard label={t('dashboard.pendingFiles')} value={stats.newFiles} color="amber" locale={locale} />
+        <StatCard label={t('dashboard.processedFiles')} value={stats.processedFiles} color="green" locale={locale} />
       </div>
 
       {/* Active progress */}
       {progress?.active && (
         <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Aktív feldolgozás</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">{t('dashboard.activeProcessing')}</h3>
           <p className="text-sm text-gray-600 mb-2">{progress.currentOperation}</p>
           <div className="w-full bg-gray-200 rounded-full h-3">
             <div
@@ -125,49 +130,49 @@ export default function Dashboard() {
       {ragHealth && (
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-gray-700">RAG Index</h3>
+            <h3 className="text-sm font-semibold text-gray-700">{t('dashboard.ragIndex')}</h3>
             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${ragHealth.ollamaAvailable ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-              Ollama: {ragHealth.ollamaAvailable ? 'Online' : 'Offline'}
+              Ollama: {ragHealth.ollamaAvailable ? t('dashboard.online') : t('dashboard.offline')}
             </span>
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <p className="text-xs text-gray-500">Indexelt chunkek</p>
-              <p className="text-xl font-bold text-blue-700">{ragHealth.stats.embeddedChunks.toLocaleString('hu-HU')}</p>
+              <p className="text-xs text-gray-500">{t('dashboard.embeddedChunks')}</p>
+              <p className="text-xl font-bold text-blue-700">{ragHealth.stats.embeddedChunks.toLocaleString(locale)}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-500">Függőben</p>
-              <p className="text-xl font-bold text-amber-600">{ragHealth.stats.pendingChunks.toLocaleString('hu-HU')}</p>
+              <p className="text-xs text-gray-500">{t('dashboard.pendingChunks')}</p>
+              <p className="text-xl font-bold text-amber-600">{ragHealth.stats.pendingChunks.toLocaleString(locale)}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-500">Sikertelen</p>
-              <p className="text-xl font-bold text-red-600">{ragHealth.stats.failedChunks.toLocaleString('hu-HU')}</p>
+              <p className="text-xs text-gray-500">{t('dashboard.failedChunks')}</p>
+              <p className="text-xl font-bold text-red-600">{ragHealth.stats.failedChunks.toLocaleString(locale)}</p>
             </div>
           </div>
           {ragHealth.ingestionRunning && (
-            <p className="text-xs text-blue-600 mt-3 animate-pulse">Indexelés folyamatban...</p>
+            <p className="text-xs text-blue-600 mt-3 animate-pulse">{t('dashboard.indexingInProgress')}</p>
           )}
         </div>
       )}
 
       {/* KG Statistics */}
-      {kgStats && <KgStatsPanel stats={kgStats} />}
+      {kgStats && <KgStatsPanel stats={kgStats} locale={locale} />}
 
       {/* Quick actions */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="text-sm font-semibold text-gray-700 mb-4">Gyors műveletek</h3>
+        <h3 className="text-sm font-semibold text-gray-700 mb-4">{t('dashboard.quickActions')}</h3>
         <div className="flex flex-wrap gap-3">
           <a href="/processing" className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">
-            PST feldolgozás
+            {t('dashboard.pstProcessing')}
           </a>
           <a href="/rag" className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors">
-            RAG keresés
+            {t('dashboard.ragSearch')}
           </a>
           <a href="/synology" className="px-4 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors">
-            Synology keresés
+            {t('dashboard.synologySearch')}
           </a>
           <a href="/emails" className="px-4 py-2 bg-white border border-gray-300 text-sm rounded-lg hover:bg-gray-50 transition-colors">
-            Email böngésző
+            {t('dashboard.emailBrowser')}
           </a>
         </div>
       </div>
@@ -175,29 +180,34 @@ export default function Dashboard() {
   );
 }
 
-function KgStatsPanel({ stats }: { stats: KgGraphStats }) {
+function KgStatsPanel({ stats, locale }: { stats: KgGraphStats; locale: string }) {
+  const { t } = useTranslation();
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-700">Tudásgráf</h3>
+        <h3 className="text-sm font-semibold text-gray-700">{t('dashboard.knowledgeGraph')}</h3>
         <span className="text-xs text-gray-400">
-          {stats.personCount.toLocaleString('hu-HU')} személy · {stats.emailCount.toLocaleString('hu-HU')} email · {stats.conceptCount.toLocaleString('hu-HU')} fogalom
+          {t('dashboard.kgSummary', {
+            persons: stats.personCount.toLocaleString(locale),
+            emails: stats.emailCount.toLocaleString(locale),
+            concepts: stats.conceptCount.toLocaleString(locale),
+          })}
         </span>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div>
-          <p className="text-xs font-medium text-gray-500 mb-2">Top témák</p>
+          <p className="text-xs font-medium text-gray-500 mb-2">{t('dashboard.topTopics')}</p>
           <ol className="space-y-1">
-            {stats.topTopics.map((t, i) => (
-              <li key={t.name} className="flex items-center justify-between text-sm">
-                <span className="text-gray-700 truncate">{i + 1}. {t.name}</span>
-                <span className="text-blue-600 font-medium ml-2 shrink-0">{t.count}</span>
+            {stats.topTopics.map((topic, i) => (
+              <li key={topic.name} className="flex items-center justify-between text-sm">
+                <span className="text-gray-700 truncate">{i + 1}. {topic.name}</span>
+                <span className="text-blue-600 font-medium ml-2 shrink-0">{topic.count}</span>
               </li>
             ))}
           </ol>
         </div>
         <div>
-          <p className="text-xs font-medium text-gray-500 mb-2">Top szervezetek</p>
+          <p className="text-xs font-medium text-gray-500 mb-2">{t('dashboard.topOrgs')}</p>
           <ol className="space-y-1">
             {stats.topOrgs.map((o, i) => (
               <li key={o.name} className="flex items-center justify-between text-sm">
@@ -208,7 +218,7 @@ function KgStatsPanel({ stats }: { stats: KgGraphStats }) {
           </ol>
         </div>
         <div>
-          <p className="text-xs font-medium text-gray-500 mb-2">Legaktívabb küldők</p>
+          <p className="text-xs font-medium text-gray-500 mb-2">{t('dashboard.topSenders')}</p>
           <ol className="space-y-1">
             {stats.topSenders.map((s, i) => (
               <li key={s.email} className="flex items-center justify-between text-sm">
@@ -223,7 +233,7 @@ function KgStatsPanel({ stats }: { stats: KgGraphStats }) {
   );
 }
 
-function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
+function StatCard({ label, value, color, locale }: { label: string; value: number; color: string; locale: string }) {
   const colorMap: Record<string, string> = {
     blue: 'bg-blue-50 border-blue-200 text-blue-700',
     gray: 'bg-gray-50 border-gray-200 text-gray-700',
@@ -234,7 +244,7 @@ function StatCard({ label, value, color }: { label: string; value: number; color
   return (
     <div className={`rounded-xl border p-6 ${colorMap[color]}`}>
       <p className="text-sm font-medium opacity-75">{label}</p>
-      <p className="text-3xl font-bold mt-1">{value.toLocaleString('hu-HU')}</p>
+      <p className="text-3xl font-bold mt-1">{value.toLocaleString(locale)}</p>
     </div>
   );
 }

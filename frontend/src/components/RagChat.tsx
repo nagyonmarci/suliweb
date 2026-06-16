@@ -1,4 +1,6 @@
+import '../lib/i18n';
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api, type ChatMessage } from '../lib/api';
 
 // ---------------------------------------------------------------------------
@@ -47,10 +49,10 @@ function generateId(): string {
   });
 }
 
-function newSession(model: string): Session {
+function newSession(model: string, title: string): Session {
   return {
     id: generateId(),
-    title: 'Új beszélgetés',
+    title,
     model,
     createdAt: Date.now(),
     messages: [],
@@ -61,12 +63,12 @@ function truncate(text: string, max = 45) {
   return text.length <= max ? text : text.slice(0, max) + '…';
 }
 
-function formatDate(ts: number) {
+function formatDate(ts: number, locale: string) {
   const d = new Date(ts);
   const now = new Date();
   const isToday = d.toDateString() === now.toDateString();
-  if (isToday) return d.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' });
-  return d.toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' });
+  if (isToday) return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }
 
 // ---------------------------------------------------------------------------
@@ -74,6 +76,8 @@ function formatDate(ts: number) {
 // ---------------------------------------------------------------------------
 
 export default function RagChat() {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language === 'en' ? 'en-US' : 'hu-HU';
   const [sessions, setSessions] = useState<Session[]>(() => loadSessions());
   const [activeId, setActiveId] = useState<string>(() => {
     const saved = loadSessions();
@@ -117,12 +121,13 @@ export default function RagChat() {
 
   const createSession = useCallback(() => {
     const model = activeSession?.model ?? models[0] ?? 'llama3.2';
-    const s = newSession(model);
+    const s = newSession(model, t('ragChat.newConversation'));
     setSessions(prev => [s, ...prev]);
     setActiveId(s.id);
     setError('');
     setExpandedSources(new Set());
     setTimeout(() => inputRef.current?.focus(), 50);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSession, models]);
 
   function deleteSession(id: string) {
@@ -210,7 +215,7 @@ export default function RagChat() {
       }));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
-      setError('Nem sikerült választ kapni: ' + err.message);
+      setError(t('ragChat.responseFailed') + ': ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -224,6 +229,8 @@ export default function RagChat() {
     });
   }
 
+  const sampleQuestions = t('ragChat.sampleQuestions', { returnObjects: true }) as string[];
+
   // ---------------------------------------------------------------------------
   // If no session exists yet, show a create-first screen
   // ---------------------------------------------------------------------------
@@ -232,13 +239,13 @@ export default function RagChat() {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-12rem)] min-h-[400px] text-center">
         <div className="text-5xl mb-4">💬</div>
-        <p className="text-lg font-medium text-gray-700 mb-2">Nincs még beszélgetés</p>
-        <p className="text-sm text-gray-400 mb-6">Indíts egy új chat sessiont az e-mail archívum kereséséhez.</p>
+        <p className="text-lg font-medium text-gray-700 mb-2">{t('ragChat.noConversationsYet')}</p>
+        <p className="text-sm text-gray-400 mb-6">{t('ragChat.startNewSessionHint')}</p>
         <button
           onClick={createSession}
           className="px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors"
         >
-          + Új beszélgetés
+          + {t('ragChat.newConversation')}
         </button>
       </div>
     );
@@ -257,7 +264,7 @@ export default function RagChat() {
           onClick={createSession}
           className="w-full px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-1.5"
         >
-          <span className="text-base leading-none">+</span> Új beszélgetés
+          <span className="text-base leading-none">+</span> {t('ragChat.newConversation')}
         </button>
 
         <div className="flex-1 overflow-y-auto space-y-1 mt-1">
@@ -274,13 +281,13 @@ export default function RagChat() {
               <span className={`text-xs font-medium truncate pr-5 ${s.id === activeId ? 'text-blue-800' : 'text-gray-700'}`}>
                 {s.title}
               </span>
-              <span className="text-[10px] text-gray-400 mt-0.5">{s.model} · {formatDate(s.createdAt)}</span>
+              <span className="text-[10px] text-gray-400 mt-0.5">{s.model} · {formatDate(s.createdAt, locale)}</span>
 
               {/* Delete button */}
               <button
                 onClick={e => { e.stopPropagation(); deleteSession(s.id); }}
                 className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all text-xs leading-none p-0.5 rounded"
-                title="Törlés"
+                title={t('common.delete')}
               >
                 ✕
               </button>
@@ -294,11 +301,11 @@ export default function RagChat() {
 
         {/* Model selector */}
         <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-100">
-          <span className="text-xs font-medium text-gray-500 whitespace-nowrap">Modell:</span>
+          <span className="text-xs font-medium text-gray-500 whitespace-nowrap">{t('ragChat.model')}:</span>
           {modelsLoading ? (
-            <span className="text-xs text-gray-400">Betöltés…</span>
+            <span className="text-xs text-gray-400">{t('common.loading')}</span>
           ) : models.length === 0 ? (
-            <span className="text-xs text-red-400">Ollama nem elérhető</span>
+            <span className="text-xs text-red-400">{t('ragChat.ollamaUnavailable')}</span>
           ) : (
             <select
               value={activeSession.model || models[0]}
@@ -314,17 +321,12 @@ export default function RagChat() {
         {/* Empty state */}
         {activeSession.messages.length === 0 && !loading && (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-gray-400 select-none">
-            <p className="text-base font-medium text-gray-600 mb-1">Kérdezz a levelezésről</p>
+            <p className="text-base font-medium text-gray-600 mb-1">{t('ragChat.askAboutEmails')}</p>
             <p className="text-xs text-gray-400 mb-5 max-w-xs">
-              Az asszisztens megkeresi a releváns e-maileket és összefoglalt választ ad.
+              {t('ragChat.assistantDescription')}
             </p>
             <div className="grid grid-cols-1 gap-2 text-sm w-full max-w-md">
-              {[
-                'Mikor volt az utolsó megbeszélés a közbeszerzési pályázatról?',
-                'Ki küldte a szerződésmódosítással kapcsolatos leveleket?',
-                'Milyen csatolmányok érkeztek a pénzügyi osztálytól?',
-                'Összesítsd a Kovács Péterrel folytatott levelezést!',
-              ].map((q, i) => (
+              {sampleQuestions.map((q, i) => (
                 <button
                   key={i}
                   onClick={() => setInput(q)}
@@ -356,7 +358,7 @@ export default function RagChat() {
                         className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-blue-600 transition-colors"
                       >
                         <span>{expandedSources.has(idx) ? '▾' : '▸'}</span>
-                        Forrás e-mailek ({msg.sources.length} db)
+                        {t('ragChat.sourceEmails', { count: msg.sources.length })}
                       </button>
                       {expandedSources.has(idx) && (
                         <div className="mt-2 space-y-1.5">
@@ -369,7 +371,7 @@ export default function RagChat() {
                               <span className="text-blue-500 mt-0.5 flex-shrink-0">✉</span>
                               <div className="min-w-0">
                                 <p className="text-xs font-medium text-gray-800 group-hover:text-blue-700 truncate">
-                                  {src.subject || '(nincs tárgy)'}
+                                  {src.subject || t('emailBrowser.noSubject')}
                                 </p>
                                 <p className="text-xs text-gray-500 truncate">{src.sender}</p>
                               </div>
@@ -399,7 +401,7 @@ export default function RagChat() {
                       <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                       <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                     </div>
-                    <span className="text-xs">Gondolkodás…</span>
+                    <span className="text-xs">{t('ragChat.thinking')}</span>
                   </div>
                 </div>
               </div>
@@ -421,7 +423,7 @@ export default function RagChat() {
             type="text"
             value={input}
             onChange={e => setInput(e.target.value)}
-            placeholder="Kérdezz a levelezésről…"
+            placeholder={t('ragChat.askPlaceholder')}
             disabled={loading}
             className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 bg-white"
           />
@@ -433,10 +435,10 @@ export default function RagChat() {
             {loading ? (
               <>
                 <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                Küldés…
+                {t('ragChat.sending')}
               </>
             ) : (
-              <>↑ Küldés</>
+              <>↑ {t('ragChat.send')}</>
             )}
           </button>
         </form>

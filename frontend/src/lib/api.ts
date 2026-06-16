@@ -298,6 +298,30 @@ export interface EDiscoveryStatus {
   };
 }
 
+export interface FailedConversion {
+  id: string;
+  mongoEmailId: string;
+  messageId: string | null;
+  attachmentHash: string | null;
+  attachmentFilename: string | null;
+  failureType: 'REPLY_STRIP' | 'ATTACHMENT_CONVERT';
+  errorMessage: string;
+  occurredAt: string;
+  retryCount: number;
+  resolved: boolean;
+}
+
+export interface AttachmentProcessingStatus {
+  running: boolean;
+  stats: {
+    totalAttachments: number;
+    indexed: number;
+    skipped: number;
+    failed: number;
+  };
+  failedCount: number;
+}
+
 export interface KgPersonNode {
   id?: number;
   email: string;
@@ -541,6 +565,14 @@ export const api = {
     return fetchJson<EDiscoveryResult[]>(`/api/ediscovery/search?${params}`);
   },
   ediscoveryStatus: () => fetchJson<EDiscoveryStatus>('/api/ediscovery/status'),
+
+  // Attachment processing (markdown conversion + Elasticsearch indexing)
+  attachmentProcessingStart: () => fetchText('/api/attachments/processing/start', { method: 'POST' }),
+  attachmentProcessingStatus: () => fetchJson<AttachmentProcessingStatus>('/api/attachments/processing/status'),
+  attachmentProcessingFailed: () => fetchJson<FailedConversion[]>('/api/attachments/processing/failed'),
+  attachmentProcessingRetryAll: () => fetchText('/api/attachments/processing/retry-failed', { method: 'POST' }),
+  attachmentProcessingRetry: (id: string) =>
+    fetchText(`/api/attachments/processing/retry-failed/${id}`, { method: 'POST' }),
 
   // Knowledge Graph
   kgIngest: () => fetchText('/api/kg/ingest', { method: 'POST' }),

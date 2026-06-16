@@ -12,18 +12,19 @@
     "@astrojs/react": "^4.2.0",
     "@tailwindcss/vite": "^4.0.0",
     "astro": "^6.4.6",
+    "i18next": "^26.3.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-i18next": "^17.0.8",
     "tailwindcss": "^4.3.1"
   },
   "optionalDependencies": {
     "@rollup/rollup-linux-x64-gnu": "4.61.1",
-    "lightningcss-linux-x64-gnu": "1.32.0",
-    "@tailwindcss/oxide-linux-x64-gnu": "4.3.0"
+    "@tailwindcss/oxide-linux-x64-gnu": "4.3.0",
+    "lightningcss-linux-x64-gnu": "1.32.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "typescript": "^5.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "eslint": "^10.5.0",
@@ -31,6 +32,7 @@
     "eslint-plugin-react": "^7.37.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.6.0",
+    "typescript": "^5.0.0",
     "typescript-eslint": "^8.0.0"
   }
 }

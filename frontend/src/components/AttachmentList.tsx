@@ -1,24 +1,33 @@
+import '../lib/i18n';
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api, type Attachment } from '../lib/api';
 
 type ActiveTab = 'list' | 'duplicates';
 
-const AVAILABLE_COLUMNS: { key: keyof Attachment; label: string }[] = [
-  { key: 'filename', label: 'Fájlnév' },
-  { key: 'size', label: 'Méret' },
-  { key: 'contentType', label: 'Típus' },
-  { key: 'emailSubject', label: 'E-mail tárgya' },
-  { key: 'senderName', label: 'Küldő' },
-  { key: 'receivedTime', label: 'Dátum' },
-  { key: 'pstFileName', label: 'PST fájl' }
+const AVAILABLE_COLUMNS: { key: keyof Attachment; labelKey: string }[] = [
+  { key: 'filename', labelKey: 'attachmentList.col.filename' },
+  { key: 'size', labelKey: 'fileList.size' },
+  { key: 'contentType', labelKey: 'attachmentList.col.type' },
+  { key: 'emailSubject', labelKey: 'attachmentList.col.emailSubject' },
+  { key: 'senderName', labelKey: 'attachmentList.col.sender' },
+  { key: 'receivedTime', labelKey: 'emailBrowser.col.date' },
+  { key: 'pstFileName', labelKey: 'emailBrowser.col.pstFile' }
 ];
 
 const DEFAULT_COLUMNS = ['filename', 'size', 'contentType', 'emailSubject', 'senderName', 'receivedTime', 'pstFileName'];
 
+function isErrorMessage(msg: string) {
+  const lower = msg.toLowerCase();
+  return lower.startsWith('hiba') || lower.startsWith('error');
+}
+
 export default function AttachmentList() {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language === 'en' ? 'en-US' : 'hu-HU';
   const [activeTab, setActiveTab] = useState<ActiveTab>('list');
 
-  // Duplikátumok tab állapot
+  // Duplicates tab state
   const [dupStats, setDupStats] = useState<{
     totalRecords: number; uniqueFiles: number;
     sameEmailDuplicates: number; crossEmailShared: number;
@@ -28,7 +37,7 @@ export default function AttachmentList() {
 
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Search & Filters
   const [search, setSearch] = useState('');
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
@@ -43,7 +52,7 @@ export default function AttachmentList() {
 
   // UI State
   const [downloadingAttId, setDownloadingAttId] = useState<string | null>(null);
-  
+
   const [sortField, setSortField] = useState<keyof Attachment>('creationTime');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(0);
@@ -78,9 +87,9 @@ export default function AttachmentList() {
       setLoading(true);
       try {
         const params: Record<string, string> = { limit: '1000' };
-        
+
         if (debouncedSearch.trim()) params.q = debouncedSearch.trim();
-        
+
         if (debouncedColFilters['filename']) params.filename = debouncedColFilters['filename'];
         if (debouncedColFilters['contentType']) params.extension = debouncedColFilters['contentType'];
         if (debouncedColFilters['emailSubject']) params.emailSubject = debouncedColFilters['emailSubject'];
@@ -89,14 +98,14 @@ export default function AttachmentList() {
 
         if (debouncedDateFilter.start) params.startDate = debouncedDateFilter.start + 'T00:00:00';
         if (debouncedDateFilter.end) params.endDate = debouncedDateFilter.end + 'T23:59:59';
-        
+
         if (debouncedSizeFilter.min) params.minSize = String(Number(debouncedSizeFilter.min) * 1024 * 1024);
         if (debouncedSizeFilter.max) params.maxSize = String(Number(debouncedSizeFilter.max) * 1024 * 1024);
 
         const data = await api.searchAttachments(params);
         setAttachments(data);
       } catch (e) {
-        console.error('Csatolmány betöltési hiba:', e);
+        console.error('Attachment load error:', e);
       } finally {
         setLoading(false);
       }
@@ -113,18 +122,18 @@ export default function AttachmentList() {
     result.sort((a, b) => {
       const aVal = a[sortField] ?? '';
       const bVal = b[sortField] ?? '';
-      
+
       if (sortField === 'size' || sortField === 'creationTime' || sortField === 'receivedTime') {
         const aNum = sortField === 'size' ? Number(aVal) : new Date(aVal as string).getTime();
         const bNum = sortField === 'size' ? Number(bVal) : new Date(bVal as string).getTime();
         return sortDir === 'asc' ? aNum - bNum : bNum - aNum;
       }
-      
-      const cmp = String(aVal).localeCompare(String(bVal), 'hu');
+
+      const cmp = String(aVal).localeCompare(String(bVal), locale);
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return result.slice(page * pageSize, (page + 1) * pageSize);
-  }, [attachments, sortField, sortDir, page]);
+  }, [attachments, sortField, sortDir, page, locale]);
 
   const totalPages = Math.ceil(attachments.length / pageSize);
 
@@ -139,7 +148,7 @@ export default function AttachmentList() {
   }
 
   function toggleColumn(key: string) {
-    setVisibleColumns(prev => 
+    setVisibleColumns(prev =>
       prev.includes(key) ? prev.filter(c => c !== key) : [...prev, key]
     );
   }
@@ -155,7 +164,7 @@ export default function AttachmentList() {
       setDupStats(data);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
-      setDupMessage('Hiba: ' + e.message);
+      setDupMessage(t('common.error') + ': ' + e.message);
     } finally {
       setDupLoading(false);
     }
@@ -169,7 +178,7 @@ export default function AttachmentList() {
       await loadDupStats();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
-      setDupMessage('Hiba: ' + e.message);
+      setDupMessage(t('common.error') + ': ' + e.message);
     } finally {
       setDupLoading(false);
     }
@@ -187,9 +196,9 @@ export default function AttachmentList() {
   async function handleDownloadAttachment(att: Attachment) {
     try {
       setDownloadingAttId(att.id);
-      await api.downloadAttachment(att.id, att.filename || 'Ismeretlen_fájl');
+      await api.downloadAttachment(att.id, att.filename || t('emailBrowser.unknownFile'));
     } catch (e) {
-      alert('Sikertelen letöltés.');
+      alert(t('emailBrowser.downloadFailed'));
       console.error(e);
     } finally {
       setDownloadingAttId(null);
@@ -201,7 +210,7 @@ export default function AttachmentList() {
       {/* Tab strip */}
       <div className="border-b border-gray-200">
         <nav className="flex gap-1">
-          {([['list', 'Csatolmányok'], ['duplicates', 'Duplikátumok']] as [ActiveTab, string][]).map(([tab, label]) => (
+          {([['list', t('nav.attachments')], ['duplicates', t('attachmentList.duplicatesTab')]] as [ActiveTab, string][]).map(([tab, label]) => (
             <button
               key={tab}
               onClick={() => { setActiveTab(tab); if (tab === 'duplicates' && dupStats === null) loadDupStats(); }}
@@ -215,47 +224,47 @@ export default function AttachmentList() {
         </nav>
       </div>
 
-      {/* Duplikátumok tab */}
+      {/* Duplicates tab */}
       {activeTab === 'duplicates' && (
         <div className="space-y-4">
           <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-wrap items-center gap-4">
             <button onClick={loadDupStats} disabled={dupLoading} className="px-4 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors">
-              {dupLoading ? 'Betöltés...' : 'Frissítés'}
+              {dupLoading ? t('common.loading') : t('common.refresh')}
             </button>
             {dupStats && dupStats.sameEmailDuplicates > 0 && (
               <button onClick={handleDeduplicate} disabled={dupLoading} className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors">
-                Duplikátumok törlése az adatbázisból
+                {t('fileList.deleteDuplicates')}
               </button>
             )}
-            {dupMessage && <span className={`text-sm ${dupMessage.startsWith('Hiba') ? 'text-red-600' : 'text-gray-600'}`}>{dupMessage}</span>}
+            {dupMessage && <span className={`text-sm ${isErrorMessage(dupMessage) ? 'text-red-600' : 'text-gray-600'}`}>{dupMessage}</span>}
           </div>
 
           {dupStats && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Összes rekord</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('attachmentList.totalRecords')}</p>
                 <p className="text-2xl font-bold text-gray-800">{dupStats.totalRecords}</p>
               </div>
               <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Egyedi fájl (hash)</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('attachmentList.uniqueFiles')}</p>
                 <p className="text-2xl font-bold text-blue-600">{dupStats.uniqueFiles}</p>
               </div>
               <div className="bg-white rounded-xl border border-amber-100 p-4">
-                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Megosztott fájl</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('attachmentList.sharedFiles')}</p>
                 <p className="text-2xl font-bold text-amber-600">{dupStats.crossEmailShared}</p>
-                <p className="text-xs text-gray-400 mt-1">azonos fájl, több e-mail</p>
+                <p className="text-xs text-gray-400 mt-1">{t('attachmentList.sharedFilesHint')}</p>
               </div>
               <div className="bg-white rounded-xl border border-red-100 p-4">
-                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Törlendő rekord</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{t('attachmentList.recordsToDelete')}</p>
                 <p className="text-2xl font-bold text-red-600">{dupStats.sameEmailDuplicates}</p>
-                <p className="text-xs text-gray-400 mt-1">azonos fájl, azonos e-mail</p>
+                <p className="text-xs text-gray-400 mt-1">{t('attachmentList.recordsToDeleteHint')}</p>
               </div>
             </div>
           )}
 
           {dupStats && dupStats.sameEmailDuplicates === 0 && !dupMessage && (
             <div className="bg-white rounded-xl border border-gray-200 px-4 py-10 text-center text-gray-400 italic">
-              Nincs duplikált csatolmány rekord.
+              {t('attachmentList.noDuplicateRecords')}
             </div>
           )}
         </div>
@@ -267,7 +276,7 @@ export default function AttachmentList() {
           <div className="relative">
             <input
               type="text"
-              placeholder="Globális keresés (fájlnév, e-mail tárgy, kiterjesztés)..."
+              placeholder={t('attachmentList.globalSearchPlaceholder')}
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -289,12 +298,12 @@ export default function AttachmentList() {
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
               </svg>
-              Oszlopok
+              {t('emailBrowser.columns')}
             </button>
-            
+
             {showColumnPicker && (
               <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50 p-2">
-                <div className="text-xs font-semibold text-gray-500 mb-2 px-2 uppercase tracking-wider">Megjelenített oszlopok</div>
+                <div className="text-xs font-semibold text-gray-500 mb-2 px-2 uppercase tracking-wider">{t('emailBrowser.visibleColumns')}</div>
                 <div className="max-h-64 overflow-y-auto">
                   {AVAILABLE_COLUMNS.map(col => (
                     <label key={col.key} className="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer">
@@ -305,16 +314,16 @@ export default function AttachmentList() {
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         disabled={visibleColumns.length === 1 && visibleColumns.includes(col.key)}
                       />
-                      <span className="ml-2 text-sm text-gray-700">{col.label}</span>
+                      <span className="ml-2 text-sm text-gray-700">{t(col.labelKey)}</span>
                     </label>
                   ))}
                 </div>
               </div>
             )}
           </div>
-          
+
           <div className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-medium border border-blue-100 whitespace-nowrap">
-            {loading ? 'Betöltés...' : `${attachments.length} csatolmány`}
+            {loading ? t('common.loading') : t('attachmentList.attachmentCount', { count: attachments.length })}
           </div>
         </div>
       </div>
@@ -330,34 +339,34 @@ export default function AttachmentList() {
                       className="group flex items-center gap-1 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:text-gray-900 w-full mb-2"
                       onClick={() => toggleSort(col.key)}
                     >
-                      {col.label}
+                      {t(col.labelKey)}
                       <span className={`text-gray-400 ${sortField === col.key ? 'text-blue-500' : 'group-hover:text-gray-600'}`}>
                         {sortField === col.key ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
                       </span>
                     </button>
-                    
+
                     {col.key === 'receivedTime' ? (
                       <div className="flex flex-col gap-1 w-32">
-                        <input type="date" className="text-xs border px-1 py-1 rounded" title="Dátumtól" value={dateFilter.start} onChange={e => setDateFilter(prev => ({ ...prev, start: e.target.value }))} />
-                        <input type="date" className="text-xs border px-1 py-1 rounded" title="Dátumig" value={dateFilter.end} onChange={e => setDateFilter(prev => ({ ...prev, end: e.target.value }))} />
+                        <input type="date" className="text-xs border px-1 py-1 rounded" title={t('attachmentList.dateFrom')} value={dateFilter.start} onChange={e => setDateFilter(prev => ({ ...prev, start: e.target.value }))} />
+                        <input type="date" className="text-xs border px-1 py-1 rounded" title={t('attachmentList.dateTo')} value={dateFilter.end} onChange={e => setDateFilter(prev => ({ ...prev, end: e.target.value }))} />
                       </div>
                     ) : col.key === 'size' ? (
                       <div className="flex flex-col gap-1 w-24">
-                        <input type="number" placeholder="Min MB" className="text-xs border px-1 py-1 rounded" title="Min méret (MB)" value={sizeFilter.min} onChange={e => setSizeFilter(prev => ({ ...prev, min: e.target.value }))} />
-                        <input type="number" placeholder="Max MB" className="text-xs border px-1 py-1 rounded" title="Max méret (MB)" value={sizeFilter.max} onChange={e => setSizeFilter(prev => ({ ...prev, max: e.target.value }))} />
+                        <input type="number" placeholder={t('attachmentList.minMb')} className="text-xs border px-1 py-1 rounded" title={t('attachmentList.minSizeMb')} value={sizeFilter.min} onChange={e => setSizeFilter(prev => ({ ...prev, min: e.target.value }))} />
+                        <input type="number" placeholder={t('attachmentList.maxMb')} className="text-xs border px-1 py-1 rounded" title={t('attachmentList.maxSizeMb')} value={sizeFilter.max} onChange={e => setSizeFilter(prev => ({ ...prev, max: e.target.value }))} />
                       </div>
                     ) : col.key === 'contentType' ? (
-                        <input 
-                          type="text" 
-                          placeholder="pl. pdf, jpg"
+                        <input
+                          type="text"
+                          placeholder={t('attachmentList.extensionPlaceholder')}
                           className="w-20 text-xs border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none font-normal"
                           value={columnFilters[col.key] || ''}
                           onChange={e => handleColFilterChange(col.key as string, e.target.value)}
                         />
                     ) : (
-                        <input 
-                          type="text" 
-                          placeholder="Szűrés..."
+                        <input
+                          type="text"
+                          placeholder={t('emailBrowser.filterPlaceholder')}
                           className="w-full text-xs border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none font-normal"
                           value={columnFilters[col.key] || ''}
                           onChange={e => handleColFilterChange(col.key as string, e.target.value)}
@@ -373,14 +382,14 @@ export default function AttachmentList() {
                   <td colSpan={visibleColumns.length} className="px-6 py-12 text-center text-gray-500">
                     <div className="flex justify-center items-center gap-3">
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                      Kis türelmet, adatok betöltése...
+                      {t('attachmentList.loadingData')}
                     </div>
                   </td>
                 </tr>
               ) : paged.length === 0 ? (
                 <tr>
                   <td colSpan={visibleColumns.length} className="px-6 py-12 text-center text-gray-500 italic">
-                    Nincs a keresésnek megfelelő csatolmány.
+                    {t('attachmentList.noResultsForSearch')}
                   </td>
                 </tr>
               ) : (
@@ -390,28 +399,28 @@ export default function AttachmentList() {
                       <td key={col.key} className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
                         {col.key === 'filename' ? (
                           <div className="font-medium text-gray-900 group">
-                            <button 
+                            <button
                                 onClick={() => handleDownloadAttachment(att)}
                                 className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded text-sm hover:bg-gray-50 transition-colors group-hover:bg-blue-50 group-hover:border-blue-200 group-hover:text-blue-700 text-left truncate max-w-[200px]"
-                                title={att.filename || 'Letöltés'}
+                                title={att.filename || t('common.download')}
                             >
                                 <span className="text-blue-500">
                                 {downloadingAttId === att.id ? '⏳' : '📎'}
                                 </span>
-                                <span className="truncate">{att.filename || att.localPath?.split('/').pop() || 'Ismeretlen'}</span>
+                                <span className="truncate">{att.filename || att.localPath?.split('/').pop() || t('attachmentList.unknown')}</span>
                             </button>
                           </div>
                         ) : col.key === 'size' ? (
                           formatBytes(att.size)
                         ) : col.key === 'receivedTime' ? (
-                          att.receivedTime ? new Date(att.receivedTime).toLocaleString('hu-HU', {
-                            year: 'numeric', month: '2-digit', day: '2-digit', 
+                          att.receivedTime ? new Date(att.receivedTime).toLocaleString(locale, {
+                            year: 'numeric', month: '2-digit', day: '2-digit',
                             hour: '2-digit', minute: '2-digit'
                           }) : '-'
                         ) : col.key === 'emailSubject' ? (
-                          <a 
+                          <a
                             href={`/emails/?id=${att.emailId}`}
-                            className="text-blue-600 hover:text-blue-800 hover:underline truncate max-w-[250px] inline-block align-bottom" 
+                            className="text-blue-600 hover:text-blue-800 hover:underline truncate max-w-[250px] inline-block align-bottom"
                             title={att.emailSubject}
                           >
                             {att.emailSubject}
@@ -429,13 +438,17 @@ export default function AttachmentList() {
             </tbody>
           </table>
         </div>
-        
+
         {/* Pagination Footer */}
         <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 flex items-center justify-between sm:px-6">
           <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
             <div>
               <p className="text-sm text-gray-700">
-                Mutatva <span className="font-medium">{attachments.length === 0 ? 0 : page * pageSize + 1}</span> - <span className="font-medium">{Math.min((page + 1) * pageSize, attachments.length)}</span> / <span className="font-medium">{attachments.length}</span> összesen
+                {t('attachmentList.showingRange', {
+                  from: attachments.length === 0 ? 0 : page * pageSize + 1,
+                  to: Math.min((page + 1) * pageSize, attachments.length),
+                  total: attachments.length,
+                })}
               </p>
             </div>
             <div>
@@ -445,7 +458,7 @@ export default function AttachmentList() {
                   disabled={page === 0}
                   className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Előző
+                  {t('common.previous')}
                 </button>
                 <div className="px-4 py-2 border-t border-b border-gray-300 bg-white text-sm font-medium text-gray-700">
                   {page + 1} / {Math.max(1, totalPages)}
@@ -455,7 +468,7 @@ export default function AttachmentList() {
                   disabled={page >= totalPages - 1}
                   className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Következő
+                  {t('common.next')}
                 </button>
               </nav>
             </div>

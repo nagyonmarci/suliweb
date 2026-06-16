@@ -1,4 +1,6 @@
+import '../lib/i18n';
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api, type EDiscoveryResult, type EDiscoveryStatus } from '../lib/api';
 
 function renderSnippet(html: string) {
@@ -25,10 +27,10 @@ function ScoreBadge({ score }: { score: number }) {
   );
 }
 
-function formatDate(dateStr: string | null | undefined) {
+function formatDate(dateStr: string | null | undefined, locale: string) {
   if (!dateStr) return '-';
   try {
-    return new Date(dateStr).toLocaleDateString('hu-HU', {
+    return new Date(dateStr).toLocaleDateString(locale, {
       year: 'numeric', month: '2-digit', day: '2-digit',
     });
   } catch { return dateStr; }
@@ -49,6 +51,8 @@ function SearchSkeleton() {
 }
 
 export default function EDiscoverySearch() {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language === 'en' ? 'en-US' : 'hu-HU';
   const [query, setQuery] = useState('');
   const [topK, setTopK] = useState(10);
   const [results, setResults] = useState<EDiscoveryResult[]>([]);
@@ -97,7 +101,7 @@ export default function EDiscoverySearch() {
       loadStatus();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
-      setMessage('Indexelési hiba: ' + e.message);
+      setMessage(t('ediscovery.indexingError') + ': ' + e.message);
     } finally {
       setIngesting(false);
     }
@@ -120,7 +124,7 @@ export default function EDiscoverySearch() {
       setHasSearched(true);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
-      setMessage('Keresési hiba: ' + e.message);
+      setMessage(t('ediscovery.searchError') + ': ' + e.message);
     } finally {
       setSearching(false);
     }
@@ -142,37 +146,37 @@ export default function EDiscoverySearch() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className={`rounded-xl border p-4 ${status?.running ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-200'}`}>
-          <p className="text-xs font-medium text-gray-500">Állapot</p>
+          <p className="text-xs font-medium text-gray-500">{t('common.status')}</p>
           <p className={`text-base font-bold ${status?.running ? 'text-amber-700' : 'text-gray-700'}`}>
-            {status?.running ? 'Indexelés...' : 'Kész'}
+            {status?.running ? t('ediscovery.indexing') : t('common.done')}
           </p>
         </div>
         <div className="rounded-xl border p-4 bg-blue-50 border-blue-200">
-          <p className="text-xs font-medium text-blue-600">Indexelt</p>
-          <p className="text-lg font-bold text-blue-700">{stats?.indexed?.toLocaleString('hu-HU') ?? '-'}</p>
+          <p className="text-xs font-medium text-blue-600">{t('attachmentProcessing.indexed')}</p>
+          <p className="text-lg font-bold text-blue-700">{stats?.indexed?.toLocaleString(locale) ?? '-'}</p>
         </div>
         <div className="rounded-xl border p-4 bg-gray-50 border-gray-200">
-          <p className="text-xs font-medium text-gray-600">Átugrott (dedup)</p>
-          <p className="text-lg font-bold text-gray-700">{stats?.skipped?.toLocaleString('hu-HU') ?? '-'}</p>
+          <p className="text-xs font-medium text-gray-600">{t('ediscovery.skippedDedup')}</p>
+          <p className="text-lg font-bold text-gray-700">{stats?.skipped?.toLocaleString(locale) ?? '-'}</p>
         </div>
         <div className="rounded-xl border p-4 bg-amber-50 border-amber-200">
-          <p className="text-xs font-medium text-amber-600">Csatolmány hiba</p>
-          <p className="text-lg font-bold text-amber-700">{stats?.attFailures?.toLocaleString('hu-HU') ?? '-'}</p>
+          <p className="text-xs font-medium text-amber-600">{t('ediscovery.attachmentError')}</p>
+          <p className="text-lg font-bold text-amber-700">{stats?.attFailures?.toLocaleString(locale) ?? '-'}</p>
         </div>
       </div>
 
       {/* Ingest */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Elasticsearch Indexelés</h3>
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">{t('ediscovery.elasticsearchIndexing')}</h3>
         <div className="flex items-center gap-3 flex-wrap">
           <button
             onClick={handleIngest}
             disabled={ingesting || status?.running}
             className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
-            {status?.running ? 'Indexelés folyamatban...' : ingesting ? 'Indítás...' : 'Emailek ES indexelése'}
+            {status?.running ? t('ediscovery.indexingInProgress') : ingesting ? t('common.starting') : t('ediscovery.indexEmails')}
           </button>
-          <p className="text-xs text-gray-400">Teljes archiválás: PST → szöveg + csatolmányok → Elasticsearch</p>
+          <p className="text-xs text-gray-400">{t('ediscovery.fullArchiveDescription')}</p>
         </div>
         {message && (
           <div className={`text-sm mt-3 p-3 rounded-lg flex items-start gap-2 ${
@@ -189,7 +193,7 @@ export default function EDiscoverySearch() {
       {/* Search form */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-700">Teljes szöveges keresés</h3>
+          <h3 className="text-sm font-semibold text-gray-700">{t('ediscovery.fullTextSearch')}</h3>
           <span className="text-xs text-gray-400">Ctrl+K</span>
         </div>
         <form onSubmit={handleSearch} className="space-y-3">
@@ -199,7 +203,7 @@ export default function EDiscoverySearch() {
               type="text"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Kulcsszó, szerződés, projekt, személy neve..."
+              placeholder={t('ediscovery.searchPlaceholder')}
               className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             <select
@@ -207,14 +211,14 @@ export default function EDiscoverySearch() {
               onChange={e => setTopK(Number(e.target.value))}
               className="text-sm border border-gray-300 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n} találat</option>)}
+              {[5, 10, 20, 50].map(n => <option key={n} value={n}>{t('ediscovery.resultsOption', { count: n })}</option>)}
             </select>
             <button
               type="submit"
               disabled={searching || !query.trim()}
               className="px-5 py-2.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors whitespace-nowrap"
             >
-              {searching ? 'Keresés...' : 'Keresés'}
+              {searching ? t('common.search') + '...' : t('common.search')}
             </button>
           </div>
           <div className="flex items-center">
@@ -227,36 +231,36 @@ export default function EDiscoverySearch() {
                   : 'border-gray-300 text-gray-500 hover:bg-gray-50'
               }`}
             >
-              Szűrők{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''} {showFilters ? '▴' : '▾'}
+              {t('common.filters')}{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''} {showFilters ? '▴' : '▾'}
             </button>
           </div>
           {showFilters && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2 border-t border-gray-100">
               <div>
-                <label className="text-xs text-gray-500 block mb-1">Feladó e-mail</label>
+                <label className="text-xs text-gray-500 block mb-1">{t('ediscovery.senderEmail')}</label>
                 <input type="text" value={filterSender} onChange={e => setFilterSender(e.target.value)}
-                  placeholder="pl. kovacs@pelda.hu"
+                  placeholder="e.g. smith@example.com"
                   className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
-                <label className="text-xs text-gray-500 block mb-1">PST tulajdonos</label>
+                <label className="text-xs text-gray-500 block mb-1">{t('ediscovery.pstOwner')}</label>
                 <input type="text" value={filterPstOwner} onChange={e => setFilterPstOwner(e.target.value)}
-                  placeholder="pl. Kovács Péter"
+                  placeholder="e.g. John Smith"
                   className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
-                <label className="text-xs text-gray-500 block mb-1">PST fájl</label>
+                <label className="text-xs text-gray-500 block mb-1">{t('emailBrowser.col.pstFile')}</label>
                 <input type="text" value={filterPstFile} onChange={e => setFilterPstFile(e.target.value)}
-                  placeholder="pl. archive.pst"
+                  placeholder="e.g. archive.pst"
                   className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
-                <label className="text-xs text-gray-500 block mb-1">Dátum (tól)</label>
+                <label className="text-xs text-gray-500 block mb-1">{t('ediscovery.dateFrom')}</label>
                 <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)}
                   className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
-                <label className="text-xs text-gray-500 block mb-1">Dátum (ig)</label>
+                <label className="text-xs text-gray-500 block mb-1">{t('ediscovery.dateTo')}</label>
                 <input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)}
                   className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
@@ -264,7 +268,7 @@ export default function EDiscoverySearch() {
                 <div className="flex items-end">
                   <button type="button" onClick={clearFilters}
                     className="text-xs text-red-500 hover:text-red-700 underline pb-1.5">
-                    Szűrők törlése
+                    {t('common.clearFilters')}
                   </button>
                 </div>
               )}
@@ -277,19 +281,19 @@ export default function EDiscoverySearch() {
 
       {!searching && results.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-gray-600">{results.length} találat</h3>
+          <h3 className="text-sm font-semibold text-gray-600">{t('ediscovery.resultsCount', { count: results.length })}</h3>
           {results.map((r, idx) => (
             <div key={idx} className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
-                  <h4 className="font-medium text-gray-900 truncate">{r.subject || '(nincs tárgy)'}</h4>
+                  <h4 className="font-medium text-gray-900 truncate">{r.subject || t('emailBrowser.noSubject')}</h4>
                   <p className="text-sm text-gray-500 mt-0.5">
                     {r.senderName || r.sender}
                     {r.sender && r.senderName && (
                       <span className="text-gray-400"> &lt;{r.sender}&gt;</span>
                     )}
                     <span className="mx-2 text-gray-300">·</span>
-                    {formatDate(r.date)}
+                    {formatDate(r.date, locale)}
                     <span className="mx-2 text-gray-300">·</span>
                     <span className="text-gray-400">{r.pstFileName}</span>
                     {r.pstOwner && <span className="text-gray-400"> ({r.pstOwner})</span>}
@@ -309,11 +313,11 @@ export default function EDiscoverySearch() {
 
       {!searching && hasSearched && results.length === 0 && (
         <div className="text-center py-12 text-gray-400">
-          <p className="text-lg">Nincs találat</p>
-          <p className="text-sm mt-1">Próbálj más kulcsszót, vagy lazítsd a szűrőket</p>
+          <p className="text-lg">{t('common.noResults')}</p>
+          <p className="text-sm mt-1">{t('ediscovery.tryDifferentKeyword')}</p>
           {activeFilterCount > 0 && (
             <button onClick={clearFilters} className="mt-3 text-sm text-blue-600 hover:text-blue-800 underline">
-              Szűrők törlése és újrapróbálás
+              {t('ediscovery.clearFiltersAndRetry')}
             </button>
           )}
         </div>
