@@ -1,26 +1,6 @@
-# SuliWeb - PST Email Processor
+# SuliWeb — PST Email Processor
 
-Spring Boot 4.0 application for processing Microsoft Outlook PST files. Finds PST files, extracts emails and attachments, and stores the metadata in MongoDB. Includes an Elasticsearch 9 e-Discovery pipeline, a separate attachment-processing pipeline, a Neo4j 5.26 Knowledge Graph with Agents-K1 claim/evidence extraction, an MCP (Model Context Protocol) server, a Python FastAPI sidecar, JWT-based authentication, and an Astro 5 + React 19 frontend dashboard.
-
-## Features
-
-- **PST file discovery** - Searches local directories or a Synology NAS for PST files
-- **Email extraction** - Extracts emails and attachments from PST files with parallel processing (Virtual Threads)
-- **PST file statuses** - `New`, `Processed`, `Modified`, `Invalid`, `Missing`
-- **PST duplicate filtering** - SHA-256 hash-based deduplication
-- **Attachment deduplication** - Hash-based file storage; identical attachment content is stored on disk only once
-- **Pause/resume** - Control over long-running processing operations
-- **e-Discovery pipeline** - Elasticsearch 9 full-text search of email bodies; reply-chain stripping done in Java; Message-ID based dedup; Hungarian text analysis (`hungarian_stemmed` + `hungarian_ascii` analyzers)
-- **Attachment processing pipeline** - Separate, on-demand pipeline that converts attachments to Markdown via the Python sidecar and indexes them into their own Elasticsearch index (`attachment_archive`), deduplicated by content hash
-- **Dead-letter queue** - Failed attachment conversions are logged in MongoDB (`failed_conversions`); both single-item and bulk retry are available via the REST API
-- **Knowledge Graph** - Neo4j 5.26 communication graph (Person, Thread, Concept, Claim, Evidence, Mechanism, MethodLineage nodes); K1 entity/claim extraction via Agents-K1 4B (OpenAI-compatible); two-phase pipeline (virtual-thread extraction + fixed-pool Neo4j writes); thread traversal; concept-proximity search
-- **GraphRAG chat** - Entity extraction → Neo4j context → Ollama LLM response (streaming + non-streaming)
-- **MCP server** - Spring AI 2.x MCP (Model Context Protocol) server exposed over SSE at `/mcp`; provides `search_ediscovery_emails` and `query_k1_knowledge_graph` tools and a `k1_scp_context` prompt for multi-hop K1 graph traversal; compatible with Claude Desktop and any MCP client
-- **Python MCP sidecar** - FastMCP server mounted at `/mcp` on the Python sidecar (`:8001`); exposes `convert_file_to_markdown` tool and `file://attachments/hashes/{hash_id}` resource over SSE
-- **Synology integration** - Searches for PST files on a NAS in parallel via the Universal Search API
-- **PDF form filling** - iText-based PDF form filler
-- **JWT authentication** - Spring Security 7, access token (8h) + refresh token (7d), BCrypt
-- **Modern dashboard** - Astro 5 + React 19 + Tailwind CSS 4 responsive frontend
+Spring Boot 4.0 platform for processing Microsoft Outlook PST files: extracts emails and attachments, indexes them for e-discovery, builds an AI-powered knowledge graph, and exposes an MCP server for LLM integration.
 
 ## Architecture
 
@@ -47,7 +27,40 @@ Spring Boot 4.0 application for processing Microsoft Outlook PST files. Finds PS
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-## Processing flow
+## Features
+
+### PST Processing
+- **PST file discovery** — searches local directories or a Synology NAS via the Universal Search API
+- **Email & attachment extraction** — java-libpst with Virtual Threads; parallel processing; SHA-256 deduplication
+- **Attachment deduplication** — identical attachment content stored on disk only once (hash-based storage)
+- **PST file statuses** — `New`, `Processed`, `Modified`, `Invalid`, `Missing`
+- **Pause / resume** — control over long-running processing operations
+- **Pipeline orchestration** — multi-stage run (PST → e-Discovery → KG) triggered from a single endpoint
+
+### e-Discovery
+- **Elasticsearch 9 full-text search** — email bodies indexed with `hungarian_stemmed` (Snowball) + `hungarian_ascii` (asciifolding) analyzers; `.ascii` subfield for accent-insensitive search
+- **Reply-chain stripping** — done in Java before indexing; no duplicated quoted text in search results
+- **Message-ID deduplication** — no duplicate emails in the index
+- **Auto-sync** — MongoDB Change Stream triggers automatic re-indexing on insert, update, or delete
+- **Dead-letter queue** — failed attachment conversions logged in MongoDB (`failed_conversions`); single-item and bulk retry via REST API
+
+### Knowledge Graph & AI
+- **Neo4j 5.26 graph** — Person, Thread, Email, Concept, Claim, Evidence, Mechanism, MethodLineage, Attachment nodes with typed edges
+- **Agents-K1 4B extraction** — named entities, claims (factual/causal/normative/speculative with confidence score), evidence, and mechanisms via OpenAI-compatible endpoint
+- **GraphRAG chat** — entity extraction → Neo4j context → Ollama LLM response (streaming SSE + non-streaming)
+- **MCP server** (Spring AI 2.x, SSE at `/mcp`) — tools: `search_ediscovery_emails`, `query_k1_knowledge_graph`; prompt: `k1_scp_context` for multi-hop K1 graph traversal; compatible with Claude Desktop and any MCP client
+- **Python FastMCP sidecar** (`:8001/mcp`) — `convert_file_to_markdown` tool; `file://attachments/hashes/{hash_id}` resource
+
+### Infrastructure & Security
+- **JWT authentication** — Spring Security 7, access token (8h) + refresh token (7d), BCrypt
+- **Fail-secure allowlist** — every endpoint denied by default; `@PreAuthorize` provides a second enforcement layer
+- **Docker stack** — 6 services, multi-stage builds, health checks, `restart: unless-stopped`
+- **Container hardening** — `no-new-privileges`, `cap_drop: ALL` on app containers, `read_only` root filesystem + tmpfs mounts
+- **CI/DevSecOps** — Trivy (CVE scan + SBOM), Gitleaks, SpotBugs, OWASP Dependency-Check, Hadolint, CodeQL, Dependency Review
+
+## Processing Flow
+
+> **All pipelines are idempotent — re-running is safe.**
 
 ```
 PST file(s)
@@ -127,48 +140,24 @@ PST file(s)
                ▼
        GraphRAG chat (/api/kg/chat/stream)
        Entity extraction → Neo4j context → Ollama LLM
-
-┌─────────────────────────────────────────┐
-│ 4. MCP (Model Context Protocol)         │
-│                                         │
-│  Spring AI MCP server (SSE, :8080/mcp) │
-│  Tools:                                 │
-│  • search_ediscovery_emails — ES full-  │
-│    text search over the email archive   │
-│  • query_k1_knowledge_graph — read-only │
-│    Cypher queries against Neo4j         │
-│  Prompt:                                │
-│  • k1_scp_context — SCP-style context  │
-│    with schema + multi-hop Cypher       │
-│    traversal patterns                   │
-│                                         │
-│  Python sidecar FastMCP (:8001/mcp)    │
-│  Tools:                                 │
-│  • convert_file_to_markdown — converts  │
-│    an attachment file to Markdown       │
-│  Resources:                             │
-│  • file://attachments/hashes/{hash_id} │
-└─────────────────────────────────────────┘
 ```
 
-**Important notes:**
-- e-Discovery indexing runs **automatically** when an email changes in MongoDB (Change Stream). Manual re-index: `POST /api/ediscovery/ingest/{mongoEmailId}`.
-- Attachment processing and Knowledge Graph building are **not automatic** — both must be triggered manually after PST processing.
-- All pipelines are idempotent: re-running does not duplicate data.
-- If the Agents-K1 endpoint (`localhost:8000/v1`) is unavailable, KG ingestion continues without claim/entity extraction — nodes are still created without Concept/Claim/Evidence enrichment.
-- If Ollama is unavailable, GraphRAG chat returns an error but all other pipelines are unaffected.
-- A failed attachment conversion does not abort the pipeline — it is recorded in the `failed_conversions` collection and can be retried via `POST /api/attachments/processing/retry-failed`.
+**Operational notes:**
+- e-Discovery indexing runs **automatically** on MongoDB changes (Change Stream). Manual re-index: `POST /api/ediscovery/ingest/{mongoEmailId}`.
+- Attachment processing and Knowledge Graph ingestion are **not automatic** — both must be triggered manually after PST processing.
+- If the Agents-K1 endpoint (`localhost:8000/v1`) is unavailable, KG ingestion continues without entity/claim extraction — graph nodes are still created without Concept/Claim/Evidence enrichment.
+- If Ollama is unavailable, GraphRAG chat returns an error; all other pipelines are unaffected.
+- A failed attachment conversion does not abort the pipeline — it is recorded in `failed_conversions` and can be retried via `POST /api/attachments/processing/retry-failed`.
 
 ## Prerequisites
 
 - Java 25 (Eclipse Temurin JDK recommended)
 - Maven 3.9+
-- MongoDB 8 (or Docker)
 - Node.js 22+ (for frontend development)
 - Docker + Docker Compose (for containerized runs)
 - Ollama – runs on the host (`localhost:11434`), **not in Docker**
 
-## Quick start
+## Quick Start
 
 ### With Docker (recommended)
 
@@ -235,302 +224,6 @@ npm install
 npm run dev
 ```
 
-## Project structure
-
-```
-suliweb/
-├── src/main/java/hu/fmdev/backend/
-│   ├── BackendApplication.java
-│   ├── config/
-│   │   ├── SecurityConfig.java          # Fail-secure allowlist + JWT filter chain
-│   │   ├── ElasticsearchConfig.java     # ES client + email_archive/attachment_archive indices + Hungarian analyzers
-│   │   ├── RagConfig.java               # Ollama WebClient configuration
-│   │   ├── JwtConfig.java
-│   │   ├── ModelMapperConfig.java
-│   │   └── SynologyConfig.java
-│   ├── controller/
-│   │   ├── AuthController.java
-│   │   ├── EmailController.java
-│   │   ├── EDiscoveryController.java          # /api/ediscovery – ingest + search
-│   │   ├── AttachmentController.java          # /api/attachments – browse, search, download, dedupe
-│   │   ├── AttachmentProcessingController.java # /api/attachments/processing – markdown conversion + ES indexing
-│   │   ├── KnowledgeGraphController.java      # /api/kg – graph + chat
-│   │   ├── AppSettingsController.java         # /api/settings – runtime-tunable ingestion settings
-│   │   ├── PipelineController.java            # /api/pipeline – orchestrated multi-stage run
-│   │   ├── LogController.java                 # /api/logs – application logs
-│   │   ├── UserController.java                # /api/users – user management
-│   │   ├── PstFinderController.java
-│   │   ├── PstFinderSettingsController.java
-│   │   ├── PstProcessorController.java
-│   │   ├── SynologyPstFinderController.java
-│   │   ├── SynologySettingsController.java
-│   │   ├── ProgressController.java
-│   │   ├── FileInfoController.java
-│   │   ├── FileUploadController.java
-│   │   ├── FileController.java
-│   │   └── PdfFormFillerController.java
-│   ├── service/
-│   │   ├── EDiscoveryIngestionService.java     # Bulk-indexes emails into email_archive
-│   │   ├── EDiscoverySearchService.java        # ES bool query, highlight, filters
-│   │   ├── EDiscoveryChangeStreamListener.java # Auto re-index on MongoDB change
-│   │   ├── AttachmentProcessingService.java    # Hash-dedup → markdown conversion → attachment_archive
-│   │   ├── KnowledgeGraphIngestionService.java # Neo4j graph build (Virtual Threads + K1 extraction)
-│   │   ├── GraphSearchService.java             # Neo4j queries (network, thread, concept)
-│   │   ├── PipelineOrchestrationService.java   # Multi-stage orchestrated run
-│   │   ├── AppSettingsService.java
-│   │   ├── PstProcessorService.java
-│   │   ├── PstFinderService.java
-│   │   ├── PstFinderSettingsService.java
-│   │   ├── SynologyApiClient.java
-│   │   ├── SynologyPstFinderService.java
-│   │   ├── SynologySettingsService.java
-│   │   ├── FileService.java
-│   │   ├── FileAccessService.java
-│   │   ├── FileUploadService.java
-│   │   ├── PdfFormFillerService.java
-│   │   ├── ProgressTracker.java
-│   │   ├── auth/                               # JWT + user details services
-│   │   └── rag/
-│   │       ├── TextExtractionService.java      # Apache Tika text extraction + reply-chain stripping
-│   │       ├── EntityExtractionService.java    # Agents-K1 extraction (entities + claims + evidence + mechanisms)
-│   │       ├── NerExtractor.java               # Interface: extract() + extractK1()
-│   │       ├── K1ExtractionOutput.java         # Record: entities, claims, evidence, mechanisms, relations
-│   │       └── GraphRagChatService.java        # Neo4j context → Ollama LLM chat + stream
-│   ├── domain/
-│   │   ├── Email.java
-│   │   ├── Attachment.java
-│   │   ├── FailedConversion.java               # Dead-letter record (MongoDB)
-│   │   ├── AppSettings.java
-│   │   ├── PipelineStatus.java / StageProgress.java / StageState.java
-│   │   ├── FileInfo.java
-│   │   ├── FileEntity.java
-│   │   ├── User.java
-│   │   ├── Organization.java
-│   │   ├── Authority.java
-│   │   ├── LogEntry.java
-│   │   ├── ProgressState.java
-│   │   ├── PstFinderSettings.java / SynologySettings.java
-│   │   └── graph/                              # Neo4j @Node classes
-│   │       ├── PersonNode.java
-│   │       ├── OrganizationNode.java
-│   │       ├── EmailNode.java                  # + PROVES / CONTRADICTS → ClaimNode
-│   │       ├── ThreadNode.java
-│   │       ├── AttachmentNode.java
-│   │       ├── ConceptNode.java
-│   │       ├── ClaimNode.java                  # K1: text, claimType, confidence
-│   │       ├── EvidenceNode.java               # K1: text, evidenceType, sourceRef
-│   │       ├── MechanismNode.java              # K1: name, description, mechanismType
-│   │       ├── MethodLineageNode.java          # K1: methodName, version, EXTENDS chain
-│   │       └── CommunicatesWithRel.java
-│   ├── mcp/
-│   │   ├── EDiscoveryMcpTools.java             # @Tool: search_ediscovery_emails
-│   │   └── KnowledgeGraphMcpTools.java         # @Tool: query_k1_knowledge_graph + k1_scp_context prompt
-│   ├── repository/
-│   │   ├── FailedConversionRepository.java     # MongoDB dead-letter CRUD
-│   │   ├── AttachmentRepository.java
-│   │   ├── EmailRepository.java
-│   │   └── graph/                              # Neo4j repositories
-│   │       ├── PersonNodeRepository.java
-│   │       ├── EmailNodeRepository.java
-│   │       ├── ThreadNodeRepository.java
-│   │       ├── ConceptNodeRepository.java
-│   │       ├── ClaimNodeRepository.java
-│   │       ├── EvidenceNodeRepository.java
-│   │       └── MechanismNodeRepository.java
-│   ├── dto/
-│   ├── exceptionhandler/
-│   ├── logger/
-│   └── util/
-├── src/test/java/hu/fmdev/backend/
-│   ├── security/SecurityFilterChainTest.java       # Security filter chain integration tests
-│   └── service/EDiscoveryFailedConversionTest.java # Dead-letter unit tests
-├── src/main/resources/
-│   ├── application.properties
-│   └── application-docker.properties
-├── python-processor/                        # FastAPI sidecar
-│   ├── main.py                              # /convert-attachment
-│   ├── requirements.txt
-│   └── Dockerfile
-├── frontend/
-│   ├── src/
-│   │   ├── pages/
-│   │   │   ├── index.astro
-│   │   │   ├── emails.astro
-│   │   │   ├── ediscovery.astro             # e-Discovery search page
-│   │   │   ├── attachments.astro            # attachment browser
-│   │   │   ├── attachment-processing.astro  # attachment markdown/ES processing page
-│   │   │   ├── knowledge-graph.astro        # Knowledge Graph page
-│   │   │   ├── rag.astro
-│   │   │   ├── files.astro
-│   │   │   ├── processing.astro
-│   │   │   ├── pipeline.astro
-│   │   │   ├── synology.astro
-│   │   │   ├── settings.astro
-│   │   │   ├── logs.astro                   # Application log viewer
-│   │   │   ├── users.astro
-│   │   │   └── login.astro
-│   │   ├── components/
-│   │   │   ├── EDiscoverySearch.tsx         # ES search form + snippet highlighting
-│   │   │   ├── AttachmentList.tsx           # Attachment browser
-│   │   │   ├── AttachmentProcessing.tsx     # Start/stats/retry UI for attachment processing
-│   │   │   ├── KnowledgeGraph.tsx           # Network / thread / concept search + streaming chat
-│   │   │   ├── RagChat.tsx
-│   │   │   ├── RagSearch.tsx                # GraphRAG status panel + navigation
-│   │   │   ├── Dashboard.tsx
-│   │   │   ├── EmailBrowser.tsx
-│   │   │   ├── FileList.tsx
-│   │   │   ├── PstProcessing.tsx
-│   │   │   ├── PipelineView.tsx
-│   │   │   ├── AppSettings.tsx
-│   │   │   ├── SynologyPanel.tsx
-│   │   │   ├── Logs.tsx                     # Log viewer (filter, sort, auto-refresh)
-│   │   │   └── UserManagement.tsx
-│   │   ├── layouts/Layout.astro
-│   │   ├── styles/global.css
-│   │   └── lib/api.ts
-│   ├── Dockerfile
-│   ├── nginx.conf
-│   ├── package.json
-│   └── astro.config.mjs
-├── pom.xml
-├── Dockerfile
-├── docker-compose.yml
-├── Caddyfile
-├── .env.example
-├── .dockerignore
-└── CLAUDE.md
-```
-
-## API endpoints
-
-### Authentication
-| Endpoint | Method | Description |
-|---------|---------|--------|
-| `/api/auth/register` | POST | Register a new user — `ROLE_ADMIN` |
-| `/api/auth/login` | POST | Log in → access + refresh token |
-| `/api/auth/refresh` | POST | Refresh the access token |
-| `/api/auth/me` | GET | Current authenticated user |
-
-### Emails
-| Endpoint | Method | Description |
-|---------|---------|--------|
-| `/api/emails` | GET | All emails |
-| `/api/emails/count` | GET | Email count |
-| `/api/emails/search` | GET | Search (subject, sender, recipient, folder, importance) |
-| `/api/emails/{id}` | GET | Get email by ID |
-| `/api/emails` | POST | Create email |
-| `/api/emails/{id}` | PUT | Update email |
-| `/api/emails/{id}` | DELETE | Delete email |
-
-### PST processing
-| Endpoint | Method | Description |
-|---------|---------|--------|
-| `/find/pst` | GET | Search for PST files → save to DB — `ROLE_ADMIN` |
-| `/find/synology` | GET | Search for PST files on Synology NAS — `ROLE_ADMIN` |
-| `/find/synologyToDb` | GET | Synology PST files → save to DB — `ROLE_ADMIN` |
-| `/api/synology/settings` | GET / PUT | Synology connection settings |
-| `/api/pst-finder/settings` | GET / PUT | PST finder settings (PUT — `ROLE_ADMIN`) |
-| `/pst/processFromDb` | POST | Process PST files from the database — `ROLE_ADMIN` |
-| `/pst/processFromFile`, `/processFromTxt`, `/processSelected` | POST | Alternative processing entry points — `ROLE_ADMIN` |
-| `/pst/saveAttachmentsFromDb` | POST | Re-save attachments for already-processed PSTs — `ROLE_ADMIN` |
-| `/pst/pause` / `/pst/resume` | POST | Pause / resume processing — `ROLE_ADMIN` |
-
-### e-Discovery (Elasticsearch)
-| Endpoint | Method | Description |
-|---------|---------|--------|
-| `/api/ediscovery/ingest` | POST | Index all emails into Elasticsearch — `ROLE_ADMIN` |
-| `/api/ediscovery/ingest/{id}` | POST | Re-index a single email — `ROLE_ADMIN` |
-| `/api/ediscovery/retry-failed` | POST | Retry all failed conversions — `ROLE_ADMIN` |
-| `/api/ediscovery/retry-failed/{id}` | POST | Retry a single `FailedConversion` record — `ROLE_ADMIN` |
-| `/api/ediscovery/failed` | GET | List unresolved conversion failures |
-| `/api/ediscovery/search` | GET | Full-text search (`q`, `topK`, `sender`, `pstOwner`, `pstFileName`, `dateFrom`, `dateTo`) |
-| `/api/ediscovery/status` | GET | Indexing status + stats (incl. `failedCount`) |
-
-### Attachment processing (Elasticsearch, separate from e-Discovery)
-| Endpoint | Method | Description |
-|---------|---------|--------|
-| `/api/attachments/processing/start` | POST | Start markdown conversion + ES indexing of all attachments — `ROLE_ADMIN` |
-| `/api/attachments/processing/status` | GET | Processing status + stats (incl. `failedCount`) |
-| `/api/attachments/processing/failed` | GET | List unresolved conversion failures |
-| `/api/attachments/processing/retry-failed` | POST | Retry all failed conversions — `ROLE_ADMIN` |
-| `/api/attachments/processing/retry-failed/{id}` | POST | Retry a single failed conversion — `ROLE_ADMIN` |
-
-### Knowledge Graph (Neo4j)
-| Endpoint | Method | Description |
-|---------|---------|--------|
-| `/api/kg/ingest` | POST | Start graph build (NER extraction + Neo4j) — `ROLE_ADMIN` |
-| `/api/kg/reingest-concepts` | POST | Rebuild Concept nodes only — `ROLE_ADMIN` |
-| `/api/kg/status` | GET | Graph build status + stats |
-| `/api/kg/graph-stats` | GET | Aggregate graph statistics |
-| `/api/kg/persons/{email}/network` | GET | List of communication partners |
-| `/api/kg/thread/{threadId}` | GET | Thread emails in chronological order |
-| `/api/kg/concept/{name}` | GET | Emails near a concept (`topK`) |
-| `/api/kg/chat` | POST | GraphRAG chat (Neo4j context + Ollama LLM) |
-| `/api/kg/chat/stream` | POST | GraphRAG chat, streaming (SSE) |
-| `/api/kg/models` | GET | Available Ollama models |
-
-### Attachments (browse / manage)
-| Endpoint | Method | Description |
-|---------|---------|--------|
-| `/api/attachments` | GET | List attachments |
-| `/api/attachments/search` | GET | Search (filename, extension, size, sender, date) |
-| `/api/attachments/count` | GET | Attachment count |
-| `/api/attachments/duplicate-stats` | GET | Duplicate statistics |
-| `/api/attachments/deduplicate` | POST | Delete duplicate DB records |
-| `/api/attachments/email/{emailId}` | GET | Attachments for an email |
-| `/api/attachments/{id}/download` | GET | Download an attachment |
-
-### Pipeline orchestration
-| Endpoint | Method | Description |
-|---------|---------|--------|
-| `/api/pipeline/start` | POST | Start an orchestrated multi-stage run — `ROLE_ADMIN` |
-| `/api/pipeline/status` | GET | Status of all pipeline stages |
-
-### Settings
-| Endpoint | Method | Description |
-|---------|---------|--------|
-| `/api/settings` | GET | Effective runtime ingestion settings |
-| `/api/settings` | PUT | Update runtime ingestion settings — `ROLE_ADMIN` |
-
-### Users
-| Endpoint | Method | Description |
-|---------|---------|--------|
-| `/api/users` | GET | List users — `ROLE_ADMIN` |
-| `/api/users/{id}` | GET | User details — `ROLE_ADMIN` |
-| `/api/users` | POST | Create a user — `ROLE_ADMIN` |
-| `/api/users/{id}` | PUT | Update a user — `ROLE_ADMIN` |
-| `/api/users/{id}` | DELETE | Delete a user — `ROLE_ADMIN` |
-| `/api/users/authorities` | GET | List available authorities — `ROLE_ADMIN` |
-| `/api/users/{id}/files` | GET / PUT | A user's accessible PST files — `ROLE_ADMIN` |
-
-### MCP (Model Context Protocol)
-| Endpoint | Transport | Description |
-|---------|---------|--------|
-| `/mcp` (Spring Boot :8080) | SSE | MCP server: tools (`search_ediscovery_emails`, `query_k1_knowledge_graph`) + prompt (`k1_scp_context`) |
-| `/mcp` (Python sidecar :8001) | SSE | FastMCP server: tool (`convert_file_to_markdown`) + resource (`file://attachments/hashes/{hash_id}`) |
-
-### Python sidecar (`/` on :8001)
-| Endpoint | Method | Description |
-|---------|---------|--------|
-| `/health` | GET | Sidecar health check |
-| `/convert-attachment` | POST | Convert a file to Markdown via markitdown |
-| `/strip-reply` | POST | Strip reply chains from email bodies |
-| `/parse-document` | POST | Parse a Markdown document into K1ParsedDocument (text_blocks, tables, entities, multimodal_evidence, citations, relations) |
-
-### Other
-| Endpoint | Method | Description |
-|---------|---------|--------|
-| `/api/progress` | GET | Processing status (public) |
-| `/actuator/health` | GET | Application health check (public) |
-| `/api/logs` | GET | Application logs (`level`, `from`, `to`, `sort`, `limit` filters) |
-| `/api/file-infos` | GET | PST file information |
-| `/api/file-infos/counts` | GET | PST counters (total/pending/processed) |
-| `/api/file-infos/duplicates` | GET | Groups of identical-content PST files |
-| `/api/file-infos/compute-hashes` | POST | Compute SHA-256 hashes |
-| `/api/file-infos/deduplicate` | POST | Delete duplicate PST records |
-| `/api/files/upload` | POST | File upload (with ZIP encryption) |
-| `/pdf/fill` | POST | Fill a PDF form — `ROLE_ADMIN` |
-
 ## Configuration
 
 Key settings in `application.properties`:
@@ -586,7 +279,53 @@ management.endpoints.web.exposure.include=health
 management.endpoint.health.show-details=never
 ```
 
-## Tech stack
+**Environment variables** — read from a `.env` file (see `.env.example`):
+
+```bash
+cp .env.example .env
+# Edit: NEO4J_PASSWORD, JWT_SECRET, Synology credentials, etc.
+```
+
+## Security
+
+Fail-secure explicit allowlist — every endpoint is denied by default except the ones below:
+
+| Path | Access |
+|---------|-----------|
+| `POST /api/auth/login`, `POST /api/auth/refresh` | Public |
+| `GET /api/progress`, `GET /actuator/health` | Public |
+| `/pst/**`, `/find/**`, `/pdf/**` | `ROLE_ADMIN` |
+| `POST /api/ediscovery/ingest`, `/retry-failed` | `ROLE_ADMIN` |
+| `POST /api/kg/ingest` | `ROLE_ADMIN` |
+| `POST /api/auth/register`, `POST /api/users`, `DELETE /api/users/**` | `ROLE_ADMIN` |
+| Every other `/api/**` route | Authenticated user (`authenticated`) |
+
+`@EnableMethodSecurity` + `@PreAuthorize("hasAuthority('ROLE_ADMIN')")` annotations on the relevant controllers provide a second layer of defense.
+
+## Docker Compose Services
+
+| Service | Restart | Health check | Description |
+|---|---|---|---|
+| `suliweb-frontend` | unless-stopped | backend healthy | Astro 5 → nginx (:80) |
+| `suliweb-backend` | unless-stopped | `/actuator/health` curl | Spring Boot (:8080) + MCP SSE |
+| `suliweb-mongo` | unless-stopped | `mongosh ping` | MongoDB 8 (:27017) |
+| `suliweb-elasticsearch` | unless-stopped | `/_cluster/health` curl | Elasticsearch 9.4.2 (:9200) |
+| `suliweb-neo4j` | unless-stopped | `:7474` wget | Neo4j 5.26 Community (:7474/:7687) |
+| `python-processor` | unless-stopped | `/health` curl | FastAPI sidecar (:8001) + FastMCP SSE |
+
+**Container hardening** — applied in `docker-compose.yml`:
+
+| Measure | Services |
+|---|---|
+| `security_opt: no-new-privileges:true` | All services |
+| `cap_drop: ALL` | Frontend, backend, python-processor (app containers) |
+| `read_only: true` + `tmpfs` at `/tmp` | Backend, python-processor (immutable root filesystem) |
+| `read_only: true` + `tmpfs` at `/tmp`, `/var/run` | Frontend nginx (temp paths redirected via `nginx.conf`) |
+| `deploy.resources.limits` (memory + CPU + pids) | All services |
+
+Databases (MongoDB, Elasticsearch, Neo4j) keep `cap_drop` disabled — their entrypoint scripts require `CAP_SETUID`/`CAP_SETGID` for user-switching during init.
+
+## Tech Stack
 
 **Backend:**
 - Java 25 (Eclipse Temurin) + Spring Boot 4.0 (Spring Framework 7, Jakarta EE 11)
@@ -596,7 +335,7 @@ management.endpoint.health.show-details=never
 - Elasticsearch Java API Client 9.4.2 – e-Discovery and attachment full-text indexing
 - iText PDF 8 + Apache PDFBox 3 – PDF handling
 - zip4j – ZIP compression/encryption
-- Lombok, ModelMapper
+- Lombok
 
 **Python sidecar (`python-processor/`):**
 - FastAPI + uvicorn – `/convert-attachment` (markitdown), `/strip-reply`, `/parse-document`
@@ -651,39 +390,135 @@ cd frontend && npm run build
 docker compose up -d suliweb-mongo suliweb-elasticsearch suliweb-neo4j python-processor
 ```
 
-## Docker Compose services
+## API Reference
 
-| Service | Restart | Health check | Description |
-|---|---|---|---|
-| `suliweb-frontend` | unless-stopped | backend healthy | Astro 5 → nginx (:80) |
-| `suliweb-backend` | unless-stopped | `/actuator/health` curl | Spring Boot (:8080) + MCP SSE |
-| `suliweb-mongo` | unless-stopped | `mongosh ping` | MongoDB 8 (:27017) |
-| `suliweb-elasticsearch` | unless-stopped | `/_cluster/health` curl | Elasticsearch 9.4.2 (:9200) |
-| `suliweb-neo4j` | unless-stopped | `:7474` wget | Neo4j 5.26 Community (:7474/:7687) |
-| `python-processor` | unless-stopped | `/health` curl | FastAPI sidecar (:8001) + FastMCP SSE |
+### Authentication
+| Endpoint | Method | Description |
+|---------|---------|--------|
+| `/api/auth/register` | POST | Register a new user — `ROLE_ADMIN` |
+| `/api/auth/login` | POST | Log in → access + refresh token |
+| `/api/auth/refresh` | POST | Refresh the access token |
+| `/api/auth/me` | GET | Current authenticated user |
 
-**Environment variables** – read from a `.env` file (see `.env.example`):
+### Emails
+| Endpoint | Method | Description |
+|---------|---------|--------|
+| `/api/emails` | GET | All emails |
+| `/api/emails/count` | GET | Email count |
+| `/api/emails/search` | GET | Search (subject, sender, recipient, folder, importance) |
+| `/api/emails/{id}` | GET | Get email by ID |
+| `/api/emails` | POST | Create email |
+| `/api/emails/{id}` | PUT | Update email |
+| `/api/emails/{id}` | DELETE | Delete email |
 
-```bash
-cp .env.example .env
-# Edit: NEO4J_PASSWORD, JWT_SECRET, Synology credentials, etc.
-```
+### PST Processing
+| Endpoint | Method | Description |
+|---------|---------|--------|
+| `/find/pst` | GET | Search for PST files → save to DB — `ROLE_ADMIN` |
+| `/find/synology` | GET | Search for PST files on Synology NAS — `ROLE_ADMIN` |
+| `/find/synologyToDb` | GET | Synology PST files → save to DB — `ROLE_ADMIN` |
+| `/api/synology/settings` | GET / PUT | Synology connection settings |
+| `/api/pst-finder/settings` | GET / PUT | PST finder settings (PUT — `ROLE_ADMIN`) |
+| `/pst/processFromDb` | POST | Process PST files from the database — `ROLE_ADMIN` |
+| `/pst/processFromFile`, `/processFromTxt`, `/processSelected` | POST | Alternative processing entry points — `ROLE_ADMIN` |
+| `/pst/saveAttachmentsFromDb` | POST | Re-save attachments for already-processed PSTs — `ROLE_ADMIN` |
+| `/pst/pause` / `/pst/resume` | POST | Pause / resume processing — `ROLE_ADMIN` |
 
-## Security
+### e-Discovery (Elasticsearch)
+| Endpoint | Method | Description |
+|---------|---------|--------|
+| `/api/ediscovery/ingest` | POST | Index all emails into Elasticsearch — `ROLE_ADMIN` |
+| `/api/ediscovery/ingest/{id}` | POST | Re-index a single email — `ROLE_ADMIN` |
+| `/api/ediscovery/retry-failed` | POST | Retry all failed conversions — `ROLE_ADMIN` |
+| `/api/ediscovery/retry-failed/{id}` | POST | Retry a single `FailedConversion` record — `ROLE_ADMIN` |
+| `/api/ediscovery/failed` | GET | List unresolved conversion failures |
+| `/api/ediscovery/search` | GET | Full-text search (`q`, `topK`, `sender`, `pstOwner`, `pstFileName`, `dateFrom`, `dateTo`) |
+| `/api/ediscovery/status` | GET | Indexing status + stats (incl. `failedCount`) |
 
-Fail-secure explicit allowlist — every endpoint is denied by default except the ones below:
+### Attachment Processing (Elasticsearch, separate from e-Discovery)
+| Endpoint | Method | Description |
+|---------|---------|--------|
+| `/api/attachments/processing/start` | POST | Start markdown conversion + ES indexing of all attachments — `ROLE_ADMIN` |
+| `/api/attachments/processing/status` | GET | Processing status + stats (incl. `failedCount`) |
+| `/api/attachments/processing/failed` | GET | List unresolved conversion failures |
+| `/api/attachments/processing/retry-failed` | POST | Retry all failed conversions — `ROLE_ADMIN` |
+| `/api/attachments/processing/retry-failed/{id}` | POST | Retry a single failed conversion — `ROLE_ADMIN` |
 
-| Path | Access |
-|---------|-----------|
-| `POST /api/auth/login`, `POST /api/auth/refresh` | Public |
-| `GET /api/progress`, `GET /actuator/health` | Public |
-| `/pst/**`, `/find/**`, `/pdf/**` | `ROLE_ADMIN` |
-| `POST /api/ediscovery/ingest`, `/retry-failed` | `ROLE_ADMIN` |
-| `POST /api/kg/ingest` | `ROLE_ADMIN` |
-| `POST /api/auth/register`, `POST /api/users`, `DELETE /api/users/**` | `ROLE_ADMIN` |
-| Every other `/api/**` route | Authenticated user (`authenticated`) |
+### Knowledge Graph (Neo4j)
+| Endpoint | Method | Description |
+|---------|---------|--------|
+| `/api/kg/ingest` | POST | Start graph build (NER extraction + Neo4j) — `ROLE_ADMIN` |
+| `/api/kg/reingest-concepts` | POST | Rebuild Concept nodes only — `ROLE_ADMIN` |
+| `/api/kg/status` | GET | Graph build status + stats |
+| `/api/kg/graph-stats` | GET | Aggregate graph statistics |
+| `/api/kg/persons/{email}/network` | GET | List of communication partners |
+| `/api/kg/thread/{threadId}` | GET | Thread emails in chronological order |
+| `/api/kg/concept/{name}` | GET | Emails near a concept (`topK`) |
+| `/api/kg/chat` | POST | GraphRAG chat (Neo4j context + Ollama LLM) |
+| `/api/kg/chat/stream` | POST | GraphRAG chat, streaming (SSE) |
+| `/api/kg/models` | GET | Available Ollama models |
 
-`@EnableMethodSecurity` + `@PreAuthorize("hasAuthority('ROLE_ADMIN')")` annotations on the relevant controllers provide a second layer of defense.
+### Attachments (Browse / Manage)
+| Endpoint | Method | Description |
+|---------|---------|--------|
+| `/api/attachments` | GET | List attachments |
+| `/api/attachments/search` | GET | Search (filename, extension, size, sender, date) |
+| `/api/attachments/count` | GET | Attachment count |
+| `/api/attachments/duplicate-stats` | GET | Duplicate statistics |
+| `/api/attachments/deduplicate` | POST | Delete duplicate DB records |
+| `/api/attachments/email/{emailId}` | GET | Attachments for an email |
+| `/api/attachments/{id}/download` | GET | Download an attachment |
+
+### Pipeline Orchestration
+| Endpoint | Method | Description |
+|---------|---------|--------|
+| `/api/pipeline/start` | POST | Start an orchestrated multi-stage run — `ROLE_ADMIN` |
+| `/api/pipeline/status` | GET | Status of all pipeline stages |
+
+### Settings
+| Endpoint | Method | Description |
+|---------|---------|--------|
+| `/api/settings` | GET | Effective runtime ingestion settings |
+| `/api/settings` | PUT | Update runtime ingestion settings — `ROLE_ADMIN` |
+
+### Users
+| Endpoint | Method | Description |
+|---------|---------|--------|
+| `/api/users` | GET | List users — `ROLE_ADMIN` |
+| `/api/users/{id}` | GET | User details — `ROLE_ADMIN` |
+| `/api/users` | POST | Create a user — `ROLE_ADMIN` |
+| `/api/users/{id}` | PUT | Update a user — `ROLE_ADMIN` |
+| `/api/users/{id}` | DELETE | Delete a user — `ROLE_ADMIN` |
+| `/api/users/authorities` | GET | List available authorities — `ROLE_ADMIN` |
+| `/api/users/{id}/files` | GET / PUT | A user's accessible PST files — `ROLE_ADMIN` |
+
+### MCP (Model Context Protocol)
+| Endpoint | Transport | Description |
+|---------|---------|--------|
+| `/mcp` (Spring Boot :8080) | SSE | MCP server: tools (`search_ediscovery_emails`, `query_k1_knowledge_graph`) + prompt (`k1_scp_context`) |
+| `/mcp` (Python sidecar :8001) | SSE | FastMCP server: tool (`convert_file_to_markdown`) + resource (`file://attachments/hashes/{hash_id}`) |
+
+### Python Sidecar (`/` on :8001)
+| Endpoint | Method | Description |
+|---------|---------|--------|
+| `/health` | GET | Sidecar health check |
+| `/convert-attachment` | POST | Convert a file to Markdown via markitdown |
+| `/strip-reply` | POST | Strip reply chains from email bodies |
+| `/parse-document` | POST | Parse a Markdown document into K1ParsedDocument (text_blocks, tables, entities, multimodal_evidence, citations, relations) |
+
+### Other
+| Endpoint | Method | Description |
+|---------|---------|--------|
+| `/api/progress` | GET | Processing status (public) |
+| `/actuator/health` | GET | Application health check (public) |
+| `/api/logs` | GET | Application logs (`level`, `from`, `to`, `sort`, `limit` filters) |
+| `/api/file-infos` | GET | PST file information |
+| `/api/file-infos/counts` | GET | PST counters (total/pending/processed) |
+| `/api/file-infos/duplicates` | GET | Groups of identical-content PST files |
+| `/api/file-infos/compute-hashes` | POST | Compute SHA-256 hashes |
+| `/api/file-infos/deduplicate` | POST | Delete duplicate PST records |
+| `/api/files/upload` | POST | File upload (with ZIP encryption) |
+| `/pdf/fill` | POST | Fill a PDF form — `ROLE_ADMIN` |
 
 ## License
 
