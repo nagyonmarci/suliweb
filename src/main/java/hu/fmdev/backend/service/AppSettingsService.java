@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -23,25 +24,20 @@ public class AppSettingsService {
     @Value("${kg.ingestion.max-concurrent-writes:4}")
     private int kgDefaultMaxConcurrentWrites;
 
+    private Optional<AppSettings> settings() {
+        return repository.findById("singleton");
+    }
+
     public String getEffectiveChatModel() {
-        return repository.findById("singleton")
-                .map(AppSettings::getChatModel)
-                .filter(s -> s != null && !s.isBlank())
-                .orElse(ragConfig.getChatModel());
+        return settings().map(AppSettings::getChatModel).filter(s -> s != null && !s.isBlank()).orElse(ragConfig.getChatModel());
     }
 
     public String getEffectiveNerModel() {
-        return repository.findById("singleton")
-                .map(AppSettings::getNerModel)
-                .filter(s -> s != null && !s.isBlank())
-                .orElse(ragConfig.getChatModel());
+        return settings().map(AppSettings::getNerModel).filter(s -> s != null && !s.isBlank()).orElse(ragConfig.getChatModel());
     }
 
     public int getEffectiveChatMaxHistoryTurns() {
-        return repository.findById("singleton")
-                .map(AppSettings::getChatMaxHistoryTurns)
-                .filter(v -> v != null && v > 0)
-                .orElse(ragConfig.getChatMaxHistoryTurns());
+        return settings().map(AppSettings::getChatMaxHistoryTurns).filter(v -> v != null && v > 0).orElse(ragConfig.getChatMaxHistoryTurns());
     }
 
     public int getEffectiveChatContextTopK() {
@@ -52,17 +48,11 @@ public class AppSettingsService {
     }
 
     public int getEffectiveKgBatchSize() {
-        return repository.findById("singleton")
-                .map(AppSettings::getKgBatchSize)
-                .filter(v -> v != null && v > 0)
-                .orElse(kgDefaultBatchSize);
+        return settings().map(AppSettings::getKgBatchSize).filter(v -> v != null && v > 0).orElse(kgDefaultBatchSize);
     }
 
     public int getEffectiveKgMaxConcurrentWrites() {
-        return repository.findById("singleton")
-                .map(AppSettings::getKgMaxConcurrentWrites)
-                .filter(v -> v != null && v > 0)
-                .orElse(kgDefaultMaxConcurrentWrites);
+        return settings().map(AppSettings::getKgMaxConcurrentWrites).filter(v -> v != null && v > 0).orElse(kgDefaultMaxConcurrentWrites);
     }
 
     public AppSettingsDto getSettings() {
@@ -78,7 +68,7 @@ public class AppSettingsService {
     }
 
     public AppSettingsDto saveSettings(AppSettingsDto req) {
-        AppSettings doc = repository.findById("singleton").orElse(new AppSettings());
+        AppSettings doc = settings().orElse(new AppSettings());
 
         if (req.getChatModel() != null && !req.getChatModel().isBlank())
             doc.setChatModel(req.getChatModel());

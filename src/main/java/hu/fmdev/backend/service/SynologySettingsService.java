@@ -19,77 +19,53 @@ public class SynologySettingsService {
     private final SynologySettingsRepository settingsRepository;
     private final SynologyConfig fallbackConfig;
 
+    private Optional<SynologySettings> settings() {
+        return settingsRepository.findById("singleton");
+    }
+
     public String getEffectiveHost() {
-        return settingsRepository.findById("singleton")
-                .map(SynologySettings::getHost)
-                .filter(StringUtils::hasText)
-                .orElse(fallbackConfig.getHost());
+        return settings().map(SynologySettings::getHost).filter(StringUtils::hasText).orElse(fallbackConfig.getHost());
     }
 
     public String getEffectiveUsername() {
-        return settingsRepository.findById("singleton")
-                .map(SynologySettings::getUsername)
-                .filter(StringUtils::hasText)
-                .orElse(fallbackConfig.getUsername());
+        return settings().map(SynologySettings::getUsername).filter(StringUtils::hasText).orElse(fallbackConfig.getUsername());
     }
 
     public String getEffectivePassword() {
-        return settingsRepository.findById("singleton")
-                .map(SynologySettings::getPassword)
-                .filter(StringUtils::hasText)
-                .orElse(fallbackConfig.getPassword());
+        return settings().map(SynologySettings::getPassword).filter(StringUtils::hasText).orElse(fallbackConfig.getPassword());
     }
 
     public String getEffectivePathPrefix() {
-        return settingsRepository.findById("singleton")
-                .map(SynologySettings::getPathPrefix)
-                .filter(StringUtils::hasText)
-                .orElse(fallbackConfig.getPathPrefix());
+        return settings().map(SynologySettings::getPathPrefix).filter(StringUtils::hasText).orElse(fallbackConfig.getPathPrefix());
     }
 
     public String getEffectiveLocalMountPrefix() {
-        return settingsRepository.findById("singleton")
-                .map(SynologySettings::getLocalMountPrefix)
-                .filter(StringUtils::hasText)
-                .orElse(fallbackConfig.getLocalMountPrefix());
+        return settings().map(SynologySettings::getLocalMountPrefix).filter(StringUtils::hasText).orElse(fallbackConfig.getLocalMountPrefix());
     }
 
     public String getEffectiveSearchExtensions() {
-        return settingsRepository.findById("singleton")
-                .map(SynologySettings::getSearchExtensions)
-                .filter(StringUtils::hasText)
-                .orElse(fallbackConfig.getSearchExtensions());
+        return settings().map(SynologySettings::getSearchExtensions).filter(StringUtils::hasText).orElse(fallbackConfig.getSearchExtensions());
     }
 
     public int getEffectiveBatchSize() {
-        return settingsRepository.findById("singleton")
-                .map(SynologySettings::getBatchSize)
-                .filter(bs -> bs != null && bs > 0)
-                .orElse(fallbackConfig.getBatchSize());
+        return settings().map(SynologySettings::getBatchSize).filter(bs -> bs != null && bs > 0).orElse(fallbackConfig.getBatchSize());
     }
 
     public SynologySettingsResponse getSettingsResponse() {
-        Optional<SynologySettings> stored = settingsRepository.findById("singleton");
-        boolean passwordConfigured = stored
-                .map(SynologySettings::getPassword)
-                .filter(StringUtils::hasText)
-                .isPresent()
-                || StringUtils.hasText(fallbackConfig.getPassword());
-
+        Optional<SynologySettings> s = settings();
         SynologySettingsResponse dto = new SynologySettingsResponse();
-        dto.setHost(getEffectiveHost());
-        dto.setUsername(getEffectiveUsername());
-        dto.setPasswordConfigured(passwordConfigured);
-        dto.setPathPrefix(getEffectivePathPrefix());
-        dto.setLocalMountPrefix(getEffectiveLocalMountPrefix());
-        dto.setSearchExtensions(getEffectiveSearchExtensions());
-        dto.setBatchSize(getEffectiveBatchSize());
+        dto.setHost(s.map(SynologySettings::getHost).filter(StringUtils::hasText).orElse(fallbackConfig.getHost()));
+        dto.setUsername(s.map(SynologySettings::getUsername).filter(StringUtils::hasText).orElse(fallbackConfig.getUsername()));
+        dto.setPasswordConfigured(s.map(SynologySettings::getPassword).filter(StringUtils::hasText).isPresent() || StringUtils.hasText(fallbackConfig.getPassword()));
+        dto.setPathPrefix(s.map(SynologySettings::getPathPrefix).filter(StringUtils::hasText).orElse(fallbackConfig.getPathPrefix()));
+        dto.setLocalMountPrefix(s.map(SynologySettings::getLocalMountPrefix).filter(StringUtils::hasText).orElse(fallbackConfig.getLocalMountPrefix()));
+        dto.setSearchExtensions(s.map(SynologySettings::getSearchExtensions).filter(StringUtils::hasText).orElse(fallbackConfig.getSearchExtensions()));
+        dto.setBatchSize(s.map(SynologySettings::getBatchSize).filter(bs -> bs != null && bs > 0).orElse(fallbackConfig.getBatchSize()));
         return dto;
     }
 
     public SynologySettingsResponse saveSettings(SynologySettingsRequest req) {
-        SynologySettings doc = settingsRepository.findById("singleton")
-                .orElse(new SynologySettings());
+        SynologySettings doc = settings().orElse(new SynologySettings());
 
         if (StringUtils.hasText(req.getHost()))             doc.setHost(req.getHost());
         if (StringUtils.hasText(req.getUsername()))         doc.setUsername(req.getUsername());

@@ -52,13 +52,12 @@ async function tryRefreshToken(): Promise<boolean> {
 
 // --- Core fetch with auth ---
 
-async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
+async function fetchWithAuth(path: string, options?: RequestInit): Promise<Response> {
   let res = await fetch(path, {
     ...options,
     headers: { ...authHeaders(), ...options?.headers },
   });
 
-  // Auto-refresh on 401
   if (res.status === 401 && getRefreshToken()) {
     const refreshed = await tryRefreshToken();
     if (refreshed) {
@@ -79,37 +78,15 @@ async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
     const text = await res.text();
     throw new Error(`API error ${res.status}: ${text}`);
   }
-  return res.json();
+  return res;
+}
+
+async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
+  return fetchWithAuth(path, options).then(r => r.json());
 }
 
 async function fetchText(path: string, options?: RequestInit): Promise<string> {
-  let res = await fetch(path, {
-    ...options,
-    headers: { ...authHeaders(), ...options?.headers },
-  });
-
-  // Auto-refresh on 401
-  if (res.status === 401 && getRefreshToken()) {
-    const refreshed = await tryRefreshToken();
-    if (refreshed) {
-      res = await fetch(path, {
-        ...options,
-        headers: { ...authHeaders(), ...options?.headers },
-      });
-    }
-  }
-
-  if (res.status === 401) {
-    clearTokens();
-    window.location.href = '/login';
-    throw new Error('Unauthorized');
-  }
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API error ${res.status}: ${text}`);
-  }
-  return res.text();
+  return fetchWithAuth(path, options).then(r => r.text());
 }
 
 // --- Types ---
@@ -147,27 +124,6 @@ export interface FileInfo {
   status: string;
   attachmentsSaved: boolean;
   contentHash: string | null;
-}
-
-export interface UserDto {
-  id: string;
-  username: string;
-  email: string;
-  authorities: string[];
-  authorityIds: string[];
-  allowedFileInfoIds: string[];
-}
-
-export interface AuthorityDto {
-  id: string;
-  permission: string;
-}
-
-export interface FileInfoDto {
-  id: string;
-  fileName: string;
-  path: string;
-  status: string;
 }
 
 export interface Attachment {
@@ -412,6 +368,59 @@ export interface AppSettingsDto {
   kgMaxConcurrentWrites: number;
 }
 
+// --- Shared SSE stream helper ---
+
+async function chatStream(
+  url: string,
+  body: { message: string; topK: number; model?: string; history?: Array<{ role: string; content: string }> },
+  fallback: () => Promise<ChatResponse>,
+  onToken: (token: string) => void,
+): Promise<ChatSource[]> {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok || !res.body) {
+    const fb = await fallback();
+    onToken(fb.answer);
+    return fb.sources;
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let sources: ChatSource[] = [];
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      const trimmed = line.replace(/^data:\s*/, '').trim();
+      if (!trimmed) continue;
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed.token) onToken(parsed.token);
+        if (parsed.done && parsed.sources) sources = parsed.sources;
+        if (parsed.error) throw new Error(parsed.error);
+      } catch { /* ignore */ }
+    }
+  }
+
+  if (buffer.trim()) {
+    try {
+      const parsed = JSON.parse(buffer.replace(/^data:\s*/, '').trim());
+      if (parsed.done && parsed.sources) sources = parsed.sources;
+    } catch { /* ignore */ }
+  }
+
+  return sources;
+}
+
 // --- API ---
 
 export const api = {
@@ -592,57 +601,8 @@ export const api = {
       body: JSON.stringify({ message, topK, model, history }),
     }),
 
-  kgChatStream: async (
-    message: string,
-    topK: number,
-    model: string | undefined,
-    history: Array<{ role: string; content: string }> | undefined,
-    onToken: (token: string) => void,
-  ): Promise<ChatSource[]> => {
-    const res = await fetch('/api/kg/chat/stream', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ message, topK, model, history }),
-    });
-
-    if (!res.ok || !res.body) {
-      const fallback = await api.kgChat(message, topK, model, history);
-      onToken(fallback.answer);
-      return fallback.sources;
-    }
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let sources: ChatSource[] = [];
-    let buffer = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() ?? '';
-      for (const line of lines) {
-        const trimmed = line.replace(/^data:\s*/, '').trim();
-        if (!trimmed) continue;
-        try {
-          const parsed = JSON.parse(trimmed);
-          if (parsed.token) onToken(parsed.token);
-          if (parsed.done && parsed.sources) sources = parsed.sources;
-          if (parsed.error) throw new Error(parsed.error);
-        } catch { /* ignore */ }
-      }
-    }
-
-    if (buffer.trim()) {
-      try {
-        const parsed = JSON.parse(buffer.replace(/^data:\s*/, '').trim());
-        if (parsed.done && parsed.sources) sources = parsed.sources;
-      } catch { /* ignore */ }
-    }
-
-    return sources;
-  },
+  kgChatStream: (message: string, topK: number, model: string | undefined, history: Array<{ role: string; content: string }> | undefined, onToken: (token: string) => void): Promise<ChatSource[]> =>
+    chatStream('/api/kg/chat/stream', { message, topK, model, history }, () => api.kgChat(message, topK, model, history), onToken),
 
   // Logs
   getLogs: (level?: string, from?: string, to?: string, sort?: string) => {
@@ -667,57 +627,8 @@ export const api = {
   updateUserFiles: (id: string, fileInfoIds: string[]) =>
     fetchJson<UserDto>(`/api/users/${id}/files`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fileInfoIds }) }),
 
-  ragChatStream: async (
-    message: string,
-    topK: number,
-    model: string | undefined,
-    history: Array<{ role: string; content: string }> | undefined,
-    onToken: (token: string) => void,
-  ): Promise<ChatSource[]> => {
-    const res = await fetch('/api/rag/chat/stream', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ message, topK, model, history }),
-    });
-
-    if (!res.ok || !res.body) {
-      const fallback = await api.ragChat(message, topK, model, history);
-      onToken(fallback.answer);
-      return fallback.sources;
-    }
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let sources: ChatSource[] = [];
-    let buffer = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() ?? '';
-      for (const line of lines) {
-        const trimmed = line.replace(/^data:\s*/, '').trim();
-        if (!trimmed) continue;
-        try {
-          const parsed = JSON.parse(trimmed);
-          if (parsed.token) onToken(parsed.token);
-          if (parsed.done && parsed.sources) sources = parsed.sources;
-          if (parsed.error) throw new Error(parsed.error);
-        } catch { /* ignore */ }
-      }
-    }
-
-    if (buffer.trim()) {
-      try {
-        const parsed = JSON.parse(buffer.replace(/^data:\s*/, '').trim());
-        if (parsed.done && parsed.sources) sources = parsed.sources;
-      } catch { /* ignore */ }
-    }
-
-    return sources;
-  },
+  ragChatStream: (message: string, topK: number, model: string | undefined, history: Array<{ role: string; content: string }> | undefined, onToken: (token: string) => void): Promise<ChatSource[]> =>
+    chatStream('/api/rag/chat/stream', { message, topK, model, history }, () => api.ragChat(message, topK, model, history), onToken),
 
   // Pipeline
   startPipeline: (req: PipelineStartRequest) =>
