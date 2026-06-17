@@ -8,7 +8,7 @@ Spring Boot 4.0 platform for processing Microsoft Outlook PST files: extracts em
 ┌──────────────────────────────────────────────────────────────────────┐
 │                       Frontend (Astro 5)                              │
 │ Dashboard │ Emails │ e-Discovery │ Attachment processing │ KG │ RAG   │
-│        :80 (nginx) → proxy → :8080  |  :4321 (dev)                   │
+│     :3000 (nginx) → proxy → :8080   |  :4321 (dev)                   │
 ├──────────────────────────────────────────────────────────────────────┤
 │                  Spring Boot Backend (:8080)                           │
 │  PST processing → MongoDB (metadata, auth, progress)                  │
@@ -181,7 +181,7 @@ The app is available at `http://localhost` (frontend + API proxy) and `http://lo
 
 | Service | Port | Description |
 |---|---|---|
-| `suliweb-frontend` | 80 | Astro static files + nginx reverse proxy |
+| `suliweb-frontend` | 3000 | Astro static files + nginx reverse proxy |
 | `suliweb-backend` | 8080 | Spring Boot API + MCP server (`/mcp` SSE) |
 | `suliweb-mongo` | 27017 | MongoDB 8 (email metadata, auth, progress) |
 | `suliweb-elasticsearch` | 9200 | Elasticsearch 9.4.2 (e-Discovery + attachment full-text indexes) |
@@ -306,7 +306,7 @@ Fail-secure explicit allowlist — every endpoint is denied by default except th
 
 | Service | Restart | Health check | Description |
 |---|---|---|---|
-| `suliweb-frontend` | unless-stopped | backend healthy | Astro 5 → nginx (:80) |
+| `suliweb-frontend` | unless-stopped | backend healthy | Astro 5 → nginx (:3000) |
 | `suliweb-backend` | unless-stopped | `/actuator/health` curl | Spring Boot (:8080) + MCP SSE |
 | `suliweb-mongo` | unless-stopped | `mongosh ping` | MongoDB 8 (:27017) |
 | `suliweb-elasticsearch` | unless-stopped | `/_cluster/health` curl | Elasticsearch 9.4.2 (:9200) |
@@ -357,7 +357,6 @@ Databases (MongoDB, Elasticsearch, Neo4j) keep `cap_drop` disabled — their ent
 
 **Infrastructure:**
 - Docker + Docker Compose – 6 services, multi-stage builds, health checks
-- Caddy – TLS-terminating reverse proxy in front of the stack (HTTPS, health-checked upstreams)
 - nginx – Frontend asset serving + API reverse proxy inside the frontend container
 - Java 25 LTS (Eclipse Temurin)
 
