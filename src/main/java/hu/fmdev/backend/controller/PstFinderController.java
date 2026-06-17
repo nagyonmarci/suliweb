@@ -13,7 +13,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.BufferedWriter;
-import java.io.FileWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,7 +40,8 @@ public class PstFinderController {
             List<FileInfo> fileInfos = searchService.findFiles(directories, excludedDirectories);
             searchService.saveOrUpdateFileInfos(fileInfos, directories);
 
-            try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile))) {
+            Path safeOutput = Path.of(outputFile).toAbsolutePath().normalize();
+            try (BufferedWriter writer = Files.newBufferedWriter(safeOutput)) {
                 for (FileInfo fileInfo : fileInfos) {
                     writer.write(fileInfo.toString());
                     writer.newLine();
