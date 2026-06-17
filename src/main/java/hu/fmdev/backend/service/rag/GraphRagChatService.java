@@ -19,8 +19,6 @@ import java.util.*;
 @Service
 public class GraphRagChatService {
 
-    private static final int DEFAULT_TOP_K = 8;
-
     private final GraphSearchService graphSearch;
     private final EntityExtractionService entityExtraction;
     private final WebClient ollamaWebClient;
@@ -43,7 +41,7 @@ public class GraphRagChatService {
 
     public ChatResponse chat(String userMessage, int topK, String model,
                              List<HistoryMessage> history) {
-        int k = topK > 0 ? topK : DEFAULT_TOP_K;
+        int k = topK > 0 ? topK : appSettingsService.getEffectiveChatContextTopK();
         String resolvedModel = (model != null && !model.isBlank()) ? model : appSettingsService.getEffectiveChatModel();
 
         List<EmailNode> contextEmails = retrieveContext(userMessage, k);
@@ -61,7 +59,7 @@ public class GraphRagChatService {
 
     public Flux<String> chatStream(String userMessage, int topK, String model,
                                    List<HistoryMessage> history) {
-        int k = topK > 0 ? topK : DEFAULT_TOP_K;
+        int k = topK > 0 ? topK : appSettingsService.getEffectiveChatContextTopK();
         String resolvedModel = (model != null && !model.isBlank()) ? model : appSettingsService.getEffectiveChatModel();
 
         List<EmailNode> contextEmails = retrieveContext(userMessage, k);
@@ -201,14 +199,12 @@ public class GraphRagChatService {
     }
 
     // -------------------------------------------------------------------------
-    // DTOs (mirrored from RagChatService for controller compatibility)
+    // DTOs
     // -------------------------------------------------------------------------
 
     public record ChatResponse(String answer, List<ChatSource> sources) {}
     public record ChatSource(String emailId, String subject, String pstOwner) {}
     public record HistoryMessage(String role, String content) {}
     public record ChatRequest(String message, int topK, String model,
-                              List<HistoryMessage> history) {
-        public ChatRequest { if (topK <= 0) topK = DEFAULT_TOP_K; }
-    }
+                              List<HistoryMessage> history) {}
 }

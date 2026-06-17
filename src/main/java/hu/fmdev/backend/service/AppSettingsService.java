@@ -44,6 +44,13 @@ public class AppSettingsService {
                 .orElse(ragConfig.getChatMaxHistoryTurns());
     }
 
+    public int getEffectiveChatContextTopK() {
+        return repository.findById("singleton")
+                .map(AppSettings::getChatContextTopK)
+                .filter(v -> v != null && v > 0)
+                .orElse(ragConfig.getChatContextTopK());
+    }
+
     public int getEffectiveKgBatchSize() {
         return repository.findById("singleton")
                 .map(AppSettings::getKgBatchSize)
@@ -64,6 +71,7 @@ public class AppSettingsService {
         dto.setChatModel(getEffectiveChatModel());
         dto.setNerModel(getEffectiveNerModel());
         dto.setChatMaxHistoryTurns(getEffectiveChatMaxHistoryTurns());
+        dto.setChatContextTopK(getEffectiveChatContextTopK());
         dto.setKgBatchSize(getEffectiveKgBatchSize());
         dto.setKgMaxConcurrentWrites(getEffectiveKgMaxConcurrentWrites());
         return dto;
@@ -78,6 +86,8 @@ public class AppSettingsService {
             doc.setNerModel(req.getNerModel());
         if (req.getChatMaxHistoryTurns() != null && req.getChatMaxHistoryTurns() > 0)
             doc.setChatMaxHistoryTurns(req.getChatMaxHistoryTurns());
+        if (req.getChatContextTopK() != null && req.getChatContextTopK() > 0)
+            doc.setChatContextTopK(req.getChatContextTopK());
         if (req.getKgBatchSize() != null && req.getKgBatchSize() > 0)
             doc.setKgBatchSize(req.getKgBatchSize());
         if (req.getKgMaxConcurrentWrites() != null && req.getKgMaxConcurrentWrites() > 0)

@@ -363,6 +363,8 @@
     "ragSettings": "RAG beállítások",
     "historyTurns": "Előzménykörök (chatMaxHistoryTurns)",
     "historyTurnsHint": "Hány user+assistant pár kerül a kontextusba (alapért.: 6)",
+    "contextTopK": "Kontextus mérete (chatContextTopK)",
+    "contextTopKHint": "Hány Knowledge Graph email kerül a GraphRAG chat kontextusába (alapért.: 8)",
     "kgIngestion": "Knowledge Graph ingestion",
     "batchSize": "Kötegméret (kgBatchSize)",
     "batchSizeHint": "Emailek száma egy batch-ben (alapért.: 100)",

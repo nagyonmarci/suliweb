@@ -8,6 +8,7 @@ public class AppSettingsDto {
     private String chatModel;
     private String nerModel;
     private Integer chatMaxHistoryTurns;
+    private Integer chatContextTopK;
     private Integer kgBatchSize;
     private Integer kgMaxConcurrentWrites;
 }

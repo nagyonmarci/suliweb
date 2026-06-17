@@ -7,6 +7,7 @@ import hu.fmdev.backend.logger.CentralLogger;
 import hu.fmdev.backend.repository.AttachmentRepository;
 import hu.fmdev.backend.repository.EmailRepository;
 import hu.fmdev.backend.repository.graph.*;
+import hu.fmdev.backend.service.rag.K1ExtractionOutput;
 import hu.fmdev.backend.service.rag.NerExtractor;
 import hu.fmdev.backend.service.rag.TextExtractionService;
 import org.springframework.data.domain.PageRequest;
@@ -17,6 +18,8 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 @Service
 public class KnowledgeGraphIngestionService {
@@ -27,6 +30,9 @@ public class KnowledgeGraphIngestionService {
     private final EmailNodeRepository emailNodeRepo;
     private final ThreadNodeRepository threadRepo;
     private final ConceptNodeRepository conceptRepo;
+    private final ClaimNodeRepository claimRepo;
+    private final EvidenceNodeRepository evidenceRepo;
+    private final MechanismNodeRepository mechanismRepo;
     private final NerExtractor entityExtraction;
     private final TextExtractionService textExtraction;
     private final ProgressTracker progressTracker;
@@ -34,9 +40,9 @@ public class KnowledgeGraphIngestionService {
 
     private volatile boolean running = false;
     private volatile Instant startedAt = null;
-    private final AtomicLong totalEmails  = new AtomicLong();
+    private final AtomicLong totalEmails    = new AtomicLong();
     private final AtomicLong processedCount = new AtomicLong();
-    private final AtomicLong failedCount  = new AtomicLong();
+    private final AtomicLong failedCount    = new AtomicLong();
 
     public KnowledgeGraphIngestionService(EmailRepository emailRepository,
                                           AttachmentRepository attachmentRepository,
@@ -44,6 +50,9 @@ public class KnowledgeGraphIngestionService {
                                           EmailNodeRepository emailNodeRepo,
                                           ThreadNodeRepository threadRepo,
                                           ConceptNodeRepository conceptRepo,
+                                          ClaimNodeRepository claimRepo,
+                                          EvidenceNodeRepository evidenceRepo,
+                                          MechanismNodeRepository mechanismRepo,
                                           NerExtractor entityExtraction,
                                           TextExtractionService textExtraction,
                                           ProgressTracker progressTracker,
@@ -54,13 +63,16 @@ public class KnowledgeGraphIngestionService {
         this.emailNodeRepo      = emailNodeRepo;
         this.threadRepo         = threadRepo;
         this.conceptRepo        = conceptRepo;
+        this.claimRepo          = claimRepo;
+        this.evidenceRepo       = evidenceRepo;
+        this.mechanismRepo      = mechanismRepo;
         this.entityExtraction   = entityExtraction;
         this.textExtraction     = textExtraction;
         this.progressTracker    = progressTracker;
         this.appSettingsService = appSettingsService;
     }
 
-    private record NerResult(Email email, List<NerExtractor.ExtractedEntity> entities) {}
+    private record K1Result(Email email, K1ExtractionOutput k1Output) {}
 
     public boolean isRunning() { return running; }
 
@@ -92,67 +104,12 @@ public class KnowledgeGraphIngestionService {
         startedAt = Instant.now();
         totalEmails.set(0); processedCount.set(0); failedCount.set(0);
         try {
-            long total = emailRepository.count();
-            totalEmails.set(total);
-            progressTracker.startOperation("Knowledge Graph építés", (int) total);
-            CentralLogger.logInfo("KG ingestion start. Emails: " + total
-                    + " batchSize=" + appSettingsService.getEffectiveKgBatchSize()
+            CentralLogger.logInfo("KG ingestion start. batchSize=" + appSettingsService.getEffectiveKgBatchSize()
                     + " maxConcurrentWrites=" + appSettingsService.getEffectiveKgMaxConcurrentWrites());
 
-            int page = 0;
-            // Virtual threads for I/O-bound NER calls
-            ExecutorService nerExec = Executors.newVirtualThreadPerTaskExecutor();
-            // Fixed pool limits concurrent Neo4j writers
-            ExecutorService writeExec = Executors.newFixedThreadPool(appSettingsService.getEffectiveKgMaxConcurrentWrites());
-            try {
-                while (true) {
-                    var emailPage = emailRepository.findAll(PageRequest.of(page, appSettingsService.getEffectiveKgBatchSize()));
-                    if (emailPage.isEmpty()) break;
-
-                    // Phase 1: NER extraction (parallel, I/O-bound — no DB writes)
-                    List<Callable<NerResult>> nerTasks = emailPage.stream()
-                            .map(email -> (Callable<NerResult>) () -> extractNer(email))
-                            .toList();
-
-                    List<NerResult> nerResults = new ArrayList<>();
-                    try {
-                        for (var f : nerExec.invokeAll(nerTasks)) {
-                            try {
-                                NerResult r = f.get();
-                                if (r != null) nerResults.add(r);
-                            } catch (ExecutionException e) {
-                                CentralLogger.logError("NER extraction hiba", e.getCause());
-                            }
-                        }
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        CentralLogger.logError("KG ingestion megszakítva (NER fázis)", e);
-                        break;
-                    }
-
-                    // Phase 2: Neo4j writes (concurrency limited by fixed thread pool)
-                    List<Callable<Void>> writeTasks = nerResults.stream()
-                            .map(r -> (Callable<Void>) () -> {
-                                writeEmailToGraph(r.email(), r.entities());
-                                return null;
-                            })
-                            .toList();
-
-                    try {
-                        writeExec.invokeAll(writeTasks);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        CentralLogger.logError("KG ingestion megszakítva (write fázis)", e);
-                        break;
-                    }
-
-                    if (!emailPage.hasNext()) break;
-                    page++;
-                }
-            } finally {
-                nerExec.shutdown();
-                writeExec.shutdown();
-            }
+            runBatchedPipeline("Knowledge Graph építés",
+                    this::extractK1Result,
+                    r -> writeEmailToGraph(r.email(), r.k1Output()));
 
             progressTracker.stopOperation();
             CentralLogger.logInfo("KG ingestion done. Processed: " + processedCount
@@ -171,178 +128,223 @@ public class KnowledgeGraphIngestionService {
         startedAt = Instant.now();
         totalEmails.set(0); processedCount.set(0); failedCount.set(0);
         try {
-            long total = emailRepository.count();
-            totalEmails.set(total);
-            progressTracker.startOperation("Koncepciók újraépítése", (int) total);
-            CentralLogger.logInfo("KG concept re-ingestion start. Emails: " + total);
+            CentralLogger.logInfo("KG concept re-ingestion start.");
 
-            int batchSize = appSettingsService.getEffectiveKgBatchSize();
-            ExecutorService nerExec   = Executors.newVirtualThreadPerTaskExecutor();
-            ExecutorService writeExec = Executors.newFixedThreadPool(
-                    appSettingsService.getEffectiveKgMaxConcurrentWrites());
-            try {
-                int page = 0;
-                while (true) {
-                    var emailPage = emailRepository.findAll(PageRequest.of(page, batchSize));
-                    if (emailPage.isEmpty()) break;
+            runBatchedPipeline("Koncepciók újraépítése",
+                    this::extractK1ForExistingNode,
+                    this::writeConceptsForEmail);
 
-                    // Only process emails that already have an Email node in Neo4j
-                    record EmailNer(Email email, List<NerExtractor.ExtractedEntity> entities) {}
-                    List<Callable<EmailNer>> nerTasks = emailPage.stream()
-                            .map(email -> (Callable<EmailNer>) () -> {
-                                progressTracker.increment();
-                                if (!emailNodeRepo.existsByMessageId(resolveMessageId(email))) return null;
-                                String text = email.getStrippedBody() != null
-                                        ? email.getStrippedBody()
-                                        : textExtraction.getEmailTextContent(email.getBody(), email.getHtmlContent());
-                                List<NerExtractor.ExtractedEntity> entities = entityExtraction.extract(text);
-                                return entities.isEmpty() ? null : new EmailNer(email, entities);
-                            })
-                            .toList();
-
-                    List<EmailNer> nerResults = new ArrayList<>();
-                    for (var f : nerExec.invokeAll(nerTasks)) {
-                        try {
-                            EmailNer r = f.get();
-                            if (r != null) nerResults.add(r);
-                        } catch (ExecutionException e) {
-                            CentralLogger.logError("Concept re-ingest NER hiba", e.getCause());
-                        }
-                    }
-
-                    writeExec.invokeAll(nerResults.stream()
-                            .map(r -> (Callable<Void>) () -> {
-                                List<Map<String, String>> conceptMaps = r.entities().stream()
-                                        .map(e -> Map.of("name", e.name(), "type", e.type()))
-                                        .toList();
-                                try {
-                                    writeWithRetry(r.email().getId(), conceptMaps);
-                                    processedCount.incrementAndGet();
-                                } catch (Exception e) {
-                                    failedCount.incrementAndGet();
-                                    CentralLogger.logWarn("Concept write hiba ["
-                                            + r.email().getId() + "]: " + e.getMessage());
-                                }
-                                return null;
-                            }).toList());
-
-                    if (!emailPage.hasNext()) break;
-                    page++;
-                }
-            } finally {
-                nerExec.shutdown();
-                writeExec.shutdown();
-            }
             progressTracker.stopOperation();
             CentralLogger.logInfo("KG concept re-ingest done. Processed: "
                     + processedCount + " Failed: " + failedCount);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
         } finally {
             running = false;
         }
     }
 
-    private NerResult extractNer(Email email) {
+    /**
+     * Shared two-phase pipeline: pages through every email, runs {@code nerStep} on virtual
+     * threads (I/O-bound, unbounded concurrency), then runs {@code writeStep} on a fixed-size
+     * pool (bounds concurrent Neo4j writers). A null result from {@code nerStep} skips that email.
+     */
+    private <R> void runBatchedPipeline(String operationLabel, Function<Email, R> nerStep, Consumer<R> writeStep) {
+        long total = emailRepository.count();
+        totalEmails.set(total);
+        progressTracker.startOperation(operationLabel, (int) total);
+
+        int batchSize = appSettingsService.getEffectiveKgBatchSize();
+        ExecutorService nerExec   = Executors.newVirtualThreadPerTaskExecutor();
+        ExecutorService writeExec = Executors.newFixedThreadPool(appSettingsService.getEffectiveKgMaxConcurrentWrites());
+        try {
+            int page = 0;
+            while (true) {
+                var emailPage = emailRepository.findAll(PageRequest.of(page, batchSize));
+                if (emailPage.isEmpty()) break;
+
+                List<Callable<R>> nerTasks = emailPage.stream()
+                        .map(email -> (Callable<R>) () -> nerStep.apply(email))
+                        .toList();
+
+                List<R> nerResults = new ArrayList<>();
+                try {
+                    for (var f : nerExec.invokeAll(nerTasks)) {
+                        try {
+                            R r = f.get();
+                            if (r != null) nerResults.add(r);
+                        } catch (ExecutionException e) {
+                            CentralLogger.logError("K1 extraction hiba", e.getCause());
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    CentralLogger.logError("KG ingestion megszakítva (NER fázis)", e);
+                    break;
+                }
+
+                List<Callable<Void>> writeTasks = nerResults.stream()
+                        .map(r -> (Callable<Void>) () -> { writeStep.accept(r); return null; })
+                        .toList();
+
+                try {
+                    writeExec.invokeAll(writeTasks);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    CentralLogger.logError("KG ingestion megszakítva (write fázis)", e);
+                    break;
+                }
+
+                if (!emailPage.hasNext()) break;
+                page++;
+            }
+        } finally {
+            nerExec.shutdown();
+            writeExec.shutdown();
+        }
+    }
+
+    private K1Result extractK1Result(Email email) {
         progressTracker.increment();
         if (emailNodeRepo.existsByMessageId(resolveMessageId(email))) return null;
         String bodyText = email.getStrippedBody() != null
                 ? email.getStrippedBody()
                 : textExtraction.getEmailTextContent(email.getBody(), email.getHtmlContent());
-        List<NerExtractor.ExtractedEntity> entities = entityExtraction.extract(bodyText);
-        return new NerResult(email, entities);
+        K1ExtractionOutput k1Output = entityExtraction.extractK1(bodyText);
+        return new K1Result(email, k1Output);
     }
 
-    private void writeEmailToGraph(Email email, List<NerExtractor.ExtractedEntity> entities) {
+    private K1Result extractK1ForExistingNode(Email email) {
+        progressTracker.increment();
+        if (!emailNodeRepo.existsByMessageId(resolveMessageId(email))) return null;
+        String text = email.getStrippedBody() != null
+                ? email.getStrippedBody()
+                : textExtraction.getEmailTextContent(email.getBody(), email.getHtmlContent());
+        K1ExtractionOutput k1Output = entityExtraction.extractK1(text);
+        return k1Output.entities().isEmpty() ? null : new K1Result(email, k1Output);
+    }
+
+    private void writeConceptsForEmail(K1Result r) {
+        List<Map<String, String>> conceptMaps = r.k1Output().entities().stream()
+                .map(e -> Map.of("name", e.name(), "type", e.type()))
+                .toList();
         try {
-            doWriteEmail(email, entities);
+            writeWithRetry(r.email().getId(), conceptMaps);
+            processedCount.incrementAndGet();
+        } catch (Exception e) {
+            failedCount.incrementAndGet();
+            CentralLogger.logWarn("Concept write hiba [" + r.email().getId() + "]: " + e.getMessage());
+        }
+    }
+
+    private void writeEmailToGraph(Email email, K1ExtractionOutput k1Output) {
+        try {
+            doWriteEmail(email, k1Output);
         } catch (Exception e) {
             failedCount.incrementAndGet();
             CentralLogger.logWarn("KG writeEmailToGraph hiba [" + email.getId() + "]: " + e.getMessage());
         }
     }
 
-    private void doWriteEmail(Email email, List<NerExtractor.ExtractedEntity> entities) {
-            // 1. Person nodes
-            PersonNode sender = mergePerson(email.getSenderEmailAddress(), email.getSenderName());
+    private void doWriteEmail(Email email, K1ExtractionOutput k1Output) {
+        // 1. Person nodes
+        PersonNode sender = mergePerson(email.getSenderEmailAddress(), email.getSenderName());
 
-            // 2. Thread node
-            ThreadNode thread = null;
-            if (email.getConversationId() != null && !email.getConversationId().isBlank()) {
-                thread = mergeThread(email.getConversationId(), email.getConversationTopic(),
+        // 2. Thread node
+        ThreadNode thread = null;
+        if (email.getConversationId() != null && !email.getConversationId().isBlank()) {
+            thread = mergeThread(email.getConversationId(), email.getConversationTopic(),
+                    email.getReceivedTime() != null ? email.getReceivedTime().toString() : "");
+        }
+
+        // 3. Email node
+        EmailNode emailNode = new EmailNode();
+        emailNode.setMessageId(resolveMessageId(email));
+        emailNode.setMongoId(email.getId());
+        emailNode.setSubject(email.getSubject());
+        emailNode.setDate(email.getReceivedTime() != null ? email.getReceivedTime().toString() : "");
+        emailNode.setPstFileName(email.getPstFileName());
+        emailNode.setPstOwner(pstOwner(email.getPstFileName()));
+        emailNode.setSender(sender);
+        emailNode.setThread(thread);
+
+        if (email.getRecipients() != null) {
+            List<PersonNode> toList = email.getRecipients().stream()
+                    .filter(r -> r != null && !r.isBlank())
+                    .map(r -> mergePerson(r, null))
+                    .toList();
+            emailNode.setToRecipients(new ArrayList<>(toList));
+        }
+
+        if (email.getCc() != null) {
+            List<PersonNode> ccList = email.getCc().stream()
+                    .filter(r -> r != null && !r.isBlank())
+                    .map(r -> mergePerson(r, null))
+                    .toList();
+            emailNode.setCcRecipients(new ArrayList<>(ccList));
+        }
+
+        // 4. Attachments
+        List<Attachment> atts = attachmentRepository.findByEmailId(email.getId());
+        List<AttachmentNode> attNodes = atts.stream()
+                .filter(a -> a.getHash() != null && !a.getHash().isBlank())
+                .map(a -> {
+                    AttachmentNode n = new AttachmentNode();
+                    n.setSha256(a.getHash());
+                    n.setFilename(a.getFilename());
+                    n.setMarkdownContent("");
+                    return n;
+                }).toList();
+        emailNode.setAttachments(new ArrayList<>(attNodes));
+
+        // 5. Concepts (ConceptNodes) from K1 entity extraction
+        List<ConceptNode> concepts = k1Output.entities().stream()
+                .map(e -> mergeConcept(e.name(), e.type()))
+                .toList();
+        emailNode.setMentions(new ArrayList<>(concepts));
+
+        // 5b. K1 Claims, Evidence, Mechanisms → PROVES relationships on EmailNode
+        if (!k1Output.claims().isEmpty()) {
+            List<EvidenceNode> savedEvidence = k1Output.evidence().stream()
+                    .map(evidenceRepo::save)
+                    .toList();
+            List<MechanismNode> savedMechs = k1Output.mechanisms().stream()
+                    .map(mechanismRepo::save)
+                    .toList();
+
+            List<ClaimNode> savedClaims = k1Output.claims().stream()
+                    .map(claim -> {
+                        claim.setEvidence(new ArrayList<>(savedEvidence));
+                        claim.setMechanisms(new ArrayList<>(savedMechs));
+                        return claimRepo.save(claim);
+                    })
+                    .toList();
+
+            emailNode.setProvedClaims(new ArrayList<>(savedClaims));
+        }
+
+        // 6. Save email node (creates MENTIONS + PROVES relationships)
+        EmailNode saved = emailNodeRepo.save(emailNode);
+
+        // 7. REPLY_TO link (best-effort)
+        if (email.getConversationId() != null && !email.getConversationId().isBlank()) {
+            emailNodeRepo.findByThreadId(email.getConversationId()).stream()
+                    .filter(n -> !n.getMongoId().equals(email.getId()))
+                    .findFirst()
+                    .ifPresent(parent -> {
+                        saved.setReplyTo(parent);
+                        emailNodeRepo.save(saved);
+                    });
+        }
+
+        // 8. COMMUNICATES_WITH counter update
+        if (sender != null && email.getRecipients() != null) {
+            for (String recipientEmail : email.getRecipients()) {
+                if (recipientEmail == null || recipientEmail.isBlank()) continue;
+                updateCommunicatesWith(sender, recipientEmail,
                         email.getReceivedTime() != null ? email.getReceivedTime().toString() : "");
             }
+        }
 
-            // 3. Email node
-            EmailNode emailNode = new EmailNode();
-            emailNode.setMessageId(resolveMessageId(email));
-            emailNode.setMongoId(email.getId());
-            emailNode.setSubject(email.getSubject());
-            emailNode.setDate(email.getReceivedTime() != null ? email.getReceivedTime().toString() : "");
-            emailNode.setPstFileName(email.getPstFileName());
-            emailNode.setPstOwner(pstOwner(email.getPstFileName()));
-            emailNode.setSender(sender);
-            emailNode.setThread(thread);
-
-            if (email.getRecipients() != null) {
-                List<PersonNode> toList = email.getRecipients().stream()
-                        .filter(r -> r != null && !r.isBlank())
-                        .map(r -> mergePerson(r, null))
-                        .toList();
-                emailNode.setToRecipients(new ArrayList<>(toList));
-            }
-
-            if (email.getCc() != null) {
-                List<PersonNode> ccList = email.getCc().stream()
-                        .filter(r -> r != null && !r.isBlank())
-                        .map(r -> mergePerson(r, null))
-                        .toList();
-                emailNode.setCcRecipients(new ArrayList<>(ccList));
-            }
-
-            // 4. Attachments
-            List<Attachment> atts = attachmentRepository.findByEmailId(email.getId());
-            List<AttachmentNode> attNodes = atts.stream()
-                    .filter(a -> a.getHash() != null && !a.getHash().isBlank())
-                    .map(a -> {
-                        AttachmentNode n = new AttachmentNode();
-                        n.setSha256(a.getHash());
-                        n.setFilename(a.getFilename());
-                        n.setMarkdownContent("");
-                        return n;
-                    }).toList();
-            emailNode.setAttachments(new ArrayList<>(attNodes));
-
-            // 5. Concepts from pre-extracted NER results
-            List<ConceptNode> concepts = entities.stream()
-                    .map(e -> mergeConcept(e.name(), e.type()))
-                    .toList();
-            emailNode.setMentions(new ArrayList<>(concepts));
-
-            // 6. Save email node
-            EmailNode saved = emailNodeRepo.save(emailNode);
-
-            // 7. REPLY_TO link (best-effort)
-            if (email.getConversationId() != null && !email.getConversationId().isBlank()) {
-                emailNodeRepo.findByThreadId(email.getConversationId()).stream()
-                        .filter(n -> !n.getMongoId().equals(email.getId()))
-                        .findFirst()
-                        .ifPresent(parent -> {
-                            saved.setReplyTo(parent);
-                            emailNodeRepo.save(saved);
-                        });
-            }
-
-            // 8. COMMUNICATES_WITH counter update
-            if (sender != null && email.getRecipients() != null) {
-                for (String recipientEmail : email.getRecipients()) {
-                    if (recipientEmail == null || recipientEmail.isBlank()) continue;
-                    updateCommunicatesWith(sender, recipientEmail,
-                            email.getReceivedTime() != null ? email.getReceivedTime().toString() : "");
-                }
-            }
-
-            processedCount.incrementAndGet();
+        processedCount.incrementAndGet();
     }
 
     // -------------------------------------------------------------------------

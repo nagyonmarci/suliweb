@@ -15,6 +15,7 @@ export default function AppSettings() {
     chatModel: '',
     nerModel: '',
     chatMaxHistoryTurns: '',
+    chatContextTopK: '',
     kgBatchSize: '',
     kgMaxConcurrentWrites: '',
   });
@@ -27,6 +28,7 @@ export default function AppSettings() {
           chatModel: data.chatModel,
           nerModel: data.nerModel,
           chatMaxHistoryTurns: String(data.chatMaxHistoryTurns),
+          chatContextTopK: String(data.chatContextTopK),
           kgBatchSize: String(data.kgBatchSize),
           kgMaxConcurrentWrites: String(data.kgMaxConcurrentWrites),
         });
@@ -46,6 +48,7 @@ export default function AppSettings() {
         chatModel: form.chatModel || undefined,
         nerModel: form.nerModel || undefined,
         chatMaxHistoryTurns: form.chatMaxHistoryTurns ? Number(form.chatMaxHistoryTurns) : undefined,
+        chatContextTopK: form.chatContextTopK ? Number(form.chatContextTopK) : undefined,
         kgBatchSize: form.kgBatchSize ? Number(form.kgBatchSize) : undefined,
         kgMaxConcurrentWrites: form.kgMaxConcurrentWrites ? Number(form.kgMaxConcurrentWrites) : undefined,
       };
@@ -103,6 +106,7 @@ export default function AppSettings() {
       <section className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
         <h2 className="text-base font-semibold text-gray-800">{t('appSettings.ragSettings')}</h2>
         {field(t('appSettings.historyTurns'), 'chatMaxHistoryTurns', t('appSettings.historyTurnsHint'))}
+        {field(t('appSettings.contextTopK'), 'chatContextTopK', t('appSettings.contextTopKHint'))}
       </section>
 
       {/* KG settings */}

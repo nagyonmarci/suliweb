@@ -53,4 +53,10 @@ public class EmailNode {
 
     @Relationship(type = "MENTIONS", direction = Relationship.Direction.OUTGOING)
     private List<ConceptNode> mentions;
+
+    @Relationship(type = "PROVES", direction = Relationship.Direction.OUTGOING)
+    private List<ClaimNode> provedClaims;
+
+    @Relationship(type = "CONTRADICTS", direction = Relationship.Direction.OUTGOING)
+    private List<ClaimNode> contradictedClaims;
 }

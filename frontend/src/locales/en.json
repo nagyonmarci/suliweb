@@ -363,6 +363,8 @@
     "ragSettings": "RAG settings",
     "historyTurns": "History turns (chatMaxHistoryTurns)",
     "historyTurnsHint": "How many user+assistant pairs go into the context (default: 6)",
+    "contextTopK": "Context size (chatContextTopK)",
+    "contextTopKHint": "How many Knowledge Graph emails go into the GraphRAG chat context (default: 8)",
     "kgIngestion": "Knowledge Graph ingestion",
     "batchSize": "Batch size (kgBatchSize)",
     "batchSizeHint": "Number of emails per batch (default: 100)",
