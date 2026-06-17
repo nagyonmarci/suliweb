@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 public class KnowledgeGraphMcpTools {
 
     // ponytail: simple keyword guard — blocks obvious writes, not a SQL parser
