@@ -4,6 +4,7 @@ import hu.fmdev.backend.domain.FileInfo;
 import hu.fmdev.backend.service.PstFinderService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -27,6 +28,9 @@ public class PstFinderController {
     @Autowired
     private PstFinderService searchService;
 
+    @Value("${pst-finder.output-dir:${java.io.tmpdir}}")
+    private String outputBaseDir;
+
     @GetMapping("/pstToTxt")
     public ResponseEntity<String> searchAndWritePstToTxt(@RequestParam List<String> directories, @RequestParam(required = false) List<String> excludedDirectories, @RequestParam String outputFile) {
         if (excludedDirectories == null) {
@@ -40,7 +44,11 @@ public class PstFinderController {
             List<FileInfo> fileInfos = searchService.findFiles(directories, excludedDirectories);
             searchService.saveOrUpdateFileInfos(fileInfos, directories);
 
-            Path safeOutput = Path.of(outputFile).toAbsolutePath().normalize();
+            Path base = Path.of(outputBaseDir).toAbsolutePath().normalize();
+            Path safeOutput = base.resolve(Path.of(outputFile).getFileName()).normalize();
+            if (!safeOutput.startsWith(base)) {
+                return ResponseEntity.badRequest().body("Output path not within configured directory.");
+            }
             try (BufferedWriter writer = Files.newBufferedWriter(safeOutput)) {
                 for (FileInfo fileInfo : fileInfos) {
                     writer.write(fileInfo.toString());
