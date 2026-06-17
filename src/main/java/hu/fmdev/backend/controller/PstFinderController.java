@@ -2,7 +2,6 @@ package hu.fmdev.backend.controller;
 
 import hu.fmdev.backend.domain.FileInfo;
 import hu.fmdev.backend.service.PstFinderService;
-import hu.fmdev.backend.util.FileWriterUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -13,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,9 +25,6 @@ public class PstFinderController {
 
     @Autowired
     private PstFinderService searchService;
-
-    @Autowired
-    private FileWriterUtil fileWriterUtil;
 
     @GetMapping("/pstToTxt")
     public ResponseEntity<String> searchAndWritePstToTxt(@RequestParam List<String> directories, @RequestParam(required = false) List<String> excludedDirectories, @RequestParam String outputFile) {
@@ -41,7 +39,12 @@ public class PstFinderController {
             List<FileInfo> fileInfos = searchService.findFiles(directories, excludedDirectories);
             searchService.saveOrUpdateFileInfos(fileInfos, directories);
 
-            fileWriterUtil.writeFileInfoToFile(fileInfos, outputFile);
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile))) {
+                for (FileInfo fileInfo : fileInfos) {
+                    writer.write(fileInfo.toString());
+                    writer.newLine();
+                }
+            }
 
             return ResponseEntity.ok("Fájlok sikeresen feldolgozva, elmentve az adatbázisba és a fájlba: " + outputFile);
         } catch (Exception e) {
