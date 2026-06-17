@@ -44,7 +44,6 @@ Spring Boot 4.0 application for processing Microsoft Outlook PST files. Finds PS
 │  Python sidecar (:8001) — attachment→markdown  + FastMCP at /mcp     │
 │  Agents-K1 4B (:8000, OpenAI-compat., runs on host)                  │
 │  Ollama (:11434, runs on host – GraphRAG LLM chat)                   │
-│  mcp-neo4j-cypher (Docker) — direct Cypher MCP tool for Neo4j        │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -199,7 +198,6 @@ The app is available at `http://localhost` (frontend + API proxy) and `http://lo
 | `suliweb-elasticsearch` | 9200 | Elasticsearch 9.4.2 (e-Discovery + attachment full-text indexes) |
 | `suliweb-neo4j` | 7474/7687 | Neo4j 5.26 Community + APOC (Knowledge Graph) |
 | `python-processor` | 8001 | FastAPI sidecar (attachment→markdown + FastMCP at `/mcp`) |
-| `mcp-neo4j-cypher` | — | MCP tool for direct Cypher queries against Neo4j (internal) |
 
 **Volumes:**
 - `mongodb_data` - MongoDB data
@@ -663,7 +661,6 @@ docker compose up -d suliweb-mongo suliweb-elasticsearch suliweb-neo4j python-pr
 | `suliweb-elasticsearch` | unless-stopped | `/_cluster/health` curl | Elasticsearch 9.4.2 (:9200) |
 | `suliweb-neo4j` | unless-stopped | `:7474` wget | Neo4j 5.26 Community (:7474/:7687) |
 | `python-processor` | unless-stopped | `/health` curl | FastAPI sidecar (:8001) + FastMCP SSE |
-| `mcp-neo4j-cypher` | unless-stopped | — | MCP Cypher tool (internal, no port exposed) |
 
 **Environment variables** – read from a `.env` file (see `.env.example`):
 
