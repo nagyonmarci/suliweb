@@ -3,11 +3,8 @@ services:
     build: ./frontend
     container_name: suliweb-frontend
     restart: unless-stopped
-    networks:
-      default:
-      web:
-        aliases:
-          - frontend
+    ports:
+      - "3000:8080"
     depends_on:
       suliweb-backend:
         condition: service_healthy
@@ -28,11 +25,8 @@ services:
 
   suliweb-backend:
     container_name: suliweb-backend
-    networks:
-      default:
-      web:
-        aliases:
-          - backend
+    ports:
+      - "8080:8080"
     build: .
     restart: unless-stopped
     environment:
@@ -208,5 +202,3 @@ volumes:
 
 networks:
   default:
-  web:
-    external: true
