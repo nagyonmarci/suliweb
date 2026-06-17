@@ -25,7 +25,7 @@ services:
         limits:
           memory: 128M
           cpus: "0.50"
-    pids_limit: 100
+          pids: 100
 
   suliweb-backend:
     container_name: suliweb-backend
@@ -92,8 +92,8 @@ services:
         limits:
           memory: 2048M
           cpus: "2.00"
-    # Virtual threads use carrier threads (~= CPU count), not one thread per task
-    pids_limit: 1024
+          # Virtual threads use carrier threads (~= CPU count), not one thread per task
+          pids: 1024
 
   suliweb-mongo:
     image: mongodb/mongodb-atlas-local:8.0
@@ -117,7 +117,7 @@ services:
         limits:
           memory: 1024M
           cpus: "1.00"
-    pids_limit: 512
+          pids: 512
 
   suliweb-elasticsearch:
     image: elasticsearch:9.4.2
@@ -146,7 +146,7 @@ services:
           # 1 GB headroom above the -Xmx6g JVM heap
           memory: 7168M
           cpus: "2.00"
-    pids_limit: 4096
+          pids: 4096
 
   suliweb-neo4j:
     image: neo4j:5.26-community
@@ -175,7 +175,7 @@ services:
           # 1 GB headroom above the 2G JVM heap
           memory: 3072M
           cpus: "2.00"
-    pids_limit: 512
+          pids: 512
 
   python-processor:
     build: ./python-processor
@@ -200,7 +200,7 @@ services:
         limits:
           memory: 512M
           cpus: "1.00"
-    pids_limit: 256
+          pids: 256
 
   mcp-neo4j-cypher:
     # ponytail: pin to a specific tag/SHA once the upstream publishes versioned releases
@@ -226,7 +226,7 @@ services:
         limits:
           memory: 256M
           cpus: "0.50"
-    pids_limit: 100
+          pids: 100
 
 volumes:
   mongodb_data:
