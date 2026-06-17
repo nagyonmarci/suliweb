@@ -6,10 +6,14 @@ import hu.fmdev.backend.domain.graph.EmailNode;
 import hu.fmdev.backend.domain.graph.PersonNode;
 import hu.fmdev.backend.repository.AttachmentRepository;
 import hu.fmdev.backend.repository.EmailRepository;
+import hu.fmdev.backend.repository.graph.ClaimNodeRepository;
 import hu.fmdev.backend.repository.graph.ConceptNodeRepository;
 import hu.fmdev.backend.repository.graph.EmailNodeRepository;
+import hu.fmdev.backend.repository.graph.EvidenceNodeRepository;
+import hu.fmdev.backend.repository.graph.MechanismNodeRepository;
 import hu.fmdev.backend.repository.graph.PersonNodeRepository;
 import hu.fmdev.backend.repository.graph.ThreadNodeRepository;
+import hu.fmdev.backend.service.rag.K1ExtractionOutput;
 import hu.fmdev.backend.service.rag.NerExtractor;
 import hu.fmdev.backend.service.rag.TextExtractionService;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +49,9 @@ class KnowledgeGraphIngestionServiceTest {
     @Mock private EmailNodeRepository emailNodeRepo;
     @Mock private ThreadNodeRepository threadRepo;
     @Mock private ConceptNodeRepository conceptRepo;
+    @Mock private ClaimNodeRepository claimRepo;
+    @Mock private EvidenceNodeRepository evidenceRepo;
+    @Mock private MechanismNodeRepository mechanismRepo;
     @Mock private NerExtractor entityExtraction;
     @Mock private TextExtractionService textExtraction;
     @Mock private ProgressTracker progressTracker;
@@ -62,8 +69,8 @@ class KnowledgeGraphIngestionServiceTest {
         when(emailNodeRepo.save(any(EmailNode.class))).thenAnswer(inv -> inv.getArgument(0));
 
         service = new KnowledgeGraphIngestionService(emailRepository, attachmentRepository, personRepo,
-                emailNodeRepo, threadRepo, conceptRepo, entityExtraction, textExtraction,
-                progressTracker, appSettingsService);
+                emailNodeRepo, threadRepo, conceptRepo, claimRepo, evidenceRepo, mechanismRepo,
+                entityExtraction, textExtraction, progressTracker, appSettingsService);
     }
 
     private Email email(String id, String messageId, String senderEmail) {
@@ -92,8 +99,10 @@ class KnowledgeGraphIngestionServiceTest {
         Email e = email("e1", "<msg1@x.com>", "sender@x.com");
         mockSinglePage(List.of(e));
         when(emailNodeRepo.existsByMessageId(anyString())).thenReturn(false);
-        when(entityExtraction.extract(anyString()))
-                .thenReturn(List.of(new NerExtractor.ExtractedEntity("Acme", "ORG")));
+        when(entityExtraction.extractK1(anyString()))
+                .thenReturn(new K1ExtractionOutput(
+                        List.of(new NerExtractor.ExtractedEntity("Acme", "ORG")),
+                        List.of(), List.of(), List.of(), List.of()));
         when(personRepo.findByEmail(any())).thenReturn(Optional.empty());
         when(conceptRepo.findByNameIgnoreCase(any())).thenReturn(Optional.empty());
 
@@ -125,7 +134,7 @@ class KnowledgeGraphIngestionServiceTest {
         Email e = email("e1", "<msg1@x.com>", "sender@x.com");
         mockSinglePage(List.of(e));
         when(emailNodeRepo.existsByMessageId(anyString())).thenReturn(false);
-        when(entityExtraction.extract(anyString())).thenReturn(List.of());
+        when(entityExtraction.extractK1(anyString())).thenReturn(K1ExtractionOutput.empty());
         when(personRepo.findByEmail(any())).thenThrow(new RuntimeException("Neo4j write failed"));
 
         service.ingestAll();
@@ -141,8 +150,8 @@ class KnowledgeGraphIngestionServiceTest {
         mockSinglePage(List.of(e1, e2));
         when(emailNodeRepo.existsByMessageId(anyString())).thenReturn(false);
         when(personRepo.findByEmail(any())).thenReturn(Optional.empty());
-        when(entityExtraction.extract("Body of e1")).thenThrow(new RuntimeException("Ollama down"));
-        when(entityExtraction.extract("Body of e2")).thenReturn(List.of());
+        when(entityExtraction.extractK1("Body of e1")).thenThrow(new RuntimeException("Ollama down"));
+        when(entityExtraction.extractK1("Body of e2")).thenReturn(K1ExtractionOutput.empty());
 
         service.ingestAll();
 
@@ -158,9 +167,9 @@ class KnowledgeGraphIngestionServiceTest {
         mockSinglePage(List.of(email("e1", "<m1@x.com>", "a@x.com")));
         when(emailNodeRepo.existsByMessageId(anyString())).thenReturn(false);
         when(personRepo.findByEmail(any())).thenReturn(Optional.empty());
-        when(entityExtraction.extract(any())).thenAnswer(inv -> {
+        when(entityExtraction.extractK1(any())).thenAnswer(inv -> {
             Thread.sleep(200);
-            return List.of();
+            return K1ExtractionOutput.empty();
         });
 
         Thread first = new Thread(service::ingestAll);
@@ -191,8 +200,10 @@ class KnowledgeGraphIngestionServiceTest {
         Email e = email("e1", "<msg1@x.com>", "sender@x.com");
         mockSinglePage(List.of(e));
         when(emailNodeRepo.existsByMessageId(anyString())).thenReturn(true);
-        when(entityExtraction.extract(anyString()))
-                .thenReturn(List.of(new NerExtractor.ExtractedEntity("Budget Q3", "TOPIC")));
+        when(entityExtraction.extractK1(anyString()))
+                .thenReturn(new K1ExtractionOutput(
+                        List.of(new NerExtractor.ExtractedEntity("Budget Q3", "TOPIC")),
+                        List.of(), List.of(), List.of(), List.of()));
 
         service.ingestConceptsOnly();
 
@@ -206,7 +217,7 @@ class KnowledgeGraphIngestionServiceTest {
         Email e = email("e1", "<msg1@x.com>", "sender@x.com");
         mockSinglePage(List.of(e));
         when(emailNodeRepo.existsByMessageId(anyString())).thenReturn(true);
-        when(entityExtraction.extract(anyString())).thenReturn(List.of());
+        when(entityExtraction.extractK1(anyString())).thenReturn(K1ExtractionOutput.empty());
 
         service.ingestConceptsOnly();
 
