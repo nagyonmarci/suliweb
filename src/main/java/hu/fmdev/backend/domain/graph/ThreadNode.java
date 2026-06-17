@@ -18,4 +18,7 @@ public class ThreadNode {
 
     @Property("lastActivity")
     private String lastActivity;
+
+    @Relationship(type = "EXTENDS", direction = Relationship.Direction.OUTGOING)
+    private java.util.List<MethodLineageNode> methodLineages;
 }
