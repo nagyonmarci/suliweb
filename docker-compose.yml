@@ -11,6 +11,21 @@ services:
     depends_on:
       suliweb-backend:
         condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+      - /var/cache/nginx:mode=0755,size=64m
+      - /var/run:mode=0755,size=8m
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.50"
+    pids_limit: 100
 
   suliweb-backend:
     container_name: suliweb-backend
@@ -64,6 +79,21 @@ services:
       timeout: 10s
       retries: 5
       start_period: 40s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      # Spring Boot fat-jar extraction + JVM JIT + Tika temp files
+      - /tmp:mode=1777,size=512m
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
+          cpus: "2.00"
+    # Virtual threads use carrier threads (~= CPU count), not one thread per task
+    pids_limit: 1024
 
   suliweb-mongo:
     image: mongodb/mongodb-atlas-local:8.0
@@ -78,6 +108,16 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+          cpus: "1.00"
+    pids_limit: 512
 
   suliweb-elasticsearch:
     image: elasticsearch:9.4.2
@@ -96,6 +136,17 @@ services:
       timeout: 10s
       retries: 10
       start_period: 60s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          # 1 GB headroom above the -Xmx6g JVM heap
+          memory: 7168M
+          cpus: "2.00"
+    pids_limit: 4096
 
   suliweb-neo4j:
     image: neo4j:5.26-community
@@ -114,6 +165,17 @@ services:
       timeout: 10s
       retries: 10
       start_period: 60s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          # 1 GB headroom above the 2G JVM heap
+          memory: 3072M
+          cpus: "2.00"
+    pids_limit: 512
 
   python-processor:
     build: ./python-processor
@@ -125,8 +187,23 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      # markitdown writes temp files during conversion
+      - /tmp:mode=1777,size=512m
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.00"
+    pids_limit: 256
 
   mcp-neo4j-cypher:
+    # ponytail: pin to a specific tag/SHA once the upstream publishes versioned releases
     image: ghcr.io/neo4j-contrib/mcp-neo4j-cypher:latest
     container_name: suliweb-mcp-neo4j-cypher
     restart: unless-stopped
@@ -137,6 +214,19 @@ services:
     depends_on:
       suliweb-neo4j:
         condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.50"
+    pids_limit: 100
 
 volumes:
   mongodb_data:
