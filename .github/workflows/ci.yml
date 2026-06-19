@@ -42,7 +42,7 @@ jobs:
           JWT_SECRET: ci-test-secret-not-real-placeholder-for-testing-only
 
       - name: Upload JaCoCo report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: jacoco-report
@@ -78,7 +78,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: sbom
@@ -116,7 +116,7 @@ jobs:
         run: npm run build
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-dist
           path: frontend/dist/
@@ -189,7 +189,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload SpotBugs report artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: spotbugs-report
@@ -229,7 +229,7 @@ jobs:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
       - name: Upload OWASP report artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: owasp-dependency-check-report
@@ -255,7 +255,7 @@ jobs:
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
 
       - name: Upload Gitleaks report artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: gitleaks-report
@@ -339,7 +339,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload Trivy reports artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: trivy-reports
@@ -399,7 +399,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload Hadolint reports artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: hadolint-reports
