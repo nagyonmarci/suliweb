@@ -14,7 +14,7 @@ RUN --mount=type=cache,target=/root/.m2 \
 COPY src/main/docker/HealthCheck.java /app/HealthCheck.java
 RUN javac /app/HealthCheck.java -d /app
 
-FROM cgr.dev/chainguard/jre:latest@sha256:aec912a20efff9133df2abd4c29f7ad57644db8c1a07a2fccc967967a0926784 AS runtime
+FROM cgr.dev/chainguard/jre:latest@sha256:6dea879333f679e7865ebfc49760a85ccc12f6625da87fd591f04a35bba11117 AS runtime
 WORKDIR /app
 COPY --chown=65532:65532 --from=build /app/target/*.jar app.jar
 COPY --chown=65532:65532 --from=build /app/HealthCheck.class /app/
