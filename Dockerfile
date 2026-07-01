@@ -1,5 +1,5 @@
 # Backend Dockerfile - Spring Boot
-FROM maven:3.9-eclipse-temurin-25 AS build
+FROM maven:3-eclipse-temurin-26 AS build
 WORKDIR /app
 # Copy pom.xml first — dependency layer is cached as long as pom.xml doesn't change
 COPY pom.xml .
